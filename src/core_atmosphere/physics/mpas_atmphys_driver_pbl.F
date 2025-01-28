@@ -94,7 +94,7 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
-
+! TODO: Where does the tendencies variable (rublten_p, rvblten_p, ...) comes from?
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
  if(.not.allocated(hfx_p)  ) allocate(hfx_p(ims:ime,jms:jme)  )
@@ -184,6 +184,8 @@
 
        !allocation of additional arrays:
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
+
+    case("bl_shocmf")
 
     case default
 
@@ -360,9 +362,10 @@
     ust_p(i,j)   = ust(i)
     wspd_p(i,j)  = wspd(i)
     xland_p(i,j) = xland(i)
+    ! TODO: what is this kpbl variable?
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
-    !... ocean currents are set to zero:
+    !... ocean currents are set to zero: ! TODO: why?
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
