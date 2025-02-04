@@ -22,12 +22,12 @@ module edmf
 !  public :: mf_readnl, mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
   
   ! TODO: Pôr os valores das variáveis aqui. Tirar a leitura do namelist
-  real(rtype) :: mf_L0   = 0._rtype    ! Default in namelist_defaults_cam.xml: 50 m
-  real(rtype) :: mf_ent0 = 0._rtype    ! Default in namelist_defaults_cam.xml: 0.2
-  integer     :: mf_nup  = 0           ! Default in namelist_defaults_cam.xml: 10 plumes
-  real(rtype) :: mf_a = 0._rtype       ! Default in namelist_defaults_cam.xml: 1
-  real(rtype) :: mf_b = 0._rtype       ! Default in namelist_defaults_cam.xml: 0.5
-  real(rtype) :: mf_c = 0._rtype       ! Default in namelist_defaults_cam.xml: 0.5
+  real(rtype) :: mf_L0   = 50.0_rtype    ! Default in namelist_defaults_cam.xml: 50 m
+  real(rtype) :: mf_ent0 = 0.22_rtype    ! Default in namelist_defaults_cam.xml: 0.2
+  integer     :: mf_nup  = 10           ! Default in namelist_defaults_cam.xml: 10 plumes
+  real(rtype) :: mf_a = 1._rtype       ! Default in namelist_defaults_cam.xml: 1
+  real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
+  real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
   logical, protected :: do_edmf         = .false.
   logical, protected :: do_condensation = .false.
