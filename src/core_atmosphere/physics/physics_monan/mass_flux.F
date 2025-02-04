@@ -29,10 +29,10 @@ module edmf
   real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
   real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
-  logical, protected :: do_edmf         = .false.
-  logical, protected :: do_condensation = .false.
-  logical, protected :: do_mf_diag      = .false.
-  logical, protected :: do_wthv_mf      = .false.
+  logical, protected :: do_edmf         = .true. ! TODO: Set all to true? They are responsible to add the MF contribution to diffusion solver
+  logical, protected :: do_condensation = .true.
+  logical, protected :: do_mf_diag      = .true.
+  logical, protected :: do_wthv_mf      = .true.
 
 
 contains
