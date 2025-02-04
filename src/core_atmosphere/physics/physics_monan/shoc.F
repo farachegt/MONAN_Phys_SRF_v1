@@ -9,23 +9,24 @@
 
 ! TODO: Get equivalent in MONAN project or bring this file to this repository.
 ! Include bit-for-bit math macros.
-#include "bfb_math.inc"
+! #include "bfb_math.inc"
 
 module shoc
   
-  use shr_kind_mod,  only: r8=>shr_kind_r8 
-  use physics_utils,     only: rtype, rtype8, itype, btype
-  use scream_abortutils, only: endscreamrun
-  use spmd_utils,        only: masterproc
+  use mpas_kind_types, only: rtype=>RKIND
+!  use shr_kind_mod,  only: r8=>shr_kind_r8 
+!  use physics_utils,     only: rtype, rtype8, itype, btype
+!  use scream_abortutils, only: endscreamrun
+!  use spmd_utils,        only: masterproc
   use edmf,              only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
                                do_edmf, do_condensation, do_mf_diag, do_wthv_mf, mf_nup
 
 ! Bit-for-bit math functions.
 ! TODO: Check this definition
-#ifdef SCREAM_CONFIG_IS_CMAKE
-  use physics_share_f2c, only: cxx_pow, cxx_sqrt, cxx_cbrt, cxx_gamma, cxx_log, &
-                               cxx_log10, cxx_exp, cxx_erf
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!   use physics_share_f2c, only: cxx_pow, cxx_sqrt, cxx_cbrt, cxx_gamma, cxx_log, &
+!                                cxx_log10, cxx_exp, cxx_erf
+! #endif
 
 implicit none
 save ! for module variables
@@ -87,7 +88,7 @@ real(rtype) :: length_fac = 0.5_rtype ! Length scale factor
 
 ! Allow temperature skewness to be independent of moisture
 !  variance
-logical(btype), parameter :: dothetal_skew = .false.
+logical, parameter :: dothetal_skew = .false.
 
 ! ========
 ! Below define some parameters for SHOC
@@ -812,9 +813,9 @@ subroutine compute_shoc_vapor( &
   !   based on SHOC's prognostic total water mixing ratio
   !   and diagnostic cloud water mixing ratio.
 
-#ifdef SCREAM_CONFIG_IS_CMAKE
-  use shoc_iso_f, only: compute_shoc_vapor_f
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!   use shoc_iso_f, only: compute_shoc_vapor_f
+! #endif
 
   implicit none
 
@@ -835,12 +836,12 @@ subroutine compute_shoc_vapor( &
 ! LOCAL VARIABLES
   integer :: i, k
 
-#ifdef SCREAM_CONFIG_IS_CMAKE
-  if (use_cxx) then
-    call compute_shoc_vapor_f(shcol,nlev,qw,ql,qv)
-     return
-  endif
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!   if (use_cxx) then
+!     call compute_shoc_vapor_f(shcol,nlev,qw,ql,qv)
+!      return
+!   endif
+! #endif
 
   do k = 1, nlev
     do i = 1, shcol
@@ -1371,9 +1372,9 @@ subroutine diag_second_moments_srf(&
   !  properties needed for the the lower
   !  boundary condition for the second order moments needed
   !  for the SHOC parameterization.
-#ifdef SCREAM_CONFIG_IS_CMAKE
-    use shoc_iso_f, only: shoc_diag_second_moments_srf_f
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!     use shoc_iso_f, only: shoc_diag_second_moments_srf_f
+! #endif
 
   implicit none
 
@@ -1400,13 +1401,13 @@ subroutine diag_second_moments_srf(&
   ! Constants to parameterize surface variances
   real(rtype), parameter :: z_const = 1.0_rtype
 
-#ifdef SCREAM_CONFIG_IS_CMAKE
-   if (use_cxx) then
-      call shoc_diag_second_moments_srf_f(shcol,wthl_sfc, uw_sfc, vw_sfc, &            ! Input
-            ustar2,wstar)                          ! Output
-      return
-   endif
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!    if (use_cxx) then
+!       call shoc_diag_second_moments_srf_f(shcol,wthl_sfc, uw_sfc, vw_sfc, &            ! Input
+!             ustar2,wstar)                          ! Output
+!       return
+!    endif
+! #endif
 
   ! apply the surface conditions to diagnose turbulent
   !  moments at the surface
@@ -1436,9 +1437,9 @@ subroutine diag_second_moments_lbycond(&
          thl_sec, qw_sec, qwthl_sec,&                 ! Output
          wthl_sec_ed, wqw_sec_ed)                     ! Output
 
-#ifdef SCREAM_CONFIG_IS_CMAKE
-    use shoc_iso_f, only: diag_second_moments_lbycond_f
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!     use shoc_iso_f, only: diag_second_moments_lbycond_f
+! #endif
 
   ! Purpose of this subroutine is to diagnose the lower
   !  boundary condition for the second order moments needed
@@ -1495,18 +1496,18 @@ subroutine diag_second_moments_lbycond(&
   real(rtype), parameter :: a_const = 1.8_rtype
   real(rtype), parameter :: ufmin = 0.01_rtype
 
-#ifdef SCREAM_CONFIG_IS_CMAKE
-   if (use_cxx) then
-      call diag_second_moments_lbycond_f(     &
-                shcol,           &                           ! Input
-                wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &         ! Input
-                ustar2,wstar,            &                   ! Input
-                wthl_sec,wqw_sec,&                           ! Output
-                uw_sec, vw_sec, wtke_sec,&                   ! Output
-                thl_sec,qw_sec,qwthl_sec)                    ! Output
-      return
-   endif
-#endif
+! #ifdef SCREAM_CONFIG_IS_CMAKE
+!    if (use_cxx) then
+!       call diag_second_moments_lbycond_f(     &
+!                 shcol,           &                           ! Input
+!                 wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &         ! Input
+!                 ustar2,wstar,            &                   ! Input
+!                 wthl_sec,wqw_sec,&                           ! Output
+!                 uw_sec, vw_sec, wtke_sec,&                   ! Output
+!                 thl_sec,qw_sec,qwthl_sec)                    ! Output
+!       return
+!    endif
+! #endif
 
   ! apply the surface conditions to diagnose turbulent
   !  moments at the surface
@@ -2638,12 +2639,12 @@ subroutine shoc_assumed_pdf(&
       ! Check to ensure Tl1_1 and Tl1_2 are not negative. endrun otherwise
       if (Tl1_1 .le. 0._rtype) then
          write(err_msg,*)'ERROR: Tl1_1 is .le. 0 before shoc_assumed_pdf_compute_qs in shoc. Tl1_1 is:',Tl1_1
-         call endscreamrun(err_msg)
+        !  call endscreamrun(err_msg)
       endif
 
       if (Tl1_2 .le. 0._rtype) then
          write(err_msg,*)'ERROR: Tl1_2 is .le. 0 before shoc_assumed_pdf_compute_qs in shoc. Tl1_2 is:',Tl1_2
-         call endscreamrun(err_msg)
+        !  call endscreamrun(err_msg)
       endif
 
       ! Now compute qs
@@ -2784,7 +2785,7 @@ subroutine shoc_assumed_pdf_thl_parameters(&
   real(rtype), intent(in) :: w1_2
   real(rtype), intent(in) :: Skew_w
   real(rtype), intent(in) ::  a
-  logical(btype), intent(in)  :: dothetal_skew
+  logical, intent(in)  :: dothetal_skew
 
   ! intent-outs
   real(rtype), intent(out) :: thl1_1
