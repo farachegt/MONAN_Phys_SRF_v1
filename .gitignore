@@ -1,6 +1,18 @@
 # Prerequisites
 *.d
 
+# DBL and TBL files
+*.DBL
+*.TBL
+RRTMG_LW_DATA
+RRTMG_SW_DATA
+
+# Bashs
+*.sh
+
+# Tar
+*.tar
+
 # Compiled Object files
 *.slo
 *.lo

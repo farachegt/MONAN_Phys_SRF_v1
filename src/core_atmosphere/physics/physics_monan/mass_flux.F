@@ -4,10 +4,13 @@ module edmf
 !  use physics_utils, only: rtype, rtype8, itype
 
   ! TODO: VER CONSTANTES NO mpas_atmphys_constants.F
-  use mpas_atmphys_constants, only: rgas => xxx, cp => xxx, ggr => xxx, &
-                              lcond => xxx, lice => xxx, eps => xxx
-  ! use physconst,     only: rgas => rair, cp => cpair, ggr => gravit, &
-  !                          lcond => latvap, lice => latice, eps => zvir
+  use mpas_atmphys_constants, only: lcond => xlv, & ! Latent heat of vaporization (J/kg) 
+                                    lice => xlf, & ! Latent heat of fusion (J/kg) 
+                                    eps => ep_1 ! (rh2o/rair) - 1 
+                                    
+  use mpas_constants, only: ggr => gravity, & ! gravitational acceleration (m/s**2)
+                            rgas, & ! Dry air gas constant ~ J/K/kg
+                            cp, & ! specific heat of dry air (J/K/kg)
 !  use spmd_utils,    only: masterproc ! TODO: discover where to get master process in MONAN project
 
   implicit none
