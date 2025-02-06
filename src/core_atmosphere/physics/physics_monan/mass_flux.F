@@ -9,8 +9,8 @@ module edmf
                                     eps => ep_1 ! (rh2o/rair) - 1 
                                     
   use mpas_constants, only: ggr => gravity, & ! gravitational acceleration (m/s**2)
-                            rgas, & ! Dry air gas constant ~ J/K/kg
-                            cp, & ! specific heat of dry air (J/K/kg)
+                            rgas, &           ! Dry air gas constant ~ J/K/kg
+                            cp                ! specific heat of dry air (J/K/kg)
 !  use spmd_utils,    only: masterproc ! TODO: discover where to get master process in MONAN project
 
   implicit none
@@ -94,28 +94,6 @@ contains
 !     end if
     
 !   end subroutine mf_readnl
-
-  logical function is_first_step()
-    use ESMF_BaseMod
-  ! Return true on first step of initial run only.
-
-  ! Local variables
-    character(len=*), parameter :: sub = 'is_first_step'
-    integer :: rc
-    integer :: nstep
-    integer(ESMF_KIND_I8) :: step_no
-  !-----------------------------------------------------------------------------------------
-
-    call ESMF_ClockGet( tm_clock, advanceCount=step_no, rc=rc )
-    if (rc /= ESMF_SUCCESS) then
-      print *, 'Error return from ESMF_ClockGet'
-      stop
-    end if
-    nstep = step_no
-    is_first_step = (nstep == 0)
-
-  end function is_first_step
-
 
   subroutine integrate_mf(shcol, nz, nzi, dt,                      & ! input
                  rho_zt_in, rho_zi_in,                             & ! input
@@ -825,7 +803,7 @@ contains
   !
   ! zero or one condensation for edmf: calculates thv and qc
   !
-       use wv_saturation,      only : qsat
+     !!!!!  use wv_saturation,      only : qsat
 
        real(rtype),intent(in) :: qt,thl,p,iex
        real(rtype),intent(out):: thv,qc,th,ql,qi
@@ -854,7 +832,9 @@ contains
          t = thl/iex+get_alhl(wf)/cp*qc   !as in (4)
 
          ! qsat, p is in pascal (check!)
-         call qsat(t,p,es,qs)
+         !--- call qsat(t,p,es,qs)
+         qs=satur_spec_hum(t,p)
+         
          qcold = qc
          qc = max(0.5_rtype*qc+0.5_rtype*(qt-qs),0._rtype)
          if (abs(qc-qcold)<diff) exit
@@ -864,7 +844,9 @@ contains
        t = thl/iex+get_alhl(wf)/cp*qc
 
 
-       call qsat(t,p,es,qs)
+      !--- call qsat(t,p,es,qs)
+       qs=satur_spec_hum(t,p)
+      !----
        qc = max(qt-qs,0._rtype)
        thv = (thl+get_alhl(wf)/cp*iex*qc)*(1.+eps*(qt-qc)-qc)
        th = t*iex
@@ -1106,6 +1088,67 @@ contains
       gammln_s=tmp+log(stp*(1.000000000190015_rtype8+&
       sum(coef(:)/arth_d(x+1.0_rtype8,1.0_rtype8,size(coef))))/x)
     END FUNCTION gammln_s
+    
+    !---------------------------------------------------------------------------------------------------
+    real function satur_spec_hum(pt,press) result(qs)
+         implicit none
+         real, parameter :: p_max_qsat = 0.5
+         real, intent(in ) :: pt,press ! Kelvin, hPa
+         !---locals
+         real :: zew,zqs,zcor,foealfcu,foeewmcu
+         real, parameter ::           &
+             c_rd=287.06              &
+            ,c_rv=461.52              &
+            ,c_rtt=273.16             &
+            ,c_retv=c_rv/c_rd-1.0     &
+            ,c_r2es=611.21*c_rd/c_rv  &
+            ,c_r3les=17.502           &
+            ,c_r3ies=22.587           &
+            ,c_r4les=32.19            &
+            ,c_r4ies=-0.7             &
+            ,c_rtwat=c_rtt            &
+            ,c_rtice=c_rtt-23.        &
+            ,c_rticecu=c_rtt-23.      &
+            ,c_rtwat_rtice_r=1./(c_rtwat-c_rtice)   &
+            ,c_rtwat_rticecu_r=1./(c_rtwat-c_rticecu)
+
+         foealfcu = min(1.0,((max(c_rticecu,min(c_rtwat,pt))-c_rticecu)*c_rtwat_rticecu_r)**2)
+         foeewmcu = c_r2es *(    foealfcu *exp(c_r3les*(pt-c_rtt)/(pt-c_r4les))+ &
+                            (1.0-foealfcu)*exp(c_r3ies*(pt-c_rtt)/(pt-c_r4ies)))
+
+         zew  = foeewmcu
+         zqs  = zew/(100.*press)
+         if(1.0-c_retv*zqs > 0. )then
+            zcor = 1.0/(1.0-c_retv*zqs)  ! divide by zero
+            qs= zqs*zcor
+         else
+            qs= p_max_qsat
+         endif
+
+      end function satur_spec_hum
+
+      ! TODO: Check with Saulo if this routine is correct with MONAN structures
+      logical function is_first_step()
+        use ESMF
+        ! Return true on first step of initial run only.
+
+        ! Local variables
+        character(len=*), parameter :: sub = 'is_first_step'
+        integer :: rc
+        integer :: nstep
+        integer(ESMF_KIND_I8) :: step_no
+        !-----------------------------------------------------------------------------------------
+
+        ! TODO: IT IS NECESSARY TO GET THE REAL STEP_NO
+        ! call ESMF_ClockGet( tm_clock, advanceCount=step_no, rc=rc )
+        if (rc /= ESMF_SUCCESS) then
+          print *, 'Error return from ESMF_ClockGet'
+          stop
+        end if
+        nstep = 0
+        is_first_step = (nstep == 0)
+    end function is_first_step
+
 
 
 end module edmf
