@@ -94,7 +94,29 @@ contains
 !     end if
     
 !   end subroutine mf_readnl
-  
+
+  logical function is_first_step()
+    use ESMF_BaseMod
+  ! Return true on first step of initial run only.
+
+  ! Local variables
+    character(len=*), parameter :: sub = 'is_first_step'
+    integer :: rc
+    integer :: nstep
+    integer(ESMF_KIND_I8) :: step_no
+  !-----------------------------------------------------------------------------------------
+
+    call ESMF_ClockGet( tm_clock, advanceCount=step_no, rc=rc )
+    if (rc /= ESMF_SUCCESS) then
+      print *, 'Error return from ESMF_ClockGet'
+      stop
+    end if
+    nstep = step_no
+    is_first_step = (nstep == 0)
+
+  end function is_first_step
+
+
   subroutine integrate_mf(shcol, nz, nzi, dt,                      & ! input
                  rho_zt_in, rho_zi_in,                             & ! input
                  zt_in, zi_in, dz_zt_in, p_in, thv_zi_in,          & ! input
@@ -946,7 +968,6 @@ contains
   end subroutine compute_tmpi3
 
     subroutine Poisson(nz,nup,mu,POI,seed)
-      use time_manager, only: is_first_step
       implicit none
       integer, intent(in) :: nz,nup
       real(rtype),dimension(nz,nup),intent(in) :: MU
