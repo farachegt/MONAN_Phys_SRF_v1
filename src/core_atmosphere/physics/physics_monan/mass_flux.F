@@ -3,7 +3,6 @@ module edmf
   use mpas_kind_types, only: rtype=>RKIND, rtype8=>R8KIND
 !  use physics_utils, only: rtype, rtype8, itype
 
-  ! TODO: VER CONSTANTES NO mpas_atmphys_constants.F
   use mpas_atmphys_constants, only: lcond => xlv, & ! Latent heat of vaporization (J/kg) 
                                     lice => xlf, & ! Latent heat of fusion (J/kg) 
                                     eps => ep_1 ! (rh2o/rair) - 1 
@@ -11,17 +10,16 @@ module edmf
   use mpas_constants, only: ggr => gravity, & ! gravitational acceleration (m/s**2)
                             rgas, &           ! Dry air gas constant ~ J/K/kg
                             cp                ! specific heat of dry air (J/K/kg)
-!  use spmd_utils,    only: masterproc ! TODO: discover where to get master process in MONAN project
+!  use spmd_utils,    only: masterproc ! TODO (G): discover where to get master process in MONAN project
 
   implicit none
   
   private
   
-  public :: integrate_mf, calc_mf_vertflux, compute_tmpi3
+  public :: integrate_mf, calc_mf_vertflux, compute_tmpi3, dummy_method
   public :: mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
 !  public :: mf_readnl, mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
   
-  ! TODO: Pôr os valores das variáveis aqui. Tirar a leitura do namelist
   real(rtype) :: mf_L0   = 50.0_rtype    ! Default in namelist_defaults_cam.xml: 50 m
   real(rtype) :: mf_ent0 = 0.22_rtype    ! Default in namelist_defaults_cam.xml: 0.2
   integer     :: mf_nup  = 10           ! Default in namelist_defaults_cam.xml: 10 plumes
@@ -29,7 +27,7 @@ module edmf
   real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
   real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
-  logical, protected :: do_edmf         = .true. ! TODO: Set all to true? They are responsible to add the MF contribution to diffusion solver
+  logical, protected :: do_edmf         = .true. ! TODO (G): Set all to true? They are responsible to add the MF contribution to diffusion solver
   logical, protected :: do_condensation = .true.
   logical, protected :: do_mf_diag      = .true.
   logical, protected :: do_wthv_mf      = .true.
@@ -46,9 +44,9 @@ contains
 !   ! =============================================================================== !
 !   ! MF namelists                                                                    !
 !   ! =============================================================================== !
-!     ! use namelist_utils,  only: find_group_name ! TODO: Implement find_group_name in MONAN project if necessary to read namelists.
-!     ! use cam_abortutils,  only: endrun ! TODO: Discover where to get endrun in MONAN project
-!     ! TODO: Get similar to mpiint, mpii8, ... in MONAN project
+!     ! use namelist_utils,  only: find_group_name ! TODO (G): Implement find_group_name in MONAN project if necessary to read namelists.
+!     ! use cam_abortutils,  only: endrun ! TODO (G): Discover where to get endrun in MONAN project
+!     ! TODO (G): Get similar to mpiint, mpii8, ... in MONAN project
 !     ! use mpishorthand  ! in spmd_utils.F90: mpiint, mpii8, mpichar, mpilog, mpipk, mpic16, mpir8, mpir4, mpicom, mpimax 
     
 !     character(len=*), intent(in) :: nlfile  ! filepath for file containing namelist input
@@ -58,7 +56,7 @@ contains
 !     namelist /shoc_mf_nl/ mf_L0, mf_ent0, mf_nup, mf_a, mf_b, mf_c, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
 
 !     !  Read namelist to determine if SHOC history should be called
-!     if (masterproc) then ! TODO: voltar
+!     if (masterproc) then ! TODO (G): voltar
 !       iunit = getunit()
 !       open( newunit=iunit, file=trim(nlfile), status='old' )
 
@@ -87,7 +85,7 @@ contains
 !       call mpibcast(do_condensation,  1,   mpilog,   0, mpicom)  
 !       call mpibcast(do_mf_diag,       1,   mpilog,   0, mpicom)  
 !       call mpibcast(do_wthv_mf,       1,   mpilog,   0, mpicom)  
-! #endif ! TODO: voltar
+! #endif ! TODO (G): voltar
 
 !     if ((.not. do_edmf) .and. do_mf_diag ) then
 !       call endrun('shoc_mf_nl: Error - cannot turn on do_mf_diag without also turning on do_edmf')
@@ -251,8 +249,8 @@ contains
                               pblhmin  = 100._rtype
                               
     ! fixed entrainment rate (to debug only)
-    ! TODO: Check if this parameter is necessary. It says "to debug only" but variable
-    ! TODO: ent_oneplume is assigned with this value.
+    ! TODO (G): Check if this parameter is necessary. It says "to debug only" but variable
+    ! TODO (G): ent_oneplume is assigned with this value.
      real(rtype),parameter :: fixent = 1.e-3_rtype
      
      logical ::check
@@ -329,7 +327,7 @@ contains
      ! START MAIN COMPUTATION
      ! NOTE: SHOC does not invert the vertical coordinate, which by default is ordered from lowest to highest pressure
      ! (i.e. top of atmosphere to bottom) so surface-based do loops are performed in reverse (i.e. from nz to 1)
-     ! TODO: Check if it alligns with MONAN structures.
+     ! TODO (G): Check if it alligns with MONAN structures.
      do j=1,shcol
        ! zero out plume properties
        upw   = 0._rtype
@@ -761,7 +759,7 @@ contains
                              thvn, qcn, thn, qln, qin)
       else
         thvn = thln*(1._rtype+eps*qtn)
-        ! TODO: Check with Chinita this thn variable?
+        ! TODO (G): Check with Chinita this thn variable?
         thn = thln                       ! THIS NEEEDS TO BE FIXED!! CALCULATED CORRECTLY
         qcn = 0._rtype
         qin = 0._rtype
@@ -1127,7 +1125,6 @@ contains
 
       end function satur_spec_hum
 
-      ! TODO: Check with Saulo if this routine is correct with MONAN structures
       logical function is_first_step()
         use ESMF
         ! Return true on first step of initial run only.
@@ -1139,12 +1136,13 @@ contains
         integer(ESMF_KIND_I8) :: step_no
         !-----------------------------------------------------------------------------------------
 
-        ! TODO: IT IS NECESSARY TO GET THE REAL STEP_NO
+        ! TODO (G): IT IS NECESSARY TO GET THE REAL STEP_NO
         ! call ESMF_ClockGet( tm_clock, advanceCount=step_no, rc=rc )
         if (rc /= ESMF_SUCCESS) then
           print *, 'Error return from ESMF_ClockGet'
           stop
         end if
+        ! nstep = step_no
         nstep = 0
         is_first_step = (nstep == 0)
     end function is_first_step

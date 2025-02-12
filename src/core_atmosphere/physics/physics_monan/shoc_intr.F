@@ -94,10 +94,10 @@ module shoc_intr
 
   real(r8), parameter :: unset_r8 = huge(1.0_r8)
 
-  real(r8) :: shoc_timestep = unset_r8  ! Default SHOC timestep set in namelist
+  real(r8) :: shoc_timestep = 150.0  ! Default SHOC timestep set in namelist ! TODO: SETAR VALOR
   real(r8) :: dp1
   
-  real(r8) :: shoc_length_fac = unset_r8
+  real(r8) :: shoc_length_fac = 0.5
   
   integer :: edsclr_dim
 
@@ -118,8 +118,6 @@ module shoc_intr
   ! =============================================================================== !
 
   subroutine shoc_register_e3sm()
-
-#ifdef SHOC_SGS
     ! Add SHOC fields to pbuf
     use physics_buffer,  only: pbuf_add_field, dtype_r8, dyn_time_lvls
     use ppgrid,          only: pver, pverp, pcols
@@ -159,93 +157,91 @@ module shoc_intr
 
     call pbuf_add_field('vmag_gust',  'global', dtype_r8, (/pcols/),      vmag_gust_idx)
 
-#endif
-
   end subroutine shoc_register_e3sm
   ! =============================================================================== !
   !                                                                                 !
   ! =============================================================================== !
 
-function shoc_implements_cnst(name)
+! function shoc_implements_cnst(name)
 
-  !--------------------------------------------------------------------
-  ! Return true if specified constituent is implemented by this package
-  !--------------------------------------------------------------------
+!   !--------------------------------------------------------------------
+!   ! Return true if specified constituent is implemented by this package
+!   !--------------------------------------------------------------------
 
-  character(len=*), intent(in) :: name
-  logical :: shoc_implements_cnst
+!   character(len=*), intent(in) :: name
+!   logical :: shoc_implements_cnst
 
-  shoc_implements_cnst = (do_cnst .and. any(name == cnst_names))
+!   shoc_implements_cnst = (do_cnst .and. any(name == cnst_names))
 
-end function shoc_implements_cnst
+! end function shoc_implements_cnst
 
-  subroutine shoc_init_cnst(name, q, gcid)
+!   subroutine shoc_init_cnst(name, q, gcid)
 
-  !------------------------------------------------------------------- !
-  ! Initialize the state for SHOC's prognostic variable                !
-  !------------------------------------------------------------------- !
+!   !------------------------------------------------------------------- !
+!   ! Initialize the state for SHOC's prognostic variable                !
+!   !------------------------------------------------------------------- !
 
-    character(len=*), intent(in)  :: name     ! constituent name
-    real(r8),         intent(out) :: q(:,:)   ! mass mixing ratio (gcol, plev)
-    integer,          intent(in)  :: gcid(:)  ! global column id
+!     character(len=*), intent(in)  :: name     ! constituent name
+!     real(r8),         intent(out) :: q(:,:)   ! mass mixing ratio (gcol, plev)
+!     integer,          intent(in)  :: gcid(:)  ! global column id
 
-#ifdef SHOC_SGS
-    if (trim(name) == trim('SHOC_TKE')) q = tke_tol
-#endif
+! #ifdef SHOC_SGS
+!     if (trim(name) == trim('SHOC_TKE')) q = tke_tol
+! #endif
 
-  end subroutine shoc_init_cnst
+!   end subroutine shoc_init_cnst
 
   ! =============================================================================== !
   !                                                                                 !
   ! =============================================================================== !
 
-  subroutine shoc_readnl(nlfile)
+!   subroutine shoc_readnl(nlfile)
 
-  !------------------------------------------------------------------- !
-  ! Read in any namelist parameters here                               !
-  !   (currently none)                                                 !
-  !------------------------------------------------------------------- !
+!   !------------------------------------------------------------------- !
+!   ! Read in any namelist parameters here                               !
+!   !   (currently none)                                                 !
+!   !------------------------------------------------------------------- !
 
-    use units,           only: getunit, freeunit
-    use namelist_utils,  only: find_group_name
-    use cam_abortutils,  only: endrun
-    use mpishorthand
-    use edmf,            only: mf_readnl
+!     use units,           only: getunit, freeunit
+!     use namelist_utils,  only: find_group_name
+!     use cam_abortutils,  only: endrun
+!     use mpishorthand
+!     use edmf,            only: mf_readnl
 
-    character(len=*), intent(in) :: nlfile  ! filepath for file containing namelist input
+!     character(len=*), intent(in) :: nlfile  ! filepath for file containing namelist input
 
-    integer :: iunit, read_status
+!     integer :: iunit, read_status
 
-    namelist /shocpbl_diff_nl/ shoc_timestep, shoc_length_fac
+!     namelist /shocpbl_diff_nl/ shoc_timestep, shoc_length_fac
     
-    !  Call SHOC+MF namelist
-    ! TODO: Check on this namelist
-    call mf_readnl(nlfile)
+!     !  Call SHOC+MF namelist
+!     ! TODO: Check on this namelist
+!     call mf_readnl(nlfile)
     
-    !  Read namelist to determine if SHOC history should be called
-    if (masterproc) then
-      iunit = getunit()
-      open( iunit, file=trim(nlfile), status='old' )
+!     !  Read namelist to determine if SHOC history should be called
+!     if (masterproc) then
+!       iunit = getunit()
+!       open( iunit, file=trim(nlfile), status='old' )
 
-      call find_group_name(iunit, 'shocpbl_diff_nl', status=read_status)
-      if (read_status == 0) then
-         read(unit=iunit, nml=shocpbl_diff_nl, iostat=read_status)
-         if (read_status /= 0) then
-            call endrun('shoc_readnl:  error reading namelist')
-         end if
-      end if
+!       call find_group_name(iunit, 'shocpbl_diff_nl', status=read_status)
+!       if (read_status == 0) then
+!          read(unit=iunit, nml=shocpbl_diff_nl, iostat=read_status)
+!          if (read_status /= 0) then
+!             call endrun('shoc_readnl:  error reading namelist')
+!          end if
+!       end if
 
-      close(unit=iunit)
-      call freeunit(iunit)
-    end if
+!       close(unit=iunit)
+!       call freeunit(iunit)
+!     end if
 
-#ifdef SPMD
-! Broadcast namelist variables
-      call mpibcast(shoc_timestep,           1,   mpir8,   0, mpicom)
-      call mpibcast(shoc_length_fac,         1,   mpir8,   0, mpicom)
-#endif
+! #ifdef SPMD
+! ! Broadcast namelist variables
+!       call mpibcast(shoc_timestep,           1,   mpir8,   0, mpicom)
+!       call mpibcast(shoc_length_fac,         1,   mpir8,   0, mpicom)
+! #endif
 
-  end subroutine shoc_readnl
+!   end subroutine shoc_readnl
 
   ! =============================================================================== !
   !                                                                                 !
@@ -257,20 +253,20 @@ end function shoc_implements_cnst
   ! Initialize SHOC for E3SM                                           !
   !------------------------------------------------------------------- !
 
-    use physics_types,          only: physics_state, physics_ptend
-    use ppgrid,                 only: pver, pverp, pcols
-    use ref_pres,               only: pref_mid
-    use time_manager,           only: is_first_step
-    use hb_diff,                only: init_hb_diff
-    use physics_buffer,         only: pbuf_get_index, pbuf_set_field, &
-                                      physics_buffer_desc
-    use rad_constituents,       only: rad_cnst_get_info, rad_cnst_get_mode_num_idx, &
-                                      rad_cnst_get_mam_mmr_idx
-    use constituents,           only: cnst_get_ind
-    use shoc,                   only: shoc_init
-    use cam_history,            only: horiz_only, addfld, add_default
-    use error_messages,         only: handle_errmsg
-    use trb_mtn_stress,         only: init_tms
+    ! use physics_types,          only: physics_state, physics_ptend
+    ! use ppgrid,                 only: pver, pverp, pcols
+    ! use ref_pres,               only: pref_mid
+    ! use time_manager,           only: is_first_step
+    ! use hb_diff,                only: init_hb_diff
+    ! use physics_buffer,         only: pbuf_get_index, pbuf_set_field, &
+    !                                   physics_buffer_desc
+    ! use rad_constituents,       only: rad_cnst_get_info, rad_cnst_get_mode_num_idx, &
+    !                                   rad_cnst_get_mam_mmr_idx
+    ! use constituents,           only: cnst_get_ind
+    ! use shoc,                   only: shoc_init
+    ! use cam_history,            only: horiz_only, addfld, add_default
+    ! use error_messages,         only: handle_errmsg
+    ! use trb_mtn_stress,         only: init_tms
 
     implicit none
     !  Input Variables
@@ -361,29 +357,29 @@ end function shoc_implements_cnst
     endif
 
     ! Add SHOC fields
-    call addfld('SHOC_TKE', (/'lev'/), 'A', 'm2/s2', 'TKE')
-    call addfld('WTHV_SEC', (/'lev'/), 'A', 'K m/s', 'Buoyancy Flux')
-    call addfld('SHOC_MIX', (/'lev'/), 'A', 'm', 'SHOC length scale')
-    call addfld('TK',(/'lev'/), 'A', 'm2/s','Eddy viscosity for momentum')
-    call addfld('TKH', (/'lev'/), 'A', 'm2/s', 'Eddy viscosity for heat')
-    call addfld('W_SEC', (/'lev'/), 'A', 'm2/s2', 'Vertical velocity variance')
-    call addfld('THL_SEC',(/'ilev'/), 'A', 'K2', 'Temperature variance')
-    call addfld('QW_SEC',(/'ilev'/), 'A', 'kg2/kg2', 'Moisture variance')
-    call addfld('QWTHL_SEC',(/'ilev'/), 'A', 'K kg/kg', 'Temperature and moisture correlation')
-    call addfld('WTHL_SEC',(/'ilev'/), 'A', 'W/m2', 'Heat flux')
-    call addfld('WQW_SEC',(/'ilev'/), 'A', 'W/m2', 'Moisture flux')
-    call addfld('WTKE_SEC',(/'ilev'/), 'A', 'm3/s3', 'Vertical flux of turbulence')
-    call addfld('UW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux')
-    call addfld('VW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux')
-    call addfld('W3',(/'ilev'/), 'A', 'm3/s3', 'Third moment vertical velocity')
-    call addfld('WQL_SEC',(/'lev'/),'A', 'W/m2', 'Liquid water flux')
-    call addfld('ISOTROPY',(/'lev'/),'A', 's', 'timescale')
-    call addfld('CONCLD',(/'lev'/),  'A',        'fraction', 'Convective cloud cover')
-    call addfld('BRUNT',(/'lev'/), 'A', 's-1', 'Brunt frequency')
-    call addfld('RELVAR',(/'lev'/), 'A', 'kg/kg', 'SHOC cloud liquid relative variance')
-    call addfld('TKE_DISSIP',(/'lev'/),'A', 'm2/s3', 'TKE budget: dissipation term')
-    call addfld('TKE_PROD_B',(/'lev'/),'A', 'm2/s3', 'TKE budget: B production term')
-    call addfld('TKE_PROD_SH',(/'lev'/),'A', 'm2/s3', 'TKE budget: shear production term')
+    call addfld('SHOC_TKE', (/'lev'/), 'A', 'm2/s2', 'TKE') ! Registry: tke_pbl (?)
+    call addfld('WTHV_SEC', (/'lev'/), 'A', 'K m/s', 'Buoyancy Flux') ! Registry: ?
+    call addfld('SHOC_MIX', (/'lev'/), 'A', 'm', 'SHOC length scale') ! Registry: Add in MPAS
+    call addfld('TK',(/'lev'/), 'A', 'm2/s','Eddy viscosity for momentum') ! Registry: config_h_mom_eddy_visc2 ?
+    call addfld('TKH', (/'lev'/), 'A', 'm2/s', 'Eddy viscosity for heat') ! Registry: config_h_theta_eddy_visc2 ?
+    call addfld('W_SEC', (/'lev'/), 'A', 'm2/s2', 'Vertical velocity variance') ! Registry: Add in MPAS
+    call addfld('THL_SEC',(/'ilev'/), 'A', 'K2', 'Temperature variance') ! Registry: tsq ?
+    call addfld('QW_SEC',(/'ilev'/), 'A', 'kg2/kg2', 'Moisture variance') ! Registry: qsq ?
+    call addfld('QWTHL_SEC',(/'ilev'/), 'A', 'K kg/kg', 'Temperature and moisture correlation') ! Registry: Add in MPAS
+    call addfld('WTHL_SEC',(/'ilev'/), 'A', 'W/m2', 'Heat flux') ! Registry: There is only in surface layer processes group
+    call addfld('WQW_SEC',(/'ilev'/), 'A', 'W/m2', 'Moisture flux') ! Registry: There is only in surface layer processes group
+    call addfld('WTKE_SEC',(/'ilev'/), 'A', 'm3/s3', 'Vertical flux of turbulence') ! Registry: Add in MPAS
+    call addfld('UW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux') ! Registry: Add in MPAS
+    call addfld('VW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux') ! Registry: Add in MPAS
+    call addfld('W3',(/'ilev'/), 'A', 'm3/s3', 'Third moment vertical velocity') ! Registry: Add in MPAS
+    call addfld('WQL_SEC',(/'lev'/),'A', 'W/m2', 'Liquid water flux') ! Registry: Add in MPAS
+    call addfld('ISOTROPY',(/'lev'/),'A', 's', 'timescale') ! Registry: Add in MPAS
+    call addfld('CONCLD',(/'lev'/),  'A',        'fraction', 'Convective cloud cover') ! Registry: cnvcf (?)
+    call addfld('BRUNT',(/'lev'/), 'A', 's-1', 'Brunt frequency') ! Registry: Add in MPAS
+    call addfld('RELVAR',(/'lev'/), 'A', 'kg/kg', 'SHOC cloud liquid relative variance') ! Registry: Add in MPAS
+    call addfld('TKE_DISSIP',(/'lev'/),'A', 'm2/s3', 'TKE budget: dissipation term') ! Registry: qdiss, from mynn
+    call addfld('TKE_PROD_B',(/'lev'/),'A', 'm2/s3', 'TKE budget: B production term') ! Registry: qbuoy, from mynn
+    call addfld('TKE_PROD_SH',(/'lev'/),'A', 'm2/s3', 'TKE budget: shear production term') ! Registry: qshear, from mynn
 
 
     call add_default('SHOC_TKE', 1, ' ')
@@ -411,24 +407,24 @@ end function shoc_implements_cnst
     call add_default('TKE_PROD_SH',1,' ')
 
     ! Extra output variables:
-    call addfld('TEMPERATURE',(/'lev'/), 'A', 'K', 'Temperature')
-    call addfld('THETA',(/'lev'/), 'A', 'K', 'Potential temperature')
-    call addfld('THETAL',(/'lev'/), 'A', 'K', 'Liq. water potential temperature')
-    call addfld('THETAV',(/'lev'/), 'A', 'K', 'Virtual potential temperature')
-    call addfld('QW', (/'lev'/), 'A', 'kg/kg', 'Total water mixing ratio')
-    call addfld('QV', (/'lev'/), 'A', 'kg/kg', 'Water vapour mixing ratio')
-    call addfld('QL', (/'lev'/), 'A', 'kg/kg', 'Lquid water mixing ratio')
-    call addfld('ZM',(/'ilev'/), 'A', 'm', 'Momentum heights')
-    call addfld('ZT',(/'lev'/), 'A', 'm', 'Thermodynamic heights')
-    call addfld('PBL_H', horiz_only, 'A', 'm', 'Planetary boundary layer depth')
-    call addfld('rho', (/ 'lev' /), 'A', 'kg/m^3' , 'Density full levels')
-    call addfld('rho_i', (/ 'ilev' /), 'A', 'kg/m^3' , 'Density mid levels')
-    call addfld('CLD_SHOC', (/ 'lev' /), 'A', 'fraction' , 'cld from SHOC')
-    call addfld('AST', (/ 'lev' /), 'A', 'fraction' , 'Stratiform cloud fraction from shoc_intr.F90')
-    call addfld('DEEPCU', (/ 'lev' /), 'A', 'fraction' , 'Deep convection cloud fraction from shoc_intr.F90')
-    call addfld('RI_B', (/ 'lev' /), 'A', 'm', 'Bulk Richardson number')
-    call addfld('PBL_WTHL', horiz_only, 'A', 'm', 'JPL PBL as the first level where wthl = wthl_surf*0.01')
-    call addfld('PBL_TKE', horiz_only, 'A', 'm', 'JPL PBL as the first level where tke = tke_surf*0.01')
+    call addfld('TEMPERATURE',(/'lev'/), 'A', 'K', 'Temperature') ! Registry: temperature
+    call addfld('THETA',(/'lev'/), 'A', 'K', 'Potential temperature') ! Registry: theta
+    call addfld('THETAL',(/'lev'/), 'A', 'K', 'Liq. water potential temperature') ! Registry: add in MPAS
+    call addfld('THETAV',(/'lev'/), 'A', 'K', 'Virtual potential temperature') ! Registry: add in MPAS
+    call addfld('QW', (/'lev'/), 'A', 'kg/kg', 'Total water mixing ratio') ! Registry: add in MPAS
+    call addfld('QV', (/'lev'/), 'A', 'kg/kg', 'Water vapour mixing ratio') ! Registry: qv
+    call addfld('QL', (/'lev'/), 'A', 'kg/kg', 'Lquid water mixing ratio') ! Registry: 
+    call addfld('ZM',(/'ilev'/), 'A', 'm', 'Momentum heights') ! Registry: zgrid (?)
+    call addfld('ZT',(/'lev'/), 'A', 'm', 'Thermodynamic heights') ! Registry: add in MPAS - is the height in the middle of the cell?
+    call addfld('PBL_H', horiz_only, 'A', 'm', 'Planetary boundary layer depth') ! Registry: hpbl (?)
+    call addfld('rho', (/ 'lev' /), 'A', 'kg/m^3' , 'Density full levels') ! Registry: add in MPAS - what is this?
+    call addfld('rho_i', (/ 'ilev' /), 'A', 'kg/m^3' , 'Density mid levels') ! Registry: add in MPAS - what is this?
+    call addfld('CLD_SHOC', (/ 'lev' /), 'A', 'fraction' , 'cld from SHOC') ! Registry: Add in MPAS
+    call addfld('AST', (/ 'lev' /), 'A', 'fraction' , 'Stratiform cloud fraction from shoc_intr.F90') ! Registry: Add in MPAS
+    call addfld('DEEPCU', (/ 'lev' /), 'A', 'fraction' , 'Deep convection cloud fraction from shoc_intr.F90') ! Registry: Add in MPAS
+    call addfld('RI_B', (/ 'lev' /), 'A', 'm', 'Bulk Richardson number') ! Registry: br
+    call addfld('PBL_WTHL', horiz_only, 'A', 'm', 'JPL PBL as the first level where wthl = wthl_surf*0.01') ! Registry: Add in MPAS
+    call addfld('PBL_TKE', horiz_only, 'A', 'm', 'JPL PBL as the first level where tke = tke_surf*0.01') ! Registry: Add in MPAS
 
     call add_default('TEMPERATURE',1,' ')
     call add_default('THETA',1,' ')
@@ -578,30 +574,30 @@ end function shoc_implements_cnst
   !   macrophysics from SHOC to E3SM                                   !
   !------------------------------------------------------------------- !
 
-    use physics_types,  only: physics_state, physics_ptend, &
-                              physics_state_copy, physics_ptend_init, &
-                              physics_ptend_sum
+    ! use physics_types,  only: physics_state, physics_ptend, &
+    !                           physics_state_copy, physics_ptend_init, &
+    !                           physics_ptend_sum
 
-    use physics_update_mod, only: physics_update
+    ! use physics_update_mod, only: physics_update
 
-    use physics_buffer, only: pbuf_get_index, pbuf_old_tim_idx, pbuf_get_field, &
-                              pbuf_set_field, physics_buffer_desc
+    ! use physics_buffer, only: pbuf_get_index, pbuf_old_tim_idx, pbuf_get_field, &
+    !                           pbuf_set_field, physics_buffer_desc
 
-    use ppgrid,         only: pver, pverp, pcols
-    use constituents,   only: cnst_get_ind
-    use camsrfexch,     only: cam_in_t
-    use ref_pres,       only: top_lev => trop_cloud_top_lev
-    use time_manager,   only: is_first_step
-    use cam_abortutils, only: endrun
-    use wv_saturation,  only: qsat
-    use micro_mg_cam,   only: micro_mg_version
-    use cldfrc2m,                  only: aist_vector
-    use hb_diff,                   only: pblintd
-    use trb_mtn_stress,            only: compute_tms
-    use shoc,           only: shoc_main
-    use cam_history,    only: outfld
-    use scamMod,        only: single_column, iop_mode
-    use edmf,           only: mf_nup, mf_L0, mf_ent0
+    ! use ppgrid,         only: pver, pverp, pcols
+    ! use constituents,   only: cnst_get_ind
+    ! use camsrfexch,     only: cam_in_t
+    ! use ref_pres,       only: top_lev => trop_cloud_top_lev
+    ! use time_manager,   only: is_first_step
+    ! use cam_abortutils, only: endrun
+    ! use wv_saturation,  only: qsat
+    ! use micro_mg_cam,   only: micro_mg_version
+    ! use cldfrc2m,                  only: aist_vector
+    ! use hb_diff,                   only: pblintd
+    ! use trb_mtn_stress,            only: compute_tms
+    ! use shoc,           only: shoc_main
+    ! use cam_history,    only: outfld
+    ! use scamMod,        only: single_column, iop_mode
+    ! use edmf,           only: mf_nup, mf_L0, mf_ent0
     
     implicit none
 
@@ -869,6 +865,7 @@ end function shoc_implements_cnst
 
    ! Set grid space, in meters. If SCM, set to a grid size representative
    !  of a typical GCM.  Otherwise, compute locally.
+   ! TODO (G): Ask Saulo about these variables host_dx_in, host_dy_in
    print*,'IOP_MODE = ',iop_mode
    if (single_column .and. .not. iop_mode) then
      host_dx_in(:) = 100000._r8
@@ -956,6 +953,7 @@ end function shoc_implements_cnst
 
    do i=1,ncol
       !  Surface fluxes provided by host model
+      ! TODO (G): Get surface flux from MONAN
 
       wpthlp_sfc(i) = cam_in%shf(i)/(cpair*rrho_i(i,pverp))   ! Sensible heat flux
       wprtp_sfc(i)  = cam_in%cflx(i,1)/(rrho_i(i,pverp))      ! Latent heat flux

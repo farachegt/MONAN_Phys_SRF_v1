@@ -7,7 +7,6 @@
 ! email: bogenschutz1@llnl.gov
 !--------------------------------------------------------------
 
-! TODO: Get equivalent in MONAN project or bring this file to this repository.
 ! Include bit-for-bit math macros.
 ! #include "bfb_math.inc"
 
@@ -22,7 +21,6 @@ module shoc
                                do_edmf, do_condensation, do_mf_diag, do_wthv_mf, mf_nup
 
 ! Bit-for-bit math functions.
-! TODO: Check this definition
 ! #ifdef SCREAM_CONFIG_IS_CMAKE
 !   use physics_share_f2c, only: cxx_pow, cxx_sqrt, cxx_cbrt, cxx_gamma, cxx_log, &
 !                                cxx_log10, cxx_exp, cxx_erf
@@ -711,6 +709,7 @@ subroutine edmf_pblh(&
   do i=1,shcol
     pblh_wthl(i) = 0._rtype
     check  = .true.
+    ! TODO (G): This 'check' variable is unecessary. It is possible to use break
     do k = 45,nlev  ! from top to bottom
         if (check .and. abs(abs(wthl_sec(i,k)) - abs(wthl_sec(i,k+1))) > 0.001_rtype) then
          pblh_wthl(i) = zi_grid(i,k)
@@ -724,6 +723,7 @@ subroutine edmf_pblh(&
     if (tke(i,nlev) .NE. 0._rtype ) then
       tke_threshold = mintke*1.1_rtype
       check  = .true.
+      ! TODO (G): This 'check' variable is unecessary. It is possible to use break
       do k = nlev,3,-1    
           if (zt_grid(i,k) < 100._rtype) cycle
           if (check .and. tke(i,k) < tke_threshold .and. tke(i,k-1) < tke_threshold) then
@@ -845,6 +845,8 @@ subroutine compute_shoc_vapor( &
 
   do k = 1, nlev
     do i = 1, shcol
+      ! TODO (G): Ask Saulo, it only consider liquid and vapor water?
+      !           It doesn't consider ice? Maybe because it is shallow cumulus
       qv(i,k) = qw(i,k) - ql(i,k)
     enddo
   enddo
