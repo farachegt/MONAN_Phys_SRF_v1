@@ -845,8 +845,6 @@ subroutine compute_shoc_vapor( &
 
   do k = 1, nlev
     do i = 1, shcol
-      ! TODO (G): Ask Saulo, it only consider liquid and vapor water?
-      !           It doesn't consider ice? Maybe because it is shallow cumulus
       qv(i,k) = qw(i,k) - ql(i,k)
     enddo
   enddo

@@ -14,7 +14,6 @@ module shoc_intr
   !                                                                    !
   !------------------------------------------------------------------- !
 
-  ! TODO: Get equivalents imports in MONAN project
   use shr_kind_mod,  only: r8=>shr_kind_r8
   use shr_const_mod, only: SHR_CONST_PI
   use ppgrid,        only: pver, pverp
@@ -357,29 +356,29 @@ module shoc_intr
     endif
 
     ! Add SHOC fields
-    call addfld('SHOC_TKE', (/'lev'/), 'A', 'm2/s2', 'TKE') ! Registry: tke_pbl (?)
-    call addfld('WTHV_SEC', (/'lev'/), 'A', 'K m/s', 'Buoyancy Flux') ! Registry: ?
-    call addfld('SHOC_MIX', (/'lev'/), 'A', 'm', 'SHOC length scale') ! Registry: Add in MPAS
-    call addfld('TK',(/'lev'/), 'A', 'm2/s','Eddy viscosity for momentum') ! Registry: config_h_mom_eddy_visc2 ?
-    call addfld('TKH', (/'lev'/), 'A', 'm2/s', 'Eddy viscosity for heat') ! Registry: config_h_theta_eddy_visc2 ?
-    call addfld('W_SEC', (/'lev'/), 'A', 'm2/s2', 'Vertical velocity variance') ! Registry: Add in MPAS
-    call addfld('THL_SEC',(/'ilev'/), 'A', 'K2', 'Temperature variance') ! Registry: tsq ?
-    call addfld('QW_SEC',(/'ilev'/), 'A', 'kg2/kg2', 'Moisture variance') ! Registry: qsq ?
-    call addfld('QWTHL_SEC',(/'ilev'/), 'A', 'K kg/kg', 'Temperature and moisture correlation') ! Registry: Add in MPAS
-    call addfld('WTHL_SEC',(/'ilev'/), 'A', 'W/m2', 'Heat flux') ! Registry: There is only in surface layer processes group
-    call addfld('WQW_SEC',(/'ilev'/), 'A', 'W/m2', 'Moisture flux') ! Registry: There is only in surface layer processes group
-    call addfld('WTKE_SEC',(/'ilev'/), 'A', 'm3/s3', 'Vertical flux of turbulence') ! Registry: Add in MPAS
-    call addfld('UW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux') ! Registry: Add in MPAS
-    call addfld('VW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux') ! Registry: Add in MPAS
-    call addfld('W3',(/'ilev'/), 'A', 'm3/s3', 'Third moment vertical velocity') ! Registry: Add in MPAS
-    call addfld('WQL_SEC',(/'lev'/),'A', 'W/m2', 'Liquid water flux') ! Registry: Add in MPAS
-    call addfld('ISOTROPY',(/'lev'/),'A', 's', 'timescale') ! Registry: Add in MPAS
-    call addfld('CONCLD',(/'lev'/),  'A',        'fraction', 'Convective cloud cover') ! Registry: cnvcf (?)
-    call addfld('BRUNT',(/'lev'/), 'A', 's-1', 'Brunt frequency') ! Registry: Add in MPAS
-    call addfld('RELVAR',(/'lev'/), 'A', 'kg/kg', 'SHOC cloud liquid relative variance') ! Registry: Add in MPAS
-    call addfld('TKE_DISSIP',(/'lev'/),'A', 'm2/s3', 'TKE budget: dissipation term') ! Registry: qdiss, from mynn
-    call addfld('TKE_PROD_B',(/'lev'/),'A', 'm2/s3', 'TKE budget: B production term') ! Registry: qbuoy, from mynn
-    call addfld('TKE_PROD_SH',(/'lev'/),'A', 'm2/s3', 'TKE budget: shear production term') ! Registry: qshear, from mynn
+    call addfld('SHOC_TKE', (/'lev'/), 'A', 'm2/s2', 'TKE')
+    call addfld('WTHV_SEC', (/'lev'/), 'A', 'K m/s', 'Buoyancy Flux')
+    call addfld('SHOC_MIX', (/'lev'/), 'A', 'm', 'SHOC length scale')
+    call addfld('TK',(/'lev'/), 'A', 'm2/s','Eddy viscosity for momentum')
+    call addfld('TKH', (/'lev'/), 'A', 'm2/s', 'Eddy viscosity for heat')
+    call addfld('W_SEC', (/'lev'/), 'A', 'm2/s2', 'Vertical velocity variance')
+    call addfld('THL_SEC',(/'ilev'/), 'A', 'K2', 'Temperature variance')
+    call addfld('QW_SEC',(/'ilev'/), 'A', 'kg2/kg2', 'Moisture variance')
+    call addfld('QWTHL_SEC',(/'ilev'/), 'A', 'K kg/kg', 'Temperature and moisture correlation')
+    call addfld('WTHL_SEC',(/'ilev'/), 'A', 'W/m2', 'Heat flux')
+    call addfld('WQW_SEC',(/'ilev'/), 'A', 'W/m2', 'Moisture flux')
+    call addfld('WTKE_SEC',(/'ilev'/), 'A', 'm3/s3', 'Vertical flux of turbulence')
+    call addfld('UW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux')
+    call addfld('VW_SEC',(/'ilev'/), 'A', 'm2/s2', 'Momentum flux')
+    call addfld('W3',(/'ilev'/), 'A', 'm3/s3', 'Third moment vertical velocity')
+    call addfld('WQL_SEC',(/'lev'/),'A', 'W/m2', 'Liquid water flux')
+    call addfld('ISOTROPY',(/'lev'/),'A', 's', 'timescale')
+    call addfld('CONCLD',(/'lev'/),  'A',        'fraction', 'Convective cloud cover')
+    call addfld('BRUNT',(/'lev'/), 'A', 's-1', 'Brunt frequency')
+    call addfld('RELVAR',(/'lev'/), 'A', 'kg/kg', 'SHOC cloud liquid relative variance')
+    call addfld('TKE_DISSIP',(/'lev'/),'A', 'm2/s3', 'TKE budget: dissipation term')
+    call addfld('TKE_PROD_B',(/'lev'/),'A', 'm2/s3', 'TKE budget: B production term')
+    call addfld('TKE_PROD_SH',(/'lev'/),'A', 'm2/s3', 'TKE budget: shear production term')
 
 
     call add_default('SHOC_TKE', 1, ' ')
@@ -407,16 +406,16 @@ module shoc_intr
     call add_default('TKE_PROD_SH',1,' ')
 
     ! Extra output variables:
-    call addfld('TEMPERATURE',(/'lev'/), 'A', 'K', 'Temperature') ! Registry: temperature
-    call addfld('THETA',(/'lev'/), 'A', 'K', 'Potential temperature') ! Registry: theta
+    call addfld('TEMPERATURE',(/'lev'/), 'A', 'K', 'Temperature') ! Registry: temperature (?) -> packages jedi_da
+    call addfld('THETA',(/'lev'/), 'A', 'K', 'Potential temperature') ! Registry: theta (?)
     call addfld('THETAL',(/'lev'/), 'A', 'K', 'Liq. water potential temperature') ! Registry: add in MPAS
     call addfld('THETAV',(/'lev'/), 'A', 'K', 'Virtual potential temperature') ! Registry: add in MPAS
     call addfld('QW', (/'lev'/), 'A', 'kg/kg', 'Total water mixing ratio') ! Registry: add in MPAS
     call addfld('QV', (/'lev'/), 'A', 'kg/kg', 'Water vapour mixing ratio') ! Registry: qv
-    call addfld('QL', (/'lev'/), 'A', 'kg/kg', 'Lquid water mixing ratio') ! Registry: 
+    call addfld('QL', (/'lev'/), 'A', 'kg/kg', 'Lquid water mixing ratio') ! Registry: qc
     call addfld('ZM',(/'ilev'/), 'A', 'm', 'Momentum heights') ! Registry: zgrid (?)
     call addfld('ZT',(/'lev'/), 'A', 'm', 'Thermodynamic heights') ! Registry: add in MPAS - is the height in the middle of the cell?
-    call addfld('PBL_H', horiz_only, 'A', 'm', 'Planetary boundary layer depth') ! Registry: hpbl (?)
+    call addfld('PBL_H', horiz_only, 'A', 'm', 'Planetary boundary layer depth') ! Registry: hpbl
     call addfld('rho', (/ 'lev' /), 'A', 'kg/m^3' , 'Density full levels') ! Registry: add in MPAS - what is this?
     call addfld('rho_i', (/ 'ilev' /), 'A', 'kg/m^3' , 'Density mid levels') ! Registry: add in MPAS - what is this?
     call addfld('CLD_SHOC', (/ 'lev' /), 'A', 'fraction' , 'cld from SHOC') ! Registry: Add in MPAS
@@ -424,7 +423,7 @@ module shoc_intr
     call addfld('DEEPCU', (/ 'lev' /), 'A', 'fraction' , 'Deep convection cloud fraction from shoc_intr.F90') ! Registry: Add in MPAS
     call addfld('RI_B', (/ 'lev' /), 'A', 'm', 'Bulk Richardson number') ! Registry: br
     call addfld('PBL_WTHL', horiz_only, 'A', 'm', 'JPL PBL as the first level where wthl = wthl_surf*0.01') ! Registry: Add in MPAS
-    call addfld('PBL_TKE', horiz_only, 'A', 'm', 'JPL PBL as the first level where tke = tke_surf*0.01') ! Registry: Add in MPAS
+    call addfld('PBL_TKE', horiz_only, 'A', 'm', 'JPL PBL as the first level where tke = tke_surf*0.01')
 
     call add_default('TEMPERATURE',1,' ')
     call add_default('THETA',1,' ')
@@ -865,18 +864,18 @@ module shoc_intr
 
    ! Set grid space, in meters. If SCM, set to a grid size representative
    !  of a typical GCM.  Otherwise, compute locally.
-   ! TODO (G): Ask Saulo about these variables host_dx_in, host_dy_in
-   print*,'IOP_MODE = ',iop_mode
-   if (single_column .and. .not. iop_mode) then
-     host_dx_in(:) = 100000._r8
-     host_dy_in(:) = 100000._r8
-   else if (iop_mode) then
-     call grid_size_uniform(host_dx, host_dy)
-     host_dx_in(:) = host_dx
-     host_dy_in(:) = host_dy
-   else
-     call grid_size(state1, host_dx_in, host_dy_in)
-   endif
+   ! TODO (G): Ask Saulo about these variables host_dx_in, host_dy_in. Fill host_dx_in and host_dy_in with MPAS values
+  !  print*,'IOP_MODE = ',iop_mode
+  !  if (single_column .and. .not. iop_mode) then
+  !    host_dx_in(:) = 100000._r8
+  !    host_dy_in(:) = 100000._r8
+  !  else if (iop_mode) then
+  !    call grid_size_uniform(host_dx, host_dy)
+  !    host_dx_in(:) = host_dx
+  !    host_dy_in(:) = host_dy
+  !  else
+  !    call grid_size(state1, host_dx_in, host_dy_in)
+  !  endif
 
    minqn = 0._r8
    newfice(:,:) = 0._r8
@@ -955,25 +954,25 @@ module shoc_intr
       !  Surface fluxes provided by host model
       ! TODO (G): Get surface flux from MONAN
 
-      wpthlp_sfc(i) = cam_in%shf(i)/(cpair*rrho_i(i,pverp))   ! Sensible heat flux
-      wprtp_sfc(i)  = cam_in%cflx(i,1)/(rrho_i(i,pverp))      ! Latent heat flux
-      upwp_sfc(i)   = cam_in%wsx(i)/rrho_i(i,pverp)           ! Surface meridional momentum flux
-      vpwp_sfc(i)   = cam_in%wsy(i)/rrho_i(i,pverp)           ! Surface zonal momentum flux
+      wpthlp_sfc(i) = cam_in%shf(i)/(cpair*rrho_i(i,pverp))   ! Sensible heat flux. TODO (G): Check units. Maybe W/m²?
+      wprtp_sfc(i)  = cam_in%cflx(i,1)/(rrho_i(i,pverp))      ! Latent heat flux. TODO (G): Check units
+      upwp_sfc(i)   = cam_in%wsx(i)/rrho_i(i,pverp)           ! Surface meridional momentum flux. TODO (G): Check units
+      vpwp_sfc(i)   = cam_in%wsy(i)/rrho_i(i,pverp)           ! Surface zonal momentum flux. TODO (G): Check units
       wtracer_sfc(i,:) = 0._r8  ! in E3SM tracer fluxes are done elsewhere
    enddo
 
    !  Do the same for tracers
-   icnt=0
-   do ixind=1,pcnst
-     if (lq(ixind))  then
-       icnt=icnt+1
-       do k=1,pver
-         do i=1,ncol
-           edsclr_in(i,k,icnt) = state1%q(i,k,ixind)
-         enddo
-       enddo
-     end if
-   enddo
+  !  icnt=0
+  !  do ixind=1,pcnst
+  !    if (lq(ixind))  then
+  !      icnt=icnt+1
+  !      do k=1,pver
+  !        do i=1,ncol
+  !          edsclr_in(i,k,icnt) = state1%q(i,k,ixind)
+  !        enddo
+  !      enddo
+  !    end if
+  !  enddo
 
    ! ------------------------------------------------- !
    ! Actually call SHOC                                !
@@ -1039,6 +1038,7 @@ module shoc_intr
    !   Linearly interpolate from midpoint grid and onto the interface grid.
    !   The output variables for these routines (khzm, khzt, and tke_zi)
    !   are PBUF pointers
+   ! TODO (G): Check the reason why we need to interpolate these variables
    call linear_interp(state%zm(:ncol,:pver),state%zi(:ncol,:pverp),&
                 tk(:ncol,:pver),khzm(:ncol,:pverp),pver,pverp,ncol,0._r8)
    call linear_interp(state%zm(:ncol,:pver),state%zi(:ncol,:pverp),&
