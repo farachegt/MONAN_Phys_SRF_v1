@@ -17,6 +17,8 @@
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_ysu
+ use shoc, only: shoc_init, shoc_length, shoc_length_factor => length_fac
+ !use module_bl_shocmf
 
  implicit none
  private
@@ -186,6 +188,7 @@
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
     case("bl_shocmf")
+      
 
     case default
 
@@ -720,7 +723,13 @@
        call bl_mynn_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
                          xlf,xls,xlv,errmsg,errflg)
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
-
+    case("bl_shocmf")
+      call mpas_log_write('--- enter subroutine shoc_init:')
+      ntop_shoc = 1    ! if >1, must be <= nbot_molec
+      nbot_shoc = kte ! currently always pver
+      call shoc_init(kte, gravity, R_d, R_v, cp, ep_1, xlv, xlf, karman, pres_p, nbot_shoc, &
+                     ntop_shoc, shoc_length_factor)
+      call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
  end select pbl_select
