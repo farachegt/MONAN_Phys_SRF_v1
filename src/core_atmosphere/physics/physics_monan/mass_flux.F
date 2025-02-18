@@ -16,7 +16,7 @@ module edmf
   
   private
   
-  public :: integrate_mf, calc_mf_vertflux, compute_tmpi3, dummy_method
+  public :: integrate_mf, calc_mf_vertflux, compute_tmpi3
   public :: mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
 !  public :: mf_readnl, mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
   
