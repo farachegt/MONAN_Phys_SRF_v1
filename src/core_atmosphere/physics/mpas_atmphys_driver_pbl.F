@@ -17,8 +17,7 @@
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_ysu
- use shoc, only: shoc_init, shoc_length, shoc_length_factor => length_fac
- !use module_bl_shocmf
+ use module_bl_shocmf, only: shocmf_bl_init, shocmf_bl_driver
 
  implicit none
  private
@@ -725,10 +724,7 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      ntop_shoc = 1    ! if >1, must be <= nbot_molec
-      nbot_shoc = kte ! currently always pver
-      call shoc_init(kte, gravity, R_d, R_v, cp, ep_1, xlv, xlf, karman, pres_p, nbot_shoc, &
-                     ntop_shoc, shoc_length_factor)
+      call shocmf_bl_init()
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 

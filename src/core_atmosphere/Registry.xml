@@ -404,6 +404,7 @@
                 <package name="cu_ntiedtke_in" description="parameterization of Tiedtke convection."/>
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
+                <package name="bl_shocmf_in" description="parameterization of SHOC+MF Planetary Boundary Layer."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
                 <package name="limited_area" description="Limited-area simulations, which have lateral boundaries"/>
@@ -2700,7 +2701,7 @@
                 <nml_option name="config_pbl_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for planetary boundary layer schemes"
-                     possible_values="`suite',`bl_ysu',`bl_mynn',`off'"/>
+                     possible_values="`suite',`bl_ysu',`bl_mynn',`bl_shocmf',`off'"/>
 
                 <nml_option name="config_gwdo_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -3528,21 +3529,24 @@
                     description="Total water mixing ratio"
                     packages="bl_shocmf_in"/>
 
-               <var name="qv" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
-                    description="Water vapour mixing ratio"
-                    packages="bl_shocmf_in"/>
-
+               <!-- IS IT THE SAME AS qc (Cloud water mixing ratio ?) -->
                <var name="ql" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
-                    description="Lquid water mixing ratio"
+                    description="Liquid water mixing ratio"
                     packages="bl_shocmf_in"/>
 
                <var name="zt" type="real" dimensions="nVertLevels nCells Time" units="m"
                     description="Thermodynamic heights"
                     packages="bl_shocmf_in"/>
 
-               <var name="rho" type="real" dimensions="nVertLevels nCells Time" units="kg/m^3"
+               <!--
+                    <var name="qv" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
+                    description="Water vapour mixing ratio"
+                    packages="bl_shocmf_in"/>
+
+                    <var name="rho" type="real" dimensions="nVertLevels nCells Time" units="kg/m^3"
                     description="Density full levels" 
                     packages="bl_shocmf_in"/>
+               -->
 
                <var name="cld_shoc" type="real" dimensions="nVertLevels nCells Time" units="fraction"
                     description="cld from SHOC"

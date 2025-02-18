@@ -8,7 +8,7 @@
 !--------------------------------------------------------------
 
 ! Include bit-for-bit math macros.
-! #include "bfb_math.inc"
+#include "bfb_math.inc"
 
 module shoc
   
@@ -137,7 +137,6 @@ subroutine shoc_init( &
          length_fac_in )
 
   implicit none
-
   ! Purpose:  Initialize constants for SHOC
   ! These should be set to the same values used in
   ! whatever host model SHOC is implemented in
@@ -171,7 +170,6 @@ subroutine shoc_init( &
   lcond = latvap ! [J/kg]
   lice = latice  ! [J/kg]
   vk = karman    ! [-]
-  
   ! Tunable parameters, all unitless
   !  override default values if value is present
   if (present(length_fac_in)) length_fac=length_fac_in
