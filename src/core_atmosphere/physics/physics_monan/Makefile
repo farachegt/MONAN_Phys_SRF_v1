@@ -14,10 +14,9 @@ OBJS = \
 	module_cu_gf.monan.o           \
 	module_mp_cldfra_cb.o          \
 	module_bl_mixingscalars.o      \
-	module_bl_shocmf.o 			   \
+	module_bl_shocmf.o             \
 	mass_flux.o                    \
-	shoc.o                         
-#	shoc_intr.o
+	shoc.o                                                
 
 physics_monan: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)

@@ -7,6 +7,7 @@
 ! email: bogenschutz1@llnl.gov
 !--------------------------------------------------------------
 
+! TODO (G): Remember to delete this include and use a proper package'
 ! Include bit-for-bit math macros.
 #include "bfb_math.inc"
 
