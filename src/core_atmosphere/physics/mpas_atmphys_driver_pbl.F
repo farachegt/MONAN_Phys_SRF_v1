@@ -17,7 +17,7 @@
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_ysu
- use module_bl_shocmf, only: shocmf_bl_init, shocmf_bl_driver
+ use module_bl_shocmf, only: bl_shocmf_init, bl_shocmf_driver
 
  implicit none
  private
@@ -95,7 +95,6 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
-! TODO: Where does the tendencies variable (rublten_p, rvblten_p, ...) comes from?
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
  if(.not.allocated(hfx_p)  ) allocate(hfx_p(ims:ime,jms:jme)  )
@@ -364,10 +363,10 @@
     ust_p(i,j)   = ust(i)
     wspd_p(i,j)  = wspd(i)
     xland_p(i,j) = xland(i)
-    ! TODO: what is this kpbl variable?
+    ! TODO (G): what is this kpbl variable?
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
-    !... ocean currents are set to zero: ! TODO: why?
+    !... ocean currents are set to zero: ! TODO (G): why?
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
@@ -501,6 +500,21 @@
           maxwidthbl_p(i,j) = 0._RKIND
           maxmfbl_p(i,j)    = 0._RKIND
           zbl_plume_p(i,j)  = 0
+       enddo
+       enddo
+    
+    case("bl_shocmf")
+        do j = jts,jte
+        do i = its,ite
+
+        enddo
+        enddo
+    
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+
+       enddo
        enddo
        enddo
 
@@ -724,7 +738,7 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call shocmf_bl_init()
+      call bl_shocmf_init()
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
@@ -935,9 +949,8 @@
                   errmsg = errmsg , errflg = errflg                                                    &
                           )
        call mpas_timer_stop('bl_mynn')
-!      call mpas_log_write('--- exit subroutine mynn_bl_driver:')
-!      call mpas_log_write(' ')
-
+    case("bl_shocmf")
+        
     case default
 
  end select pbl_select
