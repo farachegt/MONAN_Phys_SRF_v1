@@ -447,6 +447,7 @@ subroutine shoc_main ( &
     ! Compute the planetary boundary layer height, which is an
     !   input needed for the length scale calculation.
 
+    ! TODO (G): Remove compute_shoc_vapor because MONAN already has qc (cloud water mixing ratio) variable.
     ! Update SHOC water vapor, to be used by the next two routines
     call compute_shoc_vapor(&
        shcol,nlev,qw,shoc_ql,&              ! Input
