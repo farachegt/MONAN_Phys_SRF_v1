@@ -487,7 +487,20 @@
     pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
 
 !... SHOCMF PBL scheme (module_bl_shocmf.F):
- real(kind=RKIND), dimension(:,:),allocatable:: &
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    mf_dry_freq_p,      &!frequency of dry plume activation                                                    [-]
+    mf_moist_freq_p,    &!frequency of moist plume activation                                                  [-]
+    plumeheight_p,      &!plume height according to the one plume test                                         [m]
+    plume_dry_height_p, &!dry plume height according to the one plume test                                     [m]
+    ztop_b_p,           &!mixed layer height according to min(wthv_sec)                                        [m]
+    mf_l0_p,            &!distance a plume needs to travel to entrain once                                     [m]
+    mf_ent0_p,          &!fractional mass of air entrained in a single entrainment event                       [-]
+    pbl_wthl_p,         &!JPL PBL as the first level where wthl = wthl_surf*0.01                               [m]
+    pbl_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
+ 
+ integer,dimension(:,:),allocatable:: mf_nup_p !number of plumes                                               [-]
+ 
+ real(kind=RKIND), dimension(:,:,:),allocatable:: &
     shoc_tke_p,       &!turbulent kinetic energy.                                                          [m2/s2]
     wthv_sec_p,       &!buoyancy flux.                                                                     [K m/s]
     shoc_mix_p,       &!SHOC length scale.                                                                     [m]
@@ -544,21 +557,8 @@
     mf_moist_a_zt_p,  &!moist updraft area fraction interpolated to the full levels (edmf)                     [-]
     mf_moist_qc_zt_p, &!moist updraft cloud water mixing ratio interpolated to the full levels (edmf)      [kg/kg]
     cld_shoc_p,       &!cloud fraction from SHOC                                                               [-]
-    ast_p,             &!stratiform cloud fraction                                                              [-]
+    ast_p,            &!stratiform cloud fraction                                                              [-]
     thetal_p,         &!Liquid water potential temperature                                                     [K]
-
- real(kind=RKIND),dimension(:),allocatable:: &
-    mf_dry_freq_p,      &!frequency of dry plume activation                                                    [-]
-    mf_moist_freq_p,    &!frequency of moist plume activation                                                  [-]
-    plumeheight_p,      &!plume height according to the one plume test                                         [m]
-    plume_dry_height_p, &!dry plume height according to the one plume test                                     [m]
-    ztop_b_p,           &!mixed layer height according to min(wthv_sec)                                        [m]
-    mf_l0_p,            &!distance a plume needs to travel to entrain once                                     [m]
-    mf_ent0_p,          &!fractional mass of air entrained in a single entrainment event                       [-]
-    pbl_wthl_p,         &!JPL PBL as the first level where wthl = wthl_surf*0.01                               [m]
-    pbl_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
- 
- integer,dimension(:),allocatable:: mf_nup_p !number of plumes                                                 [-]
 
 
 !=================================================================================================================
