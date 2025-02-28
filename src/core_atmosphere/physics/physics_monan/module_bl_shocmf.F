@@ -9,58 +9,65 @@ module module_bl_shocmf
  public:: bl_shocmf_init, &
           bl_shocmf_driver
 
- real(r8) :: shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+ real(RKIND) :: shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
 
  contains
 
  ! SHOCMF -> MPAS
- ! thetav -> theta_m
- ! ql     -> qc
- ! zt     -> zmid_p
- ! qv     -> qv
- ! rho_i  -> rho_interfaces (criar)
- ! rho    -> rho
- ! zm     -> zgrid
+ ! thetav -> theta_m --> assigned in MPAS_to_physics (mpas_atmphys_interface.F)
+ ! ql     -> qc --> qc_p assigned in MPAS_to_physics (mpas_atmphys_interface.F)
+ ! zt     -> zmid_p --> assigned in MPAS_to_physics (mpas_atmphys_interface.F)
+ ! qv     -> qv --> qv_p assigned in MPAS_to_physics (mpas_atmphys_interface.F)
+ ! rho_i  -> (calculate_rho_i)
+ ! rho    -> rho_p
+ ! zm     -> zgrid_p
  ! pbl_h  -> hpbl
 
+ subroutine calculate_dry_static_energy()
+! TODO (G): Write the code
+ end subroutine calculate_dry_static_energy
 
  subroutine calculate_rho_i(pres_i, t_i, rho_i)
    ! Calculate the density at the interfaces
    ! pres_i and t_i are the pressure and temperature at the interfaces
    ! which in MONAN vars module are called pres2_p and t2_p
-   real(kind=RKIND), intent(in) :: pres_i(:), t_i(:)
-   real(kind=RKIND), intent(out) :: rho_i(:)
-   integer :: k
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: pres_i, t_i
+   real(kind=RKIND), dimension(:,:,:), intent(out) :: rho_i(:,:,:)
 
    ! p = rho * R_d * T
    ! rho = p / (R_d * T)
-   do k = 1, kte
-      rho_i(k) = pres_i(k) / (R_d * t_i(k))
-   enddo
-   
+   rho_i(:,:,:) = pres_i(:,:,:)/(R_d*t_i(:,:,:))
  end subroutine calculate_rho_i
 
- subroutine calculate_theta_l(theta, temperature, ql, theta_l)
-   ! Calculate liquid water potential temperature
-   ! Reference: https://glossary.ametsoc.org/wiki/Liquid_water_potential_temperature
-   real(kind=RKIND), intent(in) :: theta(:), temperature(:), ql(:)
-   real(kind=RKIND), intent(out) :: theta_l(:)
+ subroutine calculate_presdiff(pres_levels, presdiff_levels)
+   ! Calculate the pressure difference between the interfaces
+   ! pres_levels is the pressure at the levels
+   ! presdiff_levels is the pressure difference between the interfaces
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: pres_levels
+   real(kind=RKIND), dimension(:,:,:), intent(out) :: presdiff_levels
    integer :: k
 
-   do k = 1, kte
-      theta_l(k) = theta(k) + (xlv/cp)*ql(k)/temperature(k)
+   do k=1, kte-1
+      presdiff_levels(:,k,:) = pres_levels(:,k+1,:) - pres_levels(:,k,:)
    enddo
- end subroutine calculate_theta_l
+
+ end subroutine calculate_presdiff
+
+ subroutine calculate_thetal(theta, temperature, ql, thetal)
+   ! Calculate liquid water potential temperature
+   ! Reference: https://glossary.ametsoc.org/wiki/Liquid_water_potential_temperature
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, temperature, ql
+   real(kind=RKIND), dimension(:,:,:), intent(out) :: thetal
+
+   thetal(:,:,:) = theta(:,:,:)*(1.0_RKIND - (xlv/cp)*ql(:,:,:)/temperature(:,:,:))
+ end subroutine calculate_thetal
 
  subroutine calculate_qw(ql, qv, qs, qi, qg, qr, qw)
    ! Calculate total water mixing ratio
-   real(kind=RKIND), intent(in) :: ql(:), qv(:), qs(:), qi(:), qg(:), qr(:)
-   real(kind=RKIND), intent(out) :: qw(:)
-   integer :: k
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: ql, qv, qs, qi, qg, qr
+   real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
-   do k = 1, kte
-      qw(k) = ql(k) + qv(k) + qs(k) + qi(k) + qg(k) + qr(k)
-   enddo
+   qw(:,:,:) = ql(:,:,:) + qv(:,:,:) + qs(:,:,:) + qi(:,:,:) + qg(:,:,:) + qr(:,:,:)
  end subroutine calculate_qw
 
 
@@ -75,6 +82,10 @@ module module_bl_shocmf
  end subroutine bl_shocmf_init
 
  subroutine bl_shocmf_driver
+   call calculate_thetal(theta_p, t_p, qc_p, thetal_p)
+   call calculate_presdiff(pres_p, presdiff_p)
+   call calculate_rho_i(pres2_p, t2_p, rho_i_p)
+   call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
 
    call shoc_main( &
       ite, kte, kte+1, shoc_timestep, nadv, &                                                         ! Input

@@ -186,16 +186,18 @@
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
     case("bl_shocmf")
-      if(.not.allocated(mf_dry_freq_p)     ) allocate(mf_dry_freq_p(ims:ime,jms:jme)       )
-      if(.not.allocated(mf_moist_freq)     ) allocate(mf_moist_freq_p(ims:ime,jms:jme)     )
-      if(.not.allocated(plumeheight)       ) allocate(plumeheight_p(ims:ime,jms:jme)       )
-      if(.not.allocated(plume_dry_height)  ) allocate(plume_dry_height_p(ims:ime,jms:jme)  )
-      if(.not.allocated(ztop_B)            ) allocate(ztop_b_p(ims:ime,jms:jme)            )
-      if(.not.allocated(mf_l0_p)           ) allocate(mf_l0_p(ims:ime,jms:jme)             )
-      if(.not.allocated(mf_ent0_p)         ) allocate(mf_ent0_p(ims:ime,jms:jme)           )
-      if(.not.allocated(pbl_wthl_p)        ) allocate(pbl_wthl_p(ims:ime,jms:jme)          )
-      if(.not.allocated(pbl_tke_p)         ) allocate(pbl_tke_p(ims:ime,jms:jme)           )
-      if(.not.allocated(mf_nup)            ) allocate(mf_nup_p(ims:ime,jms:jme)            )
+      if(.not.allocated(mf_dry_freq_p)       ) allocate(mf_dry_freq_p(ims:ime,jms:jme)       )
+      if(.not.allocated(mf_moist_freq_p)     ) allocate(mf_moist_freq_p(ims:ime,jms:jme)     )
+      if(.not.allocated(plumeheight_p)       ) allocate(plumeheight_p(ims:ime,jms:jme)       )
+      if(.not.allocated(plume_dry_height_p)  ) allocate(plume_dry_height_p(ims:ime,jms:jme)  )
+      if(.not.allocated(ztop_b_p)            ) allocate(ztop_b_p(ims:ime,jms:jme)            )
+      if(.not.allocated(mf_l0_p)             ) allocate(mf_l0_p(ims:ime,jms:jme)             )
+      if(.not.allocated(mf_ent0_p)           ) allocate(mf_ent0_p(ims:ime,jms:jme)           )
+      if(.not.allocated(pbl_wthl_p)          ) allocate(pbl_wthl_p(ims:ime,jms:jme)          )
+      if(.not.allocated(pbl_tke_p)           ) allocate(pbl_tke_p(ims:ime,jms:jme)           )
+      if(.not.allocated(mf_nup_p)            ) allocate(mf_nup_p(ims:ime,jms:jme)            )
+      if(.not.allocated(lh_p)                ) allocate(lh_p(ims:ime,jms:jme)                )
+      if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
 
       if(.not.allocated(shoc_tke_p)         ) allocate(shoc_tke_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
@@ -251,12 +253,16 @@
       if(.not.allocated(wthl_mf_p)          ) allocate(wthl_mf_p(ims:ime,kms:kme+1,jms:jme)          )
       if(.not.allocated(wqw_ed_p)           ) allocate(wqw_ed_p(ims:ime,kms:kme+1,jms:jme)           )
       if(.not.allocated(wqw_mf_p)           ) allocate(wqw_mf_p(ims:ime,kms:kme+1,jms:jme)           )
-      if(.not.allocated(mf_moist_a_zt_p)    ) allocate(mf_moist_a_zt_p(ims:ime,kms:kme,jms:jme)    )
-      if(.not.allocated(mf_moist_qc_zt_p)   ) allocate(mf_moist_qc_zt_p(ims:ime,kms:kme,jms:jme)   )
-      if(.not.allocated(cld_shoc_p)         ) allocate(cld_shoc_p(ims:ime,kms:kme,jms:jme)         )
-      if(.not.allocated(ast_p)              ) allocate(ast_p(ims:ime,kms:kme,jms:jme)              )
-      if(.not.allocated(thetal_p)           ) allocate(thetal_p(ims:ime,kms:kme,jms:jme)           )
-      
+      if(.not.allocated(mf_moist_a_zt_p)    ) allocate(mf_moist_a_zt_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(mf_moist_qc_zt_p)   ) allocate(mf_moist_qc_zt_p(ims:ime,kms:kme,jms:jme)     )
+      if(.not.allocated(cld_shoc_p)         ) allocate(cld_shoc_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(ast_p)              ) allocate(ast_p(ims:ime,kms:kme,jms:jme)                )
+      if(.not.allocated(theta_p)            ) allocate(theta_p(ims:ime,kms:kme,jms:jme)              )
+      if(.not.allocated(thetal_p)           ) allocate(thetal_p(ims:ime,kms:kme,jms:jme)             )
+      if(.not.allocated(zgrid_p)            ) allocate(zgrid_p(ims:ime,kms:kme,jms:jme)              )
+      if(.not.allocated(presdiff_p)         ) allocate(presdiff_p(ims:ime,kms:kme-1,jms:jme)         ) ! TODO(G): Check with Saulo if is kme-1 size of presdiff_p
+      if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)                 )
+      if(.not.allocated(rho_i_p)            ) allocate(rho_i_p(ims:ime,kms:kme,jms:jme)              )
 
     case default
 
@@ -367,16 +373,18 @@
        if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
 
     case("bl_shocmf")
-        if(allocated(mf_dry_freq_p)     ) deallocate(mf_dry_freq_p       )
-        if(allocated(mf_moist_freq)     ) deallocate(mf_moist_freq_p     )
-        if(allocated(plumeheight)       ) deallocate(plumeheight_p       )
-        if(allocated(plume_dry_height)  ) deallocate(plume_dry_height_p  )
-        if(allocated(ztop_B)            ) deallocate(ztop_b_p            )
-        if(allocated(mf_l0_p)           ) deallocate(mf_l0_p             )
-        if(allocated(mf_ent0_p)         ) deallocate(mf_ent0_p           )
-        if(allocated(pbl_wthl_p)        ) deallocate(pbl_wthl_p          )
-        if(allocated(pbl_tke_p)         ) deallocate(pbl_tke_p           )
-        if(allocated(mf_nup)            ) deallocate(mf_nup_p            )
+        if(allocated(mf_dry_freq_p)       ) deallocate(mf_dry_freq_p       )
+        if(allocated(mf_moist_freq_p)     ) deallocate(mf_moist_freq_p     )
+        if(allocated(plumeheight_p)       ) deallocate(plumeheight_p       )
+        if(allocated(plume_dry_height_p)  ) deallocate(plume_dry_height_p  )
+        if(allocated(ztop_b_p)            ) deallocate(ztop_b_p            )
+        if(allocated(mf_l0_p)             ) deallocate(mf_l0_p             )
+        if(allocated(mf_ent0_p)           ) deallocate(mf_ent0_p           )
+        if(allocated(pbl_wthl_p)          ) deallocate(pbl_wthl_p          )
+        if(allocated(pbl_tke_p)           ) deallocate(pbl_tke_p           )
+        if(allocated(mf_nup_p)            ) deallocate(mf_nup_p            )
+        if(allocated(lh_p)                ) deallocate(lh_p                )
+        if(allocated(ht_p)                ) deallocate(ht_p                )
 
         if(allocated(shoc_tke_p)         ) deallocate(shoc_tke_p         )
         if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
@@ -436,7 +444,12 @@
         if(allocated(mf_moist_qc_zt_p)   ) deallocate(mf_moist_qc_zt_p   )
         if(allocated(cld_shoc_p)         ) deallocate(cld_shoc_p         )
         if(allocated(ast_p)              ) deallocate(ast_p              )
+        if(allocated(theta_p)            ) deallocate(theta_p            )
         if(allocated(thetal_p)           ) deallocate(thetal_p           )
+        if(allocated(zgrid_p)            ) deallocate(zgrid_p            )
+        if(allocated(presdiff_p)         ) deallocate(presdiff_p         )
+        if(allocated(qw_p)               ) deallocate(qw_p               )
+        if(allocated(rho_i_p)            ) deallocate(rho_i_p            )
 
     case default
 
@@ -497,6 +510,8 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_qtflx_watts,cfl_mf,wthl_ed,wthl_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_ed,wqw_mf,mf_moist_a_zt,mf_moist_qc_zt
  real(kind=RKIND),dimension(:,:),pointer:: cld_shoc,ast,thetal
+
+ real(kind=RKIND),dimension(:,:),pointer:: zgrid
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -730,6 +745,11 @@
        call mpas_pool_get_array(diag_physics, 'cld_shoc'         ,cld_shoc       )
        call mpas_pool_get_array(diag_physics, 'ast'              ,ast            )
        call mpas_pool_get_array(diag_physics, 'thetal'           ,thetal         )
+       call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
+       call mpas_pool_get_array(diag_phyiscs, 'lh'               ,lh             )
+       call mpas_pool_get_array(diag_physics,'cldfrac_bl'        ,cldfrac_bl     )
+       call mpas_pool_get_array(diag_physics,'tke_pbl'           ,tke_pbl        )
+       call mpas_pool_get_array(diag_physics,'theta'             ,theta            )
 
        do j = jts,jte
        do i = its,ite
@@ -742,7 +762,11 @@
         mf_ent0_p(i,j)         = mf_ent0(i)
 
         mf_nup_p(i,j)          = mf_nup(i)
-        
+
+        lh_p(i,j)             = lh(i)
+
+        ht_p(i,j)            = zgrid(1,i) ! TODO (G): Based on ht_p of physics/mpas_atmphys_driver_convection.F 
+
         pbl_wthl_p(i,j)        = 0._RKIND
         pbl_tke_p(i,j)         = 0._RKIND
        enddo
@@ -808,7 +832,10 @@
         mf_moist_qc_zt_p(i,k,j)  = mf_moist_qc_zt(k,i)
         cld_shoc_p(i,k,j)        = cld_shoc(k,i)
         ast_p(i,k,j)             = ast(k,i)
-        thetal_p(i,k,j)          = thetal(k,i)
+        zgrid_p(i,k,j)           = zgrid(k,i)
+        cldfrabl_p(i,k,j)        = cldfrac_bl(k,i)
+        tkepbl_p(i,k,j)          = tke_pbl(k,i)
+        theta_p(i,k,j)           = theta(k,i)
        enddo
        enddo
        enddo
@@ -1068,7 +1095,10 @@
        call mpas_pool_get_array(diag_physics, 'mf_moist_qc_zt'   ,mf_moist_qc_zt )
        call mpas_pool_get_array(diag_physics, 'cld_shoc'         ,cld_shoc       )
        call mpas_pool_get_array(diag_physics, 'ast'              ,ast            )
+       call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
        call mpas_pool_get_array(diag_physics, 'thetal'           ,thetal         )
+       call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
+       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
         
        do j = jts,jte
        do i = its,ite
@@ -1144,7 +1174,9 @@
           mf_moist_qc_zt(k,i)  = mf_moist_qc_zt_p(i,k,j)
           cld_shoc(k,i)        = cld_shoc_p(i,k,j)
           ast(k,i)             = ast_p(i,k,j)
-          thetal(k,i)          = thetal_p(i,k,j)
+          cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
+          tke_pbl(k,i)         = tkepbl_p(i,k,j)
+          theta(k,i)           = theta_p(i,k,j) ! TODO (G): Is it necessary to copy theta back to MPAS?
        enddo
        enddo
        enddo
