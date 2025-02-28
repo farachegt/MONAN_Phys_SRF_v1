@@ -9,6 +9,8 @@ module module_bl_shocmf
  public:: bl_shocmf_init, &
           bl_shocmf_driver
 
+ real(r8) :: shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+
  contains
 
  ! SHOCMF -> MPAS
@@ -73,6 +75,43 @@ module module_bl_shocmf
  end subroutine bl_shocmf_init
 
  subroutine bl_shocmf_driver
+
+   call shoc_main( &
+      ite, kte, kte+1, shoc_timestep, nadv, &                                                         ! Input
+	   dx_p(:ncol), dy_p(:ncol), thv(:ncol,:),&                                      ! Input
+      zt_g(:ncol,:), zi_g(:ncol,:), state%pmid(:ncol,:pver), state%pint(:ncol,:pverp), &        ! Input
+      state1%pdel(:ncol,:pver), &                                                               ! Input
+	   wpthlp_sfc(:ncol), wprtp_sfc(:ncol), upwp_sfc(:ncol), vpwp_sfc(:ncol), &                  ! Input
+	   wtracer_sfc(:ncol,:), edsclr_dim, wm_zt(:ncol,:), &                                       ! Input
+	   exner(:ncol,:),state1%phis(:ncol), &                                                      ! Input
+	   shoc_s(:ncol,:), tke_zt(:ncol,:), thlm(:ncol,:), rtm(:ncol,:), &                          ! Input/Ouput
+	   um(:ncol,:), vm(:ncol,:), edsclr_in(:ncol,:,:), &                                         ! Input/Output
+	   wthv(:ncol,:),tkh(:ncol,:),tk(:ncol,:), &                                                 ! Input/Output
+	   rcm(:ncol,:),cloud_frac(:ncol,:), &                                                       ! Input/Output
+      pblh(:ncol),pblh_wthl(:ncol),pblh_tke(:ncol),&                                            ! Output
+      rino(:ncol,:), &                                                                          ! Output
+      shoc_mix_out(:ncol,:), isotropy_out(:ncol,:), &                                           ! Output (diagnostic)
+      a_diss_out(:ncol,:), a_prod_bu_out(:ncol,:), a_prod_sh_out(:ncol,:), &                    ! Output (diagnostic)
+      w_sec_out(:ncol,:), thl_sec_out(:ncol,:), qw_sec_out(:ncol,:), qwthl_sec_out(:ncol,:), &  ! Output (diagnostic)
+      wthl_sec_out(:ncol,:), wqw_sec_out(:ncol,:), wtke_sec_out(:ncol,:), &                     ! Output (diagnostic)
+      uw_sec_out(:ncol,:), vw_sec_out(:ncol,:), w3_out(:ncol,:), &                              ! Output (diagnostic)
+      wqls_out(:ncol,:),brunt_out(:ncol,:),rcm2(:ncol,:), &                                     ! Output (diagnostic)
+      mf_dry_a(:ncol,:), mf_moist_a(:ncol,:), &                                                 ! Output (EDMF diagnostic)
+      mf_dry_w(:ncol,:), mf_moist_w(:ncol,:), &                                                 ! Output (EDMF diagnostic)
+      mf_dry_qt(:ncol,:), mf_moist_qt(:ncol,:), &                                               ! Output (EDMF diagnostic)
+      mf_dry_thl(:ncol,:), mf_moist_thl(:ncol,:), &                                             ! Output (EDMF diagnostic)
+      mf_dry_u(:ncol,:),   mf_moist_u(:ncol,:), &                                               ! Output (EDMF diagnostic)
+      mf_dry_v(:ncol,:),   mf_moist_v(:ncol,:), &                                               ! Output (EDMF diagnostic)
+                           mf_moist_qc(:ncol,:), &                                              ! Output (EDMF diagnostic)
+      mf_thlflx(:ncol,:), mf_qtflx(:ncol,:), &                                                  ! Output (EDMF diagnostic)
+      mf_ae(:ncol,:), mf_aw(:ncol,:), &                                                         ! Output (EDMF diagnostic)
+      mf_awthv(:ncol,:), &                                                                      ! Output (EDMF diagnostic)
+      mf_awthl(:ncol,:), mf_awqt(:ncol,:), &                                                    ! Output (EDMF diagnostic)
+      mf_awql(:ncol,:), mf_awqi(:ncol,:), &                                                     ! Output (EDMF diagnostic)
+      mf_awu(:ncol,:), mf_awv(:ncol,:), cfl_mf(:ncol,:), &                                      ! Output (EDMF diagnostic)
+      mf_dry_freq(:), mf_moist_freq(:), plumeheight(:), plume_dry_height(:), ztop_B(:), &       ! Output (EDMF diagnostic)
+      wthl_sec_ed_out(:ncol,:), wthl_sec_mf_out(:ncol,:), &                                     ! Output (EDMF diagnostic)
+      wqw_sec_ed_out(:ncol,:), wqw_sec_mf_out(:ncol,:))                   	
 
  end subroutine bl_shocmf_driver
 
