@@ -13,31 +13,9 @@ module module_bl_shocmf
 
  contains
 
- ! SHOCMF -> MPAS
- ! thetav -> theta_m --> assigned in MPAS_to_physics (mpas_atmphys_interface.F)
- ! ql     -> qc --> qc_p assigned in MPAS_to_physics (mpas_atmphys_interface.F)
- ! zt     -> zmid_p --> assigned in MPAS_to_physics (mpas_atmphys_interface.F)
- ! qv     -> qv --> qv_p assigned in MPAS_to_physics (mpas_atmphys_interface.F)
- ! rho_i  -> (calculate_rho_i)
- ! rho    -> rho_p
- ! zm     -> zgrid_p
- ! pbl_h  -> hpbl
-
  subroutine calculate_dry_static_energy()
 ! TODO (G): Write the code
  end subroutine calculate_dry_static_energy
-
- subroutine calculate_rho_i(pres_i, t_i, rho_i)
-   ! Calculate the density at the interfaces
-   ! pres_i and t_i are the pressure and temperature at the interfaces
-   ! which in MONAN vars module are called pres2_p and t2_p
-   real(kind=RKIND), dimension(:,:,:), intent(in) :: pres_i, t_i
-   real(kind=RKIND), dimension(:,:,:), intent(out) :: rho_i(:,:,:)
-
-   ! p = rho * R_d * T
-   ! rho = p / (R_d * T)
-   rho_i(:,:,:) = pres_i(:,:,:)/(R_d*t_i(:,:,:))
- end subroutine calculate_rho_i
 
  subroutine calculate_presdiff(pres_levels, presdiff_levels)
    ! Calculate the pressure difference between the interfaces
@@ -84,7 +62,6 @@ module module_bl_shocmf
  subroutine bl_shocmf_driver
    call calculate_thetal(theta_p, t_p, qc_p, thetal_p)
    call calculate_presdiff(pres_p, presdiff_p)
-   call calculate_rho_i(pres2_p, t2_p, rho_i_p)
    call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
 
    call shoc_main( &
