@@ -497,6 +497,7 @@
     pblh_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
  
  real(kind=RKIND), dimension(:,:,:),allocatable:: &
+    shoc_ql2_p,       &!cloud liquid variance.                                                           [kg2/kg2]
     shoc_tke_p,       &!turbulent kinetic energy.                                                          [m2/s2]
     wthv_sec_p,       &!buoyancy flux.                                                                     [K m/s]
     shoc_mix_p,       &!SHOC length scale.                                                                     [m]
@@ -551,7 +552,7 @@
     theta_p,          &!potential temperature                                                                  [K]
     thetal_p,         &!liquid water potential temperature                                                     [K]
     presdiff_p,       &!difference in pressure levels                                                         [Pa]
-    qw_p,              !total water mixing ratio                                                           [kg/kg]
+    qw_p               !total water mixing ratio                                                           [kg/kg]
 
 
 !=================================================================================================================

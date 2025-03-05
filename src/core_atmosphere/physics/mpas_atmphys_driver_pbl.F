@@ -208,17 +208,17 @@
       if(.not.allocated(brunt_p)            ) allocate(brunt_p(ims:ime,kms:kme,jms:jme)              )
       if(.not.allocated(shoc_ql2_p)         ) allocate(shoc_ql2_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(tke_dissip_p)       ) allocate(tke_dissip_p(ims:ime,kms:kme,jms:jme)         )
-      if(.not.allocated(tke_prod_b)         ) allocate(tke_prod_b(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(tke_prod_sh)        ) allocate(tke_prod_sh(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(tke_prod_b_p)       ) allocate(tke_prod_b_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(tke_prod_sh_p)      ) allocate(tke_prod_sh_p(ims:ime,kms:kme,jms:jme)        )
       if(.not.allocated(rino_p)             ) allocate(rino_p(ims:ime,kms:kme,jms:jme)               )
       if(.not.allocated(thl_sec_p)          ) allocate(thl_sec_p(ims:ime,kms:kme+1,jms:jme)          )
       if(.not.allocated(qw_sec_p)           ) allocate(qw_sec_p(ims:ime,kms:kme+1,jms:jme)           )
       if(.not.allocated(qwthl_sec_p)        ) allocate(qwthl_sec_p(ims:ime,kms:kme+1,jms:jme)        )
       if(.not.allocated(wthl_sec_p)         ) allocate(wthl_sec_p(ims:ime,kms:kme+1,jms:jme)         )
       if(.not.allocated(wqw_sec_p)          ) allocate(wqw_sec_p(ims:ime,kms:kme+1,jms:jme)          )
-      if(.not.allocated(wtke_sec)           ) allocate(wtke_sec(ims:ime,kms:kme+1,jms:jme)           )
-      if(.not.allocated(uw_sec)             ) allocate(uw_sec(ims:ime,kms:kme+1,jms:jme)             )
-      if(.not.allocated(vw_sec)             ) allocate(vw_sec(ims:ime,kms:kme+1,jms:jme)             )
+      if(.not.allocated(wtke_sec_p)         ) allocate(wtke_sec_p(ims:ime,kms:kme+1,jms:jme)         )
+      if(.not.allocated(uw_sec_p)           ) allocate(uw_sec_p(ims:ime,kms:kme+1,jms:jme)           )
+      if(.not.allocated(vw_sec_p)           ) allocate(vw_sec_p(ims:ime,kms:kme+1,jms:jme)           )
       if(.not.allocated(w3_p)               ) allocate(w3_p(ims:ime,kms:kme+1,jms:jme)               )
       if(.not.allocated(mf_dry_a_p)         ) allocate(mf_dry_a_p(ims:ime,kms:kme+1,jms:jme)         )
       if(.not.allocated(mf_moist_a_p)       ) allocate(mf_moist_a_p(ims:ime,kms:kme+1,jms:jme)       )
@@ -385,17 +385,17 @@
         if(allocated(brunt_p)            ) deallocate(brunt_p            )
         if(allocated(shoc_ql2_p)         ) deallocate(shoc_ql2_p         )
         if(allocated(tke_dissip_p)       ) deallocate(tke_dissip_p       )
-        if(allocated(tke_prod_b)         ) deallocate(tke_prod_b         )
-        if(allocated(tke_prod_sh)        ) deallocate(tke_prod_sh        )
+        if(allocated(tke_prod_b_p)       ) deallocate(tke_prod_b_p       )
+        if(allocated(tke_prod_sh_p)      ) deallocate(tke_prod_sh_p      )
         if(allocated(rino_p)             ) deallocate(rino_p             )
         if(allocated(thl_sec_p)          ) deallocate(thl_sec_p          )
         if(allocated(qw_sec_p)           ) deallocate(qw_sec_p           )
         if(allocated(qwthl_sec_p)        ) deallocate(qwthl_sec_p        )
         if(allocated(wthl_sec_p)         ) deallocate(wthl_sec_p         )
         if(allocated(wqw_sec_p)          ) deallocate(wqw_sec_p          )
-        if(allocated(wtke_sec)           ) deallocate(wtke_sec           )
-        if(allocated(uw_sec)             ) deallocate(uw_sec             )
-        if(allocated(vw_sec)             ) deallocate(vw_sec             )
+        if(allocated(wtke_sec_p)         ) deallocate(wtke_sec_p         )
+        if(allocated(uw_sec_p)           ) deallocate(uw_sec_p           )
+        if(allocated(vw_sec_p)           ) deallocate(vw_sec_p           )
         if(allocated(w3_p)               ) deallocate(w3_p               )
         if(allocated(mf_dry_a_p)         ) deallocate(mf_dry_a_p         )
         if(allocated(mf_moist_a_p)       ) deallocate(mf_moist_a_p       )
@@ -475,7 +475,7 @@
 
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
- real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B, lh
  real(kind=RKIND),dimension(:,:),pointer:: shoc_tke,wthv_sec,shoc_mix,tk,tkh,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
@@ -488,7 +488,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf,mf_moist_a_zt,mf_moist_qc_zt
- real(kind=RKIND),dimension(:,:),pointer:: thetal
+ real(kind=RKIND),dimension(:,:),pointer:: thetal, rino, theta
 
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
 
@@ -718,7 +718,7 @@
        call mpas_pool_get_array(diag_physics, 'mf_moist_qc_zt'   ,mf_moist_qc_zt )
        call mpas_pool_get_array(diag_physics, 'thetal'           ,thetal         )
        call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
-       call mpas_pool_get_array(diag_phyiscs, 'lh'               ,lh             )
+       call mpas_pool_get_array(diag_physics, 'lh'               ,lh             )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
        call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
@@ -862,6 +862,23 @@
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
+
+ !local pointers for SHOCMF scheme:
+ real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B, lh
+ real(kind=RKIND),dimension(:,:),pointer:: shoc_tke,wthv_sec,shoc_mix,tk,tkh,w_sec
+ real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
+ real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
+ real(kind=RKIND),dimension(:,:),pointer:: qw_sec,qwthl_sec,wthl_sec,wqw_sec,wtke_sec
+ real(kind=RKIND),dimension(:,:),pointer:: uw_sec,vw_sec,w3,mf_dry_a,mf_moist_a
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_w,mf_moist_w,mf_dry_qt,mf_moist_qt
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_thl,mf_moist_thl,mf_dry_u,mf_moist_u
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_v,mf_moist_v,mf_moist_qc,mf_ae,mf_aw
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awu
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
+ real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf,mf_moist_a_zt,mf_moist_qc_zt
+ real(kind=RKIND),dimension(:,:),pointer:: thetal, rino, theta
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1158,7 +1175,7 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call bl_shocmf_init()
+      call bl_shocmf_init(kte, gravity, R_d, R_v, cp, ep_1, xlv, xlf, karman, pres_p)
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
