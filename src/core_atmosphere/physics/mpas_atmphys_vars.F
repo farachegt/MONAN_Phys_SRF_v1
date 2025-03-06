@@ -493,8 +493,8 @@
     plumeheight_p,      &!plume height according to the one plume test                                         [m]
     plume_dry_height_p, &!dry plume height according to the one plume test                                     [m]
     ztop_b_p,           &!mixed layer height according to min(wthv_sec)                                        [m]
-    pblh_wthl_p,         &!JPL PBL as the first level where wthl = wthl_surf*0.01                               [m]
-    pblh_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
+    pblh_wthl_p,         &!JPL PBL as the first level where wthl = wthl_surf*0.01                              [m]
+    pblh_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                [m]
  
  real(kind=RKIND), dimension(:,:,:),allocatable:: &
     shoc_ql2_p,       &!cloud liquid variance.                                                           [kg2/kg2]
@@ -552,7 +552,9 @@
     theta_p,          &!potential temperature                                                                  [K]
     thetal_p,         &!liquid water potential temperature                                                     [K]
     presdiff_p,       &!difference in pressure levels                                                         [Pa]
-    qw_p               !total water mixing ratio                                                           [kg/kg]
+    qw_p,             &!total water mixing ratio                                                           [kg/kg]
+
+    tke_shmf_p
 
 
 !=================================================================================================================

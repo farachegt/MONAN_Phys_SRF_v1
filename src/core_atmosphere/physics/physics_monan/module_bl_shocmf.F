@@ -60,7 +60,6 @@ module module_bl_shocmf
     ntop_shoc = 1    ! if >1, must be <= nbot_molec
     nbot_shoc = kte ! currently always pver
 
-    ! TODO: pref_mid == pres_p (?)
     call shoc_init(kte, gravity, R_d, R_v, cp, ep_1, xlv, xlf, karman, pres_p, nbot_shoc, &
                     ntop_shoc, length_fac)
  end subroutine bl_shocmf_init

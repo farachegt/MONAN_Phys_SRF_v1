@@ -2143,6 +2143,10 @@
                         <var name="buoyx" array_group="convection" units="J kg^{-1}"
                              description="Buoyancy excess from the cold pool scheme"
                              packages="gf_monan_cporg"/>
+                         
+                        <var name="tke_shmf" array_group="pbl" units="m^{2} s^{-2}"
+                             description="Turbulent Kinetic Energy from the PBL scheme"
+                             packages="bl_shocmf_in"/>
                 </var_array>
 #endif
 
@@ -3168,11 +3172,11 @@
 
 		<var name="kzh" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of potential temperature"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
 		<var name="kzm" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of mommentum"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
 		<var name="kzq" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of water vapor and cloud condensates"
@@ -3232,7 +3236,7 @@
 
                 <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="turbulent kinetic energy from PBL"
-                     packages="bl_mynn_in;bl_shocmf_in"/>
+                     packages="bl_mynn_in"/>
 
                 <var name="dqke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE change"
