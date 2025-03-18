@@ -3299,10 +3299,6 @@
                      packages="bl_mynn_in"/>
 
                <!-- SHOCMF PBL SCHEME: -->
-               <var name="shoc_tke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
-                    description="TKE in the SHOC+MF PBL scheme"
-                    packages="bl_shocmf_in"/>
-
                <var name="wthv_sec" type="real" dimensions="nVertLevels nCells Time" units="K m s^{-1}"
                     description="Buoyancy Flux"
                     packages="bl_shocmf_in"/>
@@ -3353,6 +3349,10 @@
 
                <var name="rino" type="real" dimensions="nVertLevels nCells Time" units="m"
                     description="Bulk Richardson number"
+                    packages="bl_shocmf_in"/>
+
+               <var name="dse" type="real" dimensions="nVertLevels nCells Time" units="J/kg"
+                    description="Dry static energy from the SHOCMF PBL scheme" 
                     packages="bl_shocmf_in"/>
                
                <var name="thl_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="K^{2}"
@@ -3495,6 +3495,13 @@
                     description="Mixed layer height according to min(wthv_sec)" 
                     packages="bl_shocmf_in"/>
 
+               <var name="uw_sfc" type="real" dimensions="nCells Time" units="m^{2} s^{-2}"
+                    description="Surface momentum flux (u-w component)"
+                    packages="bl_shocmf_in"/>
+
+               <var name="vw_sfc" type="real" dimensions="nCells Time" units="m^{2} s^{-2}"
+                    description="Surface momentum flux (v-w component)"
+                    packages="bl_shocmf_in"/>
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF SURFACE LAYER PROCESSES:                                                   -->
                 <!-- ================================================================================================== -->
@@ -3541,7 +3548,7 @@
 
                 <var name="cda" type="real" dimensions="nCells Time" units="unitless"
                      description="drag coefficient at lowest model level"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="chs" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat and moisture"
