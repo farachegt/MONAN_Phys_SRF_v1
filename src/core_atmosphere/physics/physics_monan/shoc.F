@@ -7,19 +7,21 @@
 ! email: bogenschutz1@llnl.gov
 !--------------------------------------------------------------
 
-! TODO (G): Remember to delete this include and use a proper package'
+! TODO (GTF): Remember to delete this include and use a proper package
 ! Include bit-for-bit math macros.
 #include "bfb_math.inc"
 
 module shoc
   
+  use mpas_atmphys_constants, only: svpt0
   use mpas_kind_types, only: rtype=>RKIND
 !  use shr_kind_mod,  only: r8=>shr_kind_r8 
 !  use physics_utils,     only: rtype, rtype8, itype, btype
 !  use scream_abortutils, only: endscreamrun
 !  use spmd_utils,        only: masterproc
   use edmf,              only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
-                               do_edmf, do_condensation, do_mf_diag, do_wthv_mf, mf_nup
+                               is_first_step, do_edmf, do_condensation, do_mf_diag, &
+                               do_wthv_mf, mf_nup
 
 ! Bit-for-bit math functions.
 ! #ifdef SCREAM_CONFIG_IS_CMAKE
@@ -30,7 +32,7 @@ module shoc
 implicit none
 save ! for module variables
 
-public  :: shoc_init, shoc_main, length_fac
+public  :: shoc_init, shoc_main, length_fac, mintke
 
 logical :: use_cxx = .false.
 
@@ -178,13 +180,15 @@ subroutine shoc_init( &
    ! Limit pbl height to regions below 400 mb
    ! npbl = max number of levels (from bottom) in pbl
 
-   npbl = 0
-   do k=nbot_shoc,ntop_shoc,-1
-      if (pref_mid(k) >= pblmaxp) then
-         npbl = npbl + 1
-      end if
-   end do
-   npbl = max(npbl,1)
+  ! TODO (GTF): Check later. For now, set to npbl = kte-1
+  !  npbl = 0
+  !  do k=nbot_shoc,ntop_shoc,-1
+  !     if (pref_mid(k) >= pblmaxp) then
+  !        npbl = npbl + 1
+  !     end if
+  !  end do
+  ! npbl = max(npbl,1)
+  npbl = nlev-1
 
    return
 
@@ -195,6 +199,7 @@ end subroutine shoc_init
 ! Host models should call the following routine to call SHOC
 
 subroutine shoc_main ( &
+     itimestep, &                         ! Input
      shcol, nlev, nlevi, dtime, nadv, &   ! Input
      host_dx, host_dy,thv, &              ! Input
      zt_grid,zi_grid,pres,presi, &        ! Input
@@ -232,6 +237,8 @@ subroutine shoc_main ( &
   implicit none
 
 ! INPUT VARIABLES
+  ! time step number
+  integer, intent(in) :: itimestep
   ! number of SHOC columns in the array
   integer, intent(in) :: shcol
   ! number of levels [-]
@@ -478,6 +485,7 @@ subroutine shoc_main ( &
     
     if (do_edmf) then
        call integrate_mf(&
+               itimestep,&                               ! Input
                shcol, nlev, nlevi, dtime,&               ! Input
                rho_zt, rho_zi_mf,&                       ! Input
                zt_grid, zi_grid, dz_zt, presi,thv_zi,&   ! Input
@@ -708,7 +716,7 @@ subroutine edmf_pblh(&
   do i=1,shcol
     pblh_wthl(i) = 0._rtype
     check  = .true.
-    ! TODO (G): This 'check' variable is unecessary. It is possible to use break
+    ! TODO (GTF): This 'check' variable is unecessary. It is possible to use break
     do k = 45,nlev  ! from top to bottom
         if (check .and. abs(abs(wthl_sec(i,k)) - abs(wthl_sec(i,k+1))) > 0.001_rtype) then
          pblh_wthl(i) = zi_grid(i,k)
@@ -722,7 +730,7 @@ subroutine edmf_pblh(&
     if (tke(i,nlev) .NE. 0._rtype ) then
       tke_threshold = mintke*1.1_rtype
       check  = .true.
-      ! TODO (G): This 'check' variable is unecessary. It is possible to use break
+      ! TODO (GTF): This 'check' variable is unecessary. It is possible to use break
       do k = nlev,3,-1    
           if (zt_grid(i,k) < 100._rtype) cycle
           if (check .and. tke(i,k) < tke_threshold .and. tke(i,k-1) < tke_threshold) then
@@ -3005,8 +3013,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
   Tl1_1,Tl1_2,pval,&   ! Input
   qs1,beta1,qs2,beta2) ! Ouput
 
-  !use wv_sat_scream, only: MurphyKoop_svp
-  ! TODO (G): Insert new import of module to calculate saturated vapor pressure
+  use mynn_shared, only: esat_blend
   implicit none
 
   ! intent-in
@@ -3024,14 +3031,17 @@ subroutine shoc_assumed_pdf_compute_qs(&
   integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
   real(rtype) :: esval1_1
   real(rtype) :: esval1_2
+  real(rtype) :: tice
   real(rtype) :: lstarn1
   real(rtype) :: lstarn2
 
   esval1_1=0._rtype
   esval1_2=0._rtype
+  tice      = 240.0 ! (GTF) -33 (C), temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
 
-  ! TODO (G): Uncomment this line when module is imported
+  ! TODO (GTF): Uncomment this line when module is imported
   !esval1_1=MurphyKoop_svp(Tl1_1, liquid)
+  esval1_1 = esat_blend(Tl1_1, svpt0, tice)
   lstarn1=lcond
 
   qs1=0.622_rtype*esval1_1/max(esval1_1,pval-esval1_1)
@@ -3044,8 +3054,9 @@ subroutine shoc_assumed_pdf_compute_qs(&
     qs2=qs1
     beta2=beta1
   else
-    ! TODO (G): Uncomment this line when module is imported
+    ! TODO (GTF): Uncomment this line when module is imported
     !esval1_2=MurphyKoop_svp(Tl1_2, liquid)
+    esval1_2 = esat_blend(Tl1_2, svpt0, tice)
     qs2=0.622_rtype*esval1_2/max(esval1_2,pval-esval1_2)
     beta2=(rgas/rv)*(lstarn2/(rgas*Tl1_2))*(lstarn2/(cp*Tl1_2))
   endif

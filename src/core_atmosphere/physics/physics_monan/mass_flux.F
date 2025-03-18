@@ -10,7 +10,7 @@ module edmf
   use mpas_constants, only: ggr => gravity, & ! gravitational acceleration (m/s**2)
                             rgas, &           ! Dry air gas constant ~ J/K/kg
                             cp                ! specific heat of dry air (J/K/kg)
-!  use spmd_utils,    only: masterproc ! TODO (G): discover where to get master process in MONAN project
+!  use spmd_utils,    only: masterproc ! TODO (GTF): discover where to get master process in MONAN project
 
   implicit none
   
@@ -27,7 +27,7 @@ module edmf
   real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
   real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
-  logical, protected :: do_edmf         = .true. ! TODO (G): Set all to true? They are responsible to add the MF contribution to diffusion solver
+  logical, protected :: do_edmf         = .true. ! TODO (GTF): Set all to true? They are responsible to add the MF contribution to diffusion solver
   logical, protected :: do_condensation = .true.
   logical, protected :: do_mf_diag      = .true.
   logical, protected :: do_wthv_mf      = .true.
@@ -44,9 +44,9 @@ contains
 !   ! =============================================================================== !
 !   ! MF namelists                                                                    !
 !   ! =============================================================================== !
-!     ! use namelist_utils,  only: find_group_name ! TODO (G): Implement find_group_name in MONAN project if necessary to read namelists.
-!     ! use cam_abortutils,  only: endrun ! TODO (G): Discover where to get endrun in MONAN project
-!     ! TODO (G): Get similar to mpiint, mpii8, ... in MONAN project
+!     ! use namelist_utils,  only: find_group_name ! TODO (GTF): Implement find_group_name in MONAN project if necessary to read namelists.
+!     ! use cam_abortutils,  only: endrun
+!     ! TODO (GTF): Get similar to mpiint, mpii8, ... in MONAN project
 !     ! use mpishorthand  ! in spmd_utils.F90: mpiint, mpii8, mpichar, mpilog, mpipk, mpic16, mpir8, mpir4, mpicom, mpimax 
     
 !     character(len=*), intent(in) :: nlfile  ! filepath for file containing namelist input
@@ -56,7 +56,7 @@ contains
 !     namelist /shoc_mf_nl/ mf_L0, mf_ent0, mf_nup, mf_a, mf_b, mf_c, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
 
 !     !  Read namelist to determine if SHOC history should be called
-!     if (masterproc) then ! TODO (G): voltar
+!     if (masterproc) then ! TODO (GTF): voltar
 !       iunit = getunit()
 !       open( newunit=iunit, file=trim(nlfile), status='old' )
 
@@ -85,7 +85,7 @@ contains
 !       call mpibcast(do_condensation,  1,   mpilog,   0, mpicom)  
 !       call mpibcast(do_mf_diag,       1,   mpilog,   0, mpicom)  
 !       call mpibcast(do_wthv_mf,       1,   mpilog,   0, mpicom)  
-! #endif ! TODO (G): voltar
+! #endif ! TODO (GTF): voltar
 
 !     if ((.not. do_edmf) .and. do_mf_diag ) then
 !       call endrun('shoc_mf_nl: Error - cannot turn on do_mf_diag without also turning on do_edmf')
@@ -93,7 +93,7 @@ contains
     
 !   end subroutine mf_readnl
 
-  subroutine integrate_mf(shcol, nz, nzi, dt,                      & ! input
+  subroutine integrate_mf(itimestep, shcol, nz, nzi, dt,           & ! input
                  rho_zt_in, rho_zi_in,                             & ! input
                  zt_in, zi_in, dz_zt_in, p_in, thv_zi_in,          & ! input
                  u_in,   v_in,   thl_in,   thv_in, qt_in,          & ! input
@@ -144,7 +144,7 @@ contains
      real(rtype), dimension(shcol), intent(in) :: ust,   wthl,   wqt
      real(rtype), dimension(shcol), intent(in) :: pblh, pblh_wthl
      !time step [s]   
-     real(rtype), intent(in) :: dt
+     real(rtype), intent(in) :: dt, itimestep
      ! ============================================================================== !
      ! OUTPUTS
      ! updraft properties
@@ -249,8 +249,8 @@ contains
                               pblhmin  = 100._rtype
                               
     ! fixed entrainment rate (to debug only)
-    ! TODO (G): Check if this parameter is necessary. It says "to debug only" but variable
-    ! TODO (G): ent_oneplume is assigned with this value.
+    ! TODO (GTF): Check if this parameter is necessary. It says "to debug only" but variable
+    ! TODO (GTF): ent_oneplume is assigned with this value.
      real(rtype),parameter :: fixent = 1.e-3_rtype
      
      logical ::check
@@ -327,7 +327,7 @@ contains
      ! START MAIN COMPUTATION
      ! NOTE: SHOC does not invert the vertical coordinate, which by default is ordered from lowest to highest pressure
      ! (i.e. top of atmosphere to bottom) so surface-based do loops are performed in reverse (i.e. from nz to 1)
-     ! TODO (G): Check if it alligns with MONAN structures.
+     ! TODO (GTF): Check if it alligns with MONAN structures.
      do j=1,shcol
        ! zero out plume properties
        upw   = 0._rtype
@@ -406,7 +406,7 @@ contains
            enddo
          enddo
          
-         call Poisson( nz, mf_nup, entf, enti, 69._rtype)
+         call Poisson( nz, mf_nup, entf, enti, 69._rtype, itimestep)
           
          ! entrainment: Ent=Ent0/dz*P(dz/L0)
          do i=1,mf_nup
@@ -759,7 +759,7 @@ contains
                              thvn, qcn, thn, qln, qin)
       else
         thvn = thln*(1._rtype+eps*qtn)
-        ! TODO (G): Check with Chinita this thn variable?
+        ! TODO (GTF): Check with Chinita this thn variable?
         thn = thln                       ! THIS NEEEDS TO BE FIXED!! CALCULATED CORRECTLY
         qcn = 0._rtype
         qin = 0._rtype
@@ -947,9 +947,9 @@ contains
 
   end subroutine compute_tmpi3
 
-    subroutine Poisson(nz,nup,mu,POI,seed)
+    subroutine Poisson(nz,nup,mu,POI,seed,itimestep)
       implicit none
-      integer, intent(in) :: nz,nup
+      integer, intent(in) :: nz,nup, itimestep
       real(rtype),dimension(nz,nup),intent(in) :: MU
       integer, dimension(nz,nup), intent(out) :: POI
       real(rtype), intent(in) :: seed
@@ -958,7 +958,7 @@ contains
       !!
       integer, dimension(nz,nup) :: poi_aux
 
-      if (is_first_step()) then
+      if (is_first_step(itimestep)) then
         call random_seed(SIZE=seed_len)
         allocate(the_seed(seed_len))
         the_seed(1) = int((seed - int(seed)) * 1000000000._rtype)
@@ -1125,29 +1125,13 @@ contains
 
       end function satur_spec_hum
 
-      logical function is_first_step()
-        use ESMF
+      logical function is_first_step(itimestep)
         ! Return true on first step of initial run only.
+        implicit none
+        integer, intent(in) :: itimestep
 
-        ! Local variables
-        character(len=*), parameter :: sub = 'is_first_step'
-        integer :: rc
-        integer :: nstep
-        integer(ESMF_KIND_I8) :: step_no
-        !-----------------------------------------------------------------------------------------
-
-        ! TODO (G): IT IS NECESSARY TO GET THE REAL STEP_NO
-        ! call ESMF_ClockGet( tm_clock, advanceCount=step_no, rc=rc )
-        if (rc /= ESMF_SUCCESS) then
-          print *, 'Error return from ESMF_ClockGet'
-          stop
-        end if
-        ! nstep = step_no
-        nstep = 0
-        is_first_step = (nstep == 0)
+        is_first_step = (itimestep == 1)
     end function is_first_step
-
-
 
 end module edmf
 
