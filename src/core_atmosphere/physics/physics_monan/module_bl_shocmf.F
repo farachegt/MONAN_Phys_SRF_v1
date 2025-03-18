@@ -79,12 +79,12 @@ module module_bl_shocmf
 end subroutine calculate_theta
 
 
- subroutine calculate_qw(ql, qv, qs, qi, qg, qr, qw)
+ subroutine calculate_qw(qc, qv, qs, qi, qg, qr, qw)
    ! Calculate total water mixing ratio
-   real(kind=RKIND), dimension(:,:,:), intent(in) :: ql, qv, qs, qi, qg, qr
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
    real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
-   qw(:,:,:) = ql(:,:,:) + qv(:,:,:) + qs(:,:,:) + qi(:,:,:) + qg(:,:,:) + qr(:,:,:)
+   qw(:,:,:) = qc(:,:,:) + qv(:,:,:) + qs(:,:,:) + qi(:,:,:) + qg(:,:,:) + qr(:,:,:)
  end subroutine calculate_qw 
 
 
@@ -129,7 +129,7 @@ end subroutine calculate_theta
       mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, &
       mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
       mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
-      ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, cda_p, t_p, &
+      ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, rho_p, cda_p, t_p, &
       qv_p, qs_p, qi_p, qg_p, qr_p, its, ite, jts, jte, kts, kte &
    )
    ! Driver for the SHOC-MF module
@@ -155,16 +155,16 @@ end subroutine calculate_theta
                                                     mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, mf_ae_p, &
                                                     mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, &
                                                     mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, &
-                                                    wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, qv_p, qs_p, &
+                                                    wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, rho_p, qv_p, qs_p, &
                                                     qi_p, qg_p, qr_p
 
    real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p
    real(kind=RKIND),dimension(:,:,:), intent(inout) :: dse_p, qw_p, u_p, v_p, wthv_sec_p, &
                                                        kzh_p, kzm_p, qc_p, cldfrabl_p, theta_p
    real(kind=RKIND), dimension(:,:,:), allocatable:: presdiff_p, thetal_p, qtracers
-   real(kind=RKIND), dimension(:,:), allocatable:: wtracer_sfc, dx_p, dy_p
+   real(kind=RKIND), dimension(:,:), allocatable:: wtracer_sfc, dx_p, dy_p,  hfx_converted_p, lh_converted_p
 
-   integer :: num_qtracers, nadv
+   integer :: num_qtracers, nadv, i, j
 
    call calculate_thetal(theta_p, t_p, qc_p, thetal_p)
    call calculate_presdiff(pres_p, kte, presdiff_p)
@@ -186,42 +186,54 @@ end subroutine calculate_theta
    dx_p = sqrt(area_p)
    dy_p = sqrt(area_p)
 
+   allocate(hfx_converted_p(ite, jte), lh_converted_p(ite, jte))
+   do j = jts,jte
+   do i = its,ite
+      ! Converting hfx_p from W/m^2 to K*m/s
+      hfx_converted_p(i,j) = hfx_p(i,j)/(cp*rho_p(i,j,1))
+      
+      ! Converting lh_p from W/m^2 to kg/kg m/s
+      lh_converted_p(i,j) = lh_p(i,j)/(xlv*rho_p(i,j,1))
+   enddo
+   enddo
+
    call shoc_main( &
-      itimestep, ite, kte, kte+1, shoc_timestep, nadv, &                    ! Input
-	   dx_p(:,1), dy_p(:,1), theta_m(:,1,:),&                                                ! Input
-      z_p(:,1,:), zgrid_p(:,1,:), pres_p(:,1,:), pres2_p(:,1,:), &                          ! Input
-      presdiff_p(:,1,:), hfx_p(:,1), lh_p(:,1), uw_sfc_p(:,1), vw_sfc_p(:,1), &             ! Input
-	   wtracer_sfc(:,1), num_qtracers, w_p(:,1,:), &                                         ! Input
-	   pi_p(:,1,:),ht_p(:,1), &                                                              ! Input
-	   dse_p(:,1,:), tke_shmf_p(:,1,:), thetal_p(:,1,:), qw_p(:,1,:), &                      ! Input/Ouput
-	   u_p(:,1,:), v_p(:,1,:), qtracers(:,:,:), &                                            ! Input/Output
-	   wthv_sec_p(:,1,:), kzh_p(:,1,:),kzm_p(:,1,:), &                                       ! Input/Output
-	   qc_p(:,1,:),cldfrabl_p(:,1,:), &                                                      ! Input/Output
+      itimestep, ite, kte, kte+1, shoc_timestep, nadv, &                                    ! Input
+	   dx_p(:,1), dy_p(:,1), theta_m(:,:,1),&                                                ! Input
+      z_p(:,:,1), zgrid_p(:,:,1), pres_p(:,:,1), pres2_p(:,:,1), &                          ! Input
+      presdiff_p(:,:,1), hfx_converted_p(:,1), lh_converted_p(:,1), &                       ! Input
+      uw_sfc_p(:,1), vw_sfc_p(:,1), &                                                       ! Input
+	   wtracer_sfc(:,1), num_qtracers, w_p(:,:,1), &                                         ! Input
+	   pi_p(:,:,1),ht_p(:,1), &                                                              ! Input
+	   dse_p(:,:,1), tke_shmf_p(:,:,1), thetal_p(:,:,1), qw_p(:,:,1), &                      ! Input/Ouput
+	   u_p(:,:,1), v_p(:,:,1), qtracers(:,:,:), &                                            ! Input/Output
+	   wthv_sec_p(:,:,1), kzh_p(:,:,1),kzm_p(:,:,1), &                                       ! Input/Output
+	   qc_p(:,:,1),cldfrabl_p(:,:,1), &                                                      ! Input/Output
       hpbl_p(:,1),pblh_wthl_p(:,1),pblh_tke_p(:,1), &                                       ! Output
-      rino_p(:,1,:), &                                                                      ! Output
-      shoc_mix_p(:,1,:), isotropy_p(:,1,:), &                                               ! Output (diagnostic)
-      tke_dissip_p(:,1,:), tke_prod_b_p(:,1,:), tke_prod_sh_p(:,1,:), &                     ! Output (diagnostic)
-      w_sec_p(:,1,:), thl_sec_p(:,1,:), qw_sec_p(:,1,:), qwthl_sec_p(:,1,:), &              ! Output (diagnostic)
-      wthl_sec_p(:,1,:), wqw_sec_p(:,1,:), wtke_sec_p(:,1,:), &                             ! Output (diagnostic)
-      uw_sec_p(:,1,:), vw_sec_p(:,1,:), w3_p(:,1,:), &                                      ! Output (diagnostic)
-      wqls_p(:,1,:),brunt_p(:,1,:),shoc_ql2_p(:,1,:), &                                     ! Output (diagnostic)
-      mf_dry_a_p(:,1,:), mf_moist_a_p(:,1,:), &                                             ! Output (EDMF diagnostic)
-      mf_dry_w_p(:,1,:), mf_moist_w_p(:,1,:), &                                             ! Output (EDMF diagnostic)
-      mf_dry_qt_p(:,1,:), mf_moist_qt_p(:,1,:), &                                           ! Output (EDMF diagnostic)
-      mf_dry_thl_p(:,1,:), mf_moist_thl_p(:,1,:), &                                         ! Output (EDMF diagnostic)
-      mf_dry_u_p(:,1,:),   mf_moist_u_p(:,1,:), &                                           ! Output (EDMF diagnostic)
-      mf_dry_v_p(:,1,:),   mf_moist_v_p(:,1,:), &                                           ! Output (EDMF diagnostic)
-                           mf_moist_qc_p(:,1,:), &                                          ! Output (EDMF diagnostic)
-      mf_thlflx_p(:,1,:), mf_qtflx_p(:,1,:), &                                              ! Output (EDMF diagnostic)
-      mf_ae_p(:,1,:), mf_aw_p(:,1,:), &                                                     ! Output (EDMF diagnostic)
-      mf_awthv_p(:,1,:), &                                                                  ! Output (EDMF diagnostic)
-      mf_awthl_p(:,1,:), mf_awqt_p(:,1,:), &                                                ! Output (EDMF diagnostic)
-      mf_awql_p(:,1,:), mf_awqi_p(:,1,:), &                                                 ! Output (EDMF diagnostic)
-      mf_awu_p(:,1,:), mf_awv_p(:,1,:), cfl_mf_p(:,1,:), &                                  ! Output (EDMF diagnostic)
+      rino_p(:,:,1), &                                                                      ! Output
+      shoc_mix_p(:,:,1), isotropy_p(:,:,1), &                                               ! Output (diagnostic)
+      tke_dissip_p(:,:,1), tke_prod_b_p(:,:,1), tke_prod_sh_p(:,:,1), &                     ! Output (diagnostic)
+      w_sec_p(:,:,1), thl_sec_p(:,:,1), qw_sec_p(:,:,1), qwthl_sec_p(:,:,1), &              ! Output (diagnostic)
+      wthl_sec_p(:,:,1), wqw_sec_p(:,:,1), wtke_sec_p(:,:,1), &                             ! Output (diagnostic)
+      uw_sec_p(:,:,1), vw_sec_p(:,:,1), w3_p(:,:,1), &                                      ! Output (diagnostic)
+      wqls_p(:,:,1),brunt_p(:,:,1),shoc_ql2_p(:,:,1), &                                     ! Output (diagnostic)
+      mf_dry_a_p(:,:,1), mf_moist_a_p(:,:,1), &                                             ! Output (EDMF diagnostic)
+      mf_dry_w_p(:,:,1), mf_moist_w_p(:,:,1), &                                             ! Output (EDMF diagnostic)
+      mf_dry_qt_p(:,:,1), mf_moist_qt_p(:,:,1), &                                           ! Output (EDMF diagnostic)
+      mf_dry_thl_p(:,:,1), mf_moist_thl_p(:,:,1), &                                         ! Output (EDMF diagnostic)
+      mf_dry_u_p(:,:,1),   mf_moist_u_p(:,:,1), &                                           ! Output (EDMF diagnostic)
+      mf_dry_v_p(:,:,1),   mf_moist_v_p(:,:,1), &                                           ! Output (EDMF diagnostic)
+                           mf_moist_qc_p(:,:,1), &                                          ! Output (EDMF diagnostic)
+      mf_thlflx_p(:,:,1), mf_qtflx_p(:,:,1), &                                              ! Output (EDMF diagnostic)
+      mf_ae_p(:,:,1), mf_aw_p(:,:,1), &                                                     ! Output (EDMF diagnostic)
+      mf_awthv_p(:,:,1), &                                                                  ! Output (EDMF diagnostic)
+      mf_awthl_p(:,:,1), mf_awqt_p(:,:,1), &                                                ! Output (EDMF diagnostic)
+      mf_awql_p(:,:,1), mf_awqi_p(:,:,1), &                                                 ! Output (EDMF diagnostic)
+      mf_awu_p(:,:,1), mf_awv_p(:,:,1), cfl_mf_p(:,:,1), &                                  ! Output (EDMF diagnostic)
       mf_dry_freq_p(:,1), mf_moist_freq_p(:,1), plumeheight_p(:,1), &                       ! Output (EDMF diagnostic)
       plume_dry_height_p(:,1), ztop_b_p(:,1), &                                             ! Output (EDMF diagnostic)
-      wthl_sec_ed_p(:,1,:), wthl_sec_mf_p(:,1,:), &                                         ! Output (EDMF diagnostic)
-      wqw_sec_ed_p(:,1,:), wqw_sec_mf_p(:,1,:))                                             ! Output (EDMF diagnostic)
+      wthl_sec_ed_p(:,:,1), wthl_sec_mf_p(:,:,1), &                                         ! Output (EDMF diagnostic)
+      wqw_sec_ed_p(:,:,1), wqw_sec_mf_p(:,:,1))                                             ! Output (EDMF diagnostic)
 
    call calculate_theta(thetal_p, t_p, qc_p, theta_p)
  end subroutine bl_shocmf_driver

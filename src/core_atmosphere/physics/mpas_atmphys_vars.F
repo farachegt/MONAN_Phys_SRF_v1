@@ -539,6 +539,7 @@
     mf_awthl_p,       &!sum of a_i*w_i*thl_i (edmf) - nVertLevelsP1                                        [K m/s]
     mf_awqt_p,        &!sum of a_i*w_i*qt_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
     mf_awql_p,        &!sum of a_i*w_i*ql_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
+    mf_awqi_p,        &!sum of a_i*w_i*qi_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
     mf_awu_p,         &!sum of a_i*w_i*u_i (edmf) - nVertLevelsP1                                          [m2/s2]
     mf_awv_p,         &!sum of a_i*w_i*v_i (edmf) - nVertLevelsP1                                          [m2/s2]
     mf_thlflx_p,      &!kinematic thl flux by edmf (edmf) - nVertLevelsP1                                  [K m/s]

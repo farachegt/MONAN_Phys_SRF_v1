@@ -3448,6 +3448,9 @@
                <var name="mf_awql" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
                     description="Sum of a_i*w_i*q_li (EDMF)" packages="bl_shocmf_in"/>
 
+               <var name="mf_awqi" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+                    description="Sum of a_i*w_i*qi_i (EDMF)" packages="bl_shocmf_in"/>
+
                <var name="mf_awu" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{2}/s^{2}"
                     description="Sum of a_i*w_i*u_i (EDMF)" packages="bl_shocmf_in"/>
 

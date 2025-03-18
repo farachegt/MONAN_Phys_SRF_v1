@@ -239,6 +239,7 @@
       if(.not.allocated(mf_awthl_p)         ) allocate(mf_awthl_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(mf_awqt_p)          ) allocate(mf_awqt_p(ims:ime,kms:kme,jms:jme)          )
       if(.not.allocated(mf_awql_p)          ) allocate(mf_awql_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(mf_awqi_p)          ) allocate(mf_awqi_p(ims:ime,kms:kme,jms:jme)          )
       if(.not.allocated(mf_awu_p)           ) allocate(mf_awu_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(mf_awv_p)           ) allocate(mf_awv_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(mf_thlflx_p)        ) allocate(mf_thlflx_p(ims:ime,kms:kme,jms:jme)        )
@@ -418,6 +419,7 @@
         if(allocated(mf_awthl_p)         ) deallocate(mf_awthl_p         )
         if(allocated(mf_awqt_p)          ) deallocate(mf_awqt_p          )
         if(allocated(mf_awql_p)          ) deallocate(mf_awql_p          )
+        if(allocated(mf_awqi_p)          ) deallocate(mf_awqi_p          )
         if(allocated(mf_awu_p)           ) deallocate(mf_awu_p           )
         if(allocated(mf_awv_p)           ) deallocate(mf_awv_p           )
         if(allocated(mf_thlflx_p)        ) deallocate(mf_thlflx_p        )
@@ -795,6 +797,7 @@
         mf_awthl_p(i,k,j)        = mf_awthl(k,i)
         mf_awqt_p(i,k,j)         = mf_awqt(k,i)
         mf_awql_p(i,k,j)         = mf_awql(k,i)
+        mf_awqi_p(i,k,j)         = mf_awqi(k,i)
         mf_awu_p(i,k,j)          = mf_awu(k,i)
         mf_awv_p(i,k,j)          = mf_awv(k,i)
         mf_thlflx_p(i,k,j)       = mf_thlflx(k,i)
@@ -1143,6 +1146,7 @@
           mf_awthl(k,i)        = mf_awthl_p(i,k,j)
           mf_awqt(k,i)         = mf_awqt_p(i,k,j)
           mf_awql(k,i)         = mf_awql_p(i,k,j)
+          mf_awqi(k,i)         = mf_awqi_p(i,k,j)
           mf_awu(k,i)          = mf_awu_p(i,k,j)
           mf_awv(k,i)          = mf_awv_p(i,k,j)
           mf_thlflx(k,i)       = mf_thlflx_p(i,k,j)
@@ -1406,7 +1410,38 @@
     case("bl_shocmf")
       call mpas_timer_start('bl_shocmf')
       call bl_shocmf_driver( &
-            itimestep = itimestep, 
+            itimestep     = itimestep    , dt_dyn         = dt_dyn        , area_p          = area_p,           &
+            theta_m       = theta_m_p    , theta_p        = theta_p       , z_p             = z_p,              &
+            zgrid_p       = zgrid_p      , pres_p         = pres_p        , pres2_p         = pres2_p,          &
+            hfx_p         = hfx_p        , lh_p           = lh_p          , uw_sfc_p        = uw_sfc_p,         &
+            vw_sfc_p      = vw_sfc_p     , w_p            = w_p           , pi_p            = pi_p,             &
+            ht_p          = ht_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p,       &
+            qw_p          = qw_p         , u_p            = u_p           , v_p             = v_p,              &
+            wthv_sec_p    = wthv_sec_p   , kzh_p          = kzh_p         , kzm_p           = kzm_p,            &
+            qc_p          = qc_p         , cldfrabl_p     = cldfrabl_p    , hpbl_p          = hpbl_p,           &
+            pblh_wthl_p   = pblh_wthl_p  , pblh_tke_p     = pblh_tke_p    , rino_p          = rino_p,           &
+            shoc_mix_p    = shoc_mix_p   , isotropy_p     = isotropy_p    , tke_dissip_p    = tke_dissip_p,     &
+            tke_prod_b_p  = tke_prod_b_p , tke_prod_sh_p  = tke_prod_sh_p , w_sec_p         = w_sec_p,          &
+            thl_sec_p     = thl_sec_p    , qw_sec_p       = qw_sec_p      , qwthl_sec_p     = qwthl_sec_p,      &
+            wthl_sec_p    = wthl_sec_p   , wqw_sec_p      = wqw_sec_p     , wtke_sec_p      = wtke_sec_p,       &
+            uw_sec_p      = uw_sec_p     , vw_sec_p       = vw_sec_p      , w3_p            = w3_p,             &
+            wqls_p        = wqls_p       , brunt_p        = brunt_p       , shoc_ql2_p      = shoc_ql2_p,       &
+            mf_dry_a_p    = mf_dry_a_p   , mf_moist_a_p   = mf_moist_a_p  , mf_dry_w_p      = mf_dry_w_p,       &
+            mf_moist_w_p  = mf_moist_w_p , mf_dry_qt_p    = mf_dry_qt_p   , mf_moist_qt_p   = mf_moist_qt_p,    &
+            mf_dry_thl_p  = mf_dry_thl_p , mf_moist_thl_p = mf_moist_thl_p, mf_dry_u_p      = mf_dry_u_p,       &
+            mf_moist_u_p  = mf_moist_u_p , mf_dry_v_p     = mf_dry_v_p    , mf_moist_v_p    = mf_moist_v_p,     &
+            mf_moist_qc_p = mf_moist_qc_p, mf_thlflx_p    = mf_thlflx_p   , mf_qtflx_p      = mf_qtflx_p,       &
+            mf_ae_p       = mf_ae_p      , mf_aw_p        = mf_aw_p       , mf_awthv_p      = mf_awthv_p,       &
+            mf_awthl_p    = mf_awthl_p   , mf_awqt_p      = mf_awqt_p     , mf_awql_p       = mf_awql_p,        &
+            mf_awqi_p     = mf_awqi_p    , mf_awu_p       = mf_awu_p      , mf_awv_p        = mf_awv_p,         &
+            cfl_mf_p      = cfl_mf_p     , mf_dry_freq_p  = mf_dry_freq_p , mf_moist_freq_p = mf_moist_freq_p,  &
+            plumeheight_p = plumeheight_p, plume_dry_height_p = plume_dry_height_p,                             &
+            ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p,    &
+            wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  ,                                     &
+            rho_p         = rho_p        , cda_p          = cda_p         , t_p             = t_p,              &
+            qv_p = qv_p, qs_p = qs_p, qi_p = qi_p, qg_p = qg_p, qr_p = qr_p,                                    &
+            its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte
+      )
             
       call mpas_timer_stop('bl_shocmf')
         
