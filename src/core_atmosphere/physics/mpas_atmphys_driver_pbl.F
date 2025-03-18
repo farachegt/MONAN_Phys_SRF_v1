@@ -195,22 +195,22 @@
       if(.not.allocated(pblh_tke_p)          ) allocate(pblh_tke_p(ims:ime,jms:jme)          )
       if(.not.allocated(lh_p)                ) allocate(lh_p(ims:ime,jms:jme)                )
       if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
+      if(.not.allocated(terrain_height_p)    ) allocate(terrain_height_p(ims:ime,jms:jme)    )
+      if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
+      if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
+      if(.not.allocated(area_p)              ) allocate(area_p(ims:ime,jms:jme)              )
 
-      if(.not.allocated(shoc_tke_p)         ) allocate(shoc_tke_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(tk_p)               ) allocate(tk_p(ims:ime,kms:kme,jms:jme)                 )
-      if(.not.allocated(tkh_p)              ) allocate(tkh_p(ims:ime,kms:kme,jms:jme)                )
-      if(.not.allocated(w_sec_p)            ) allocate(w_sec_p(ims:ime,kms:kme,jms:jme)              )
-      if(.not.allocated(wqls_sec_p)         ) allocate(wqls_sec_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(isotropy_p)         ) allocate(isotropy_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(brunt_p)            ) allocate(brunt_p(ims:ime,kms:kme,jms:jme)              )
-      if(.not.allocated(shoc_ql2_p)         ) allocate(shoc_ql2_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(tke_dissip_p)       ) allocate(tke_dissip_p(ims:ime,kms:kme,jms:jme)         )
-      if(.not.allocated(tke_prod_b_p)       ) allocate(tke_prod_b_p(ims:ime,kms:kme,jms:jme)         )
-      if(.not.allocated(tke_prod_sh_p)      ) allocate(tke_prod_sh_p(ims:ime,kms:kme,jms:jme)        )
-      if(.not.allocated(rino_p)             ) allocate(rino_p(ims:ime,kms:kme,jms:jme)               )
+      if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(w_sec_p)            ) allocate(w_sec_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(wqls_sec_p)         ) allocate(wqls_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(isotropy_p)         ) allocate(isotropy_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(brunt_p)            ) allocate(brunt_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(shoc_ql2_p)         ) allocate(shoc_ql2_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(tke_dissip_p)       ) allocate(tke_dissip_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(tke_prod_b_p)       ) allocate(tke_prod_b_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(tke_prod_sh_p)      ) allocate(tke_prod_sh_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(rino_p)             ) allocate(rino_p(ims:ime,kms:kme,jms:jme)             )
       if(.not.allocated(thl_sec_p)          ) allocate(thl_sec_p(ims:ime,kms:kme,jms:jme)          )
       if(.not.allocated(qw_sec_p)           ) allocate(qw_sec_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(qwthl_sec_p)        ) allocate(qwthl_sec_p(ims:ime,kms:kme,jms:jme)        )
@@ -248,11 +248,13 @@
       if(.not.allocated(wthl_sec_mf_p)      ) allocate(wthl_sec_mf_p(ims:ime,kms:kme,jms:jme)      )
       if(.not.allocated(wqw_sec_ed_p)       ) allocate(wqw_sec_ed_p(ims:ime,kms:kme,jms:jme)       )
       if(.not.allocated(wqw_sec_mf_p)       ) allocate(wqw_sec_mf_p(ims:ime,kms:kme,jms:jme)       )
-      if(.not.allocated(theta_p)            ) allocate(theta_p(ims:ime,kms:kme,jms:jme)              )
-      if(.not.allocated(thetal_p)           ) allocate(thetal_p(ims:ime,kms:kme,jms:jme)             )
-      if(.not.allocated(zgrid_p)            ) allocate(zgrid_p(ims:ime,kms:kme,jms:jme)              )
-      if(.not.allocated(presdiff_p)         ) allocate(presdiff_p(ims:ime,kms:kme,jms:jme)           )
-      if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)                 )
+      if(.not.allocated(theta_m_p)          ) allocate(theta_m_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(theta_p)            ) allocate(theta_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(zgrid_p)            ) allocate(zgrid_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)               )
+      if(.not.allocated(cldfrabl_p)         ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(tke_shmf_p)         ) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(dse_p)              ) allocate(dse_p(ims:ime,kms:kme,jms:jme)              )
 
     case default
 
@@ -372,13 +374,13 @@
         if(allocated(pblh_tke_p)          ) deallocate(pblh_tke_p          )
         if(allocated(lh_p)                ) deallocate(lh_p                )
         if(allocated(ht_p)                ) deallocate(ht_p                )
+        if(allocated(terrain_height_p)    ) deallocate(terrain_height_p    )
+        if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
+        if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
+        if(allocated(area_p)              ) deallocate(area_p              )
 
-        if(allocated(shoc_tke_p)         ) deallocate(shoc_tke_p         )
         if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
         if(allocated(shoc_mix_p)         ) deallocate(shoc_mix_p         )
-        if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
-        if(allocated(tk_p)               ) deallocate(tk_p               )
-        if(allocated(tkh_p)              ) deallocate(tkh_p              )
         if(allocated(w_sec_p)            ) deallocate(w_sec_p            )
         if(allocated(wqls_sec_p)         ) deallocate(wqls_sec_p         )
         if(allocated(isotropy_p)         ) deallocate(isotropy_p         )
@@ -425,11 +427,13 @@
         if(allocated(wthl_sec_mf_p)      ) deallocate(wthl_sec_mf_p      )
         if(allocated(wqw_sec_ed_p)       ) deallocate(wqw_sec_ed_p       )
         if(allocated(wqw_sec_mf_p)       ) deallocate(wqw_sec_mf_p       )
+        if(allocated(theta_m_p)          ) deallocate(theta_m_p          )
         if(allocated(theta_p)            ) deallocate(theta_p            )
-        if(allocated(thetal_p)           ) deallocate(thetal_p           )
         if(allocated(zgrid_p)            ) deallocate(zgrid_p            )
-        if(allocated(presdiff_p)         ) deallocate(presdiff_p         )
         if(allocated(qw_p)               ) deallocate(qw_p               )
+        if(allocated(cldfrabl_p)         ) deallocate(cldfrabl_p         )
+        if(allocated(tke_shmf_p)         ) deallocate(tke_shmf_p         )
+        if(allocated(dse_p)              ) deallocate(dse_p              )
 
     case default
 
@@ -475,8 +479,9 @@
 
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
- real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B, lh
- real(kind=RKIND),dimension(:,:),pointer:: shoc_tke,wthv_sec,shoc_mix,tk,tkh,w_sec
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh,terrain_height
+ real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell
+ real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
  real(kind=RKIND),dimension(:,:),pointer:: qw_sec,qwthl_sec,wthl_sec,wqw_sec,wtke_sec
@@ -487,11 +492,10 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awu
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf,mf_moist_a_zt,mf_moist_qc_zt
- real(kind=RKIND),dimension(:,:),pointer:: thetal, rino, theta
+ real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta,theta_m,tke_shmf,zgrid,dse
 
- real(kind=RKIND),dimension(:,:),pointer:: zgrid
-
+ integer,pointer:: index_tke_shmf
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -519,7 +523,7 @@
     xland_p(i,j) = xland(i)
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
-    !... ocean currents are set to zero: ! TODO (G): why?
+    !... ocean currents are set to zero: ! TODO (GTF): why?
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
@@ -662,11 +666,16 @@
        call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
        call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(diag_physics, 'shoc_tke'         ,shoc_tke       )
+       call mpas_pool_get_array(sfc_input   , 'ter'              ,terrain_height )
+       call mpas_pool_get_array(sfc_input   , 'uw_sfc'           ,uw_sfc         )
+       call mpas_pool_get_array(sfc_input   , 'vw_sfc'           ,vw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
+       call mpas_pool_get_array(diag_physics, 'lh'               ,lh             )
+       call mpas_pool_get_array(mesh        ,'areaCell'          ,area_cell      )
+
+       
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
-       call mpas_pool_get_array(diag_physics, 'tk'               ,tk             )
-       call mpas_pool_get_array(diag_physics, 'tkh'              ,tkh            )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
        call mpas_pool_get_array(diag_physics, 'wqls_sec'         ,wqls_sec       )
        call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
@@ -713,27 +722,31 @@
        call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_a_zt'    ,mf_moist_a_zt  )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_qc_zt'   ,mf_moist_qc_zt )
-       call mpas_pool_get_array(diag_physics, 'thetal'           ,thetal         )
-       call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
-       call mpas_pool_get_array(diag_physics, 'lh'               ,lh             )
+       call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
        call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
-       call mpas_pool_get_array(diag_physics, 'br'               ,br             )
+       call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
+
+       call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
+       call mpas_pool_get_array(state,'scalars',scalars,1)
+       tke_shmf => scalars(index_tke_shmf,:,:)
 
        do j = jts,jte
        do i = its,ite
-        mf_dry_freq_p(i,j)     = mf_dry_freq(i)
-        mf_moist_freq_p(i,j)   = mf_moist_freq(i)
-        plumeheight_p(i,j)     = plumeheight(i)
-        plume_dry_height_p(i,j)= plume_dry_height(i)
-        ztop_b_p(i,j)          = ztop_B(i)
+        mf_dry_freq_p(i,j)      = mf_dry_freq(i)
+        mf_moist_freq_p(i,j)    = mf_moist_freq(i)
+        plumeheight_p(i,j)      = plumeheight(i)
+        plume_dry_height_p(i,j) = plume_dry_height(i)
+        ztop_b_p(i,j)           = ztop_B(i)
+        terrain_height_p(i,j)   = terrain_height(i)
+        uw_sfc_p(i,j)           = uw_sfc(i)
+        vw_sfc_p(i,j)           = vw_sfc(i)
 
-        lh_p(i,j)             = lh(i)
+        lh_p(i,j)               = lh(i)
+        ht_p(i,j)               = zgrid(1,i)
 
-        ht_p(i,j)            = zgrid(1,i) ! TODO (G): Based on ht_p of physics/mpas_atmphys_driver_convection.F 
+        area_p(i,j)             = area_cell(i)
 
         pblh_wthl_p(i,j)        = 0._RKIND
         pblh_tke_p(i,j)         = 0._RKIND
@@ -743,11 +756,8 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
-        shoc_tke_p(i,k,j)        = shoc_tke(k,i)
         wthv_sec_p(i,k,j)        = wthv_sec(k,i)
         shoc_mix_p(i,k,j)        = shoc_mix(k,i)
-        tk_p(i,k,j)              = tk(k,i)
-        tkh_p(i,k,j)             = tkh(k,i)
         w_sec_p(i,k,j)           = w_sec(k,i)
         wqls_sec_p(i,k,j)        = wqls_sec(k,i)
         isotropy_p(i,k,j)        = isotropy(k,i)
@@ -796,8 +806,11 @@
         wqw_sec_mf_p(i,k,j)      = wqw_sec_mf(k,i)
         zgrid_p(i,k,j)           = zgrid(k,i)
         cldfrabl_p(i,k,j)        = cldfrac_bl(k,i)
-        tkepbl_p(i,k,j)          = tke_pbl(k,i)
         theta_p(i,k,j)           = theta(k,i)
+        theta_m_p(i,k,j)         = theta_m(k,i)
+        dse_p(i,k,j)             = dse(k,i)
+
+        tke_shmf_p(i,k,j)        = max(0._RKIND, tke_shmf(k,i))
        enddo
        enddo
        enddo
@@ -864,8 +877,8 @@
 
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
- real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B, lh
- real(kind=RKIND),dimension(:,:),pointer:: shoc_tke,wthv_sec,shoc_mix,tk,tkh,w_sec
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh,uw_sfc,vw_sfc
+ real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
  real(kind=RKIND),dimension(:,:),pointer:: qw_sec,qwthl_sec,wthl_sec,wqw_sec,wtke_sec
@@ -876,8 +889,10 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awu
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf,mf_moist_a_zt,mf_moist_qc_zt
- real(kind=RKIND),dimension(:,:),pointer:: thetal, rino, theta
+ real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta,tke_shmf,dse
+
+ integer,pointer:: index_tke_shmf
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1014,11 +1029,11 @@
        call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
        call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(diag_physics, 'shoc_tke'         ,shoc_tke       )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc',          ,uw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc',          ,vw_sfc         )
+
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
-       call mpas_pool_get_array(diag_physics, 'tk'               ,tk             )
-       call mpas_pool_get_array(diag_physics, 'tkh'              ,tkh            )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
        call mpas_pool_get_array(diag_physics, 'wqls_sec'          ,wqls_sec      )
        call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
@@ -1065,31 +1080,32 @@
        call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_a_zt'    ,mf_moist_a_zt  )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_qc_zt'   ,mf_moist_qc_zt )
+       call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        )
        call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
-       call mpas_pool_get_array(diag_physics, 'thetal'           ,thetal         )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
-       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
+       call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
+
+       call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
+       call mpas_pool_get_array(state,'scalars',scalars,1)
+       tke_shmf => scalars(index_tke_shmf,:,:)
         
        do j = jts,jte
        do i = its,ite
-           mf_dry_freq(i)     = mf_dry_freq_p(i,j)
-           mf_moist_freq(i)   = mf_moist_freq_p(i,j)
-           plumeheight(i)     = plumeheight_p(i,j)
-           plume_dry_height(i)= plume_dry_height_p(i,j)
-           ztop_B(i)          = ztop_b_p(i,j)
+          mf_dry_freq(i)     = mf_dry_freq_p(i,j)
+          mf_moist_freq(i)   = mf_moist_freq_p(i,j)
+          plumeheight(i)     = plumeheight_p(i,j)
+          plume_dry_height(i)= plume_dry_height_p(i,j)
+          ztop_B(i)          = ztop_b_p(i,j)
+          uw_sfc(i)          = uw_sfc_p(i,j)
+          vw_sfc(i)          = vw_sfc_p(i,j)
        enddo
        enddo
 
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
-          shoc_tke(k,i)        = shoc_tke_p(i,k,j)
           wthv_sec(k,i)        = wthv_sec_p(i,k,j)
           shoc_mix(k,i)        = shoc_mix_p(i,k,j)
-          tk(k,i)              = tk_p(i,k,j)
-          tkh(k,i)             = tkh_p(i,k,j)
           w_sec(k,i)           = w_sec_p(i,k,j)
           wqls_sec(k,i)        = wqls_sec_p(i,k,j)
           isotropy(k,i)        = isotropy_p(i,k,j)
@@ -1137,8 +1153,10 @@
           wqw_sec_ed(k,i)      = wqw_sec_ed_p(i,k,j)
           wqw_sec_mf(k,i)      = wqw_sec_mf_p(i,k,j)
           cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
-          tke_pbl(k,i)         = tkepbl_p(i,k,j)
-          theta(k,i)           = theta_p(i,k,j) ! TODO (G): Is it necessary to copy theta back to MPAS?
+          theta_m(k,i)         = theta_m_p(i,k,j) ! TODO (GTF): Is it necessary to copy theta back to MPAS?
+          theta(k,i)           = theta_p(i,k,j) ! TODO (GTF): Is it necessary to copy theta back to MPAS?
+          tke_shmf(k,i)        = tke_shmf_p(i,k,j)
+          dse(k,i)             = dse_p(i,k,j)
        enddo
        enddo
        enddo
@@ -1174,7 +1192,7 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call bl_shocmf_init(kte, gravity, R_d, R_v, cp, ep_1, xlv, xlf, karman, pres_p)
+      call bl_shocmf_init(kte,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,pres_p,tke_shmf_p)
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
@@ -1386,6 +1404,11 @@
                           )
        call mpas_timer_stop('bl_mynn')
     case("bl_shocmf")
+      call mpas_timer_start('bl_shocmf')
+      call bl_shocmf_driver( &
+            itimestep = itimestep, 
+            
+      call mpas_timer_stop('bl_shocmf')
         
     case default
 

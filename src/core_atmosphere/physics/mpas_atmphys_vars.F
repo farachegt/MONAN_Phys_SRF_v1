@@ -493,16 +493,15 @@
     plumeheight_p,      &!plume height according to the one plume test                                         [m]
     plume_dry_height_p, &!dry plume height according to the one plume test                                     [m]
     ztop_b_p,           &!mixed layer height according to min(wthv_sec)                                        [m]
-    pblh_wthl_p,         &!JPL PBL as the first level where wthl = wthl_surf*0.01                              [m]
-    pblh_tke_p            !JPL PBL as the first level where tke = tke_surf*0.01                                [m]
+    pblh_wthl_p,        &!JPL PBL as the first level where wthl = wthl_surf*0.01                               [m]
+    pblh_tke_p,         &!JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
+    uw_sfc_p,           &!Surface momentum flux (u direction)                                              [m2/s2]
+    vw_sfc_p             !Surface momentum flux (v direction)                                              [m2/s2]
  
  real(kind=RKIND), dimension(:,:,:),allocatable:: &
     shoc_ql2_p,       &!cloud liquid variance.                                                           [kg2/kg2]
-    shoc_tke_p,       &!turbulent kinetic energy.                                                          [m2/s2]
     wthv_sec_p,       &!buoyancy flux.                                                                     [K m/s]
     shoc_mix_p,       &!SHOC length scale.                                                                     [m]
-    tk_p,             &!eddy viscosity for momentum.                                                        [m2/s]
-    tkh_p,            &!eddy viscosity for heat.                                                            [m2/s]
     w_sec_p,          &!vertical velocity variance.                                                        [m2/s2]
     wqls_sec_p,       &!liquid water flux.                                                             [kg/kg m/s]
     isotropy_p,       &!timescale.                                                                             [s]
@@ -549,12 +548,11 @@
     wthl_sec_mf_p,    &!vertical heat flux (EDMF) - nVertLevelsP1                                          [K m/s]
     wqw_sec_ed_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
     wqw_sec_mf_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
+    theta_m_p,        &!virtual potential temperature                                                          [K]
     theta_p,          &!potential temperature                                                                  [K]
-    thetal_p,         &!liquid water potential temperature                                                     [K]
-    presdiff_p,       &!difference in pressure levels                                                         [Pa]
     qw_p,             &!total water mixing ratio                                                           [kg/kg]
-
-    tke_shmf_p
+    tke_shmf_p,       &!tke from shocmf scheme                                                             [m2/s3]
+    dse_p              !dry static energy                                                                   [J/kg]
 
 
 !=================================================================================================================
