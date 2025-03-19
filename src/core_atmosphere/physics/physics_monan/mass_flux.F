@@ -144,7 +144,8 @@ contains
      real(rtype), dimension(shcol), intent(in) :: ust,   wthl,   wqt
      real(rtype), dimension(shcol), intent(in) :: pblh, pblh_wthl
      !time step [s]   
-     real(rtype), intent(in) :: dt, itimestep
+     real(rtype), intent(in) :: dt
+     integer, intent(in) :: itimestep
      ! ============================================================================== !
      ! OUTPUTS
      ! updraft properties

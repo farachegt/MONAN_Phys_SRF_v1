@@ -20,7 +20,7 @@ module shoc
 !  use scream_abortutils, only: endscreamrun
 !  use spmd_utils,        only: masterproc
   use edmf,              only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
-                               is_first_step, do_edmf, do_condensation, do_mf_diag, &
+                               do_edmf, do_condensation, do_mf_diag, &
                                do_wthv_mf, mf_nup
 
 ! Bit-for-bit math functions.

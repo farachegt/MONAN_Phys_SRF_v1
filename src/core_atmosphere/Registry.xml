@@ -3319,7 +3319,7 @@
                     description="Vertical velocity variance"
                     packages="bl_shocmf_in"/>
 
-               <var name="wqls" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
+               <var name="wqls_sec" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="Liquid water flux"
                     packages="bl_shocmf_in"/>
 

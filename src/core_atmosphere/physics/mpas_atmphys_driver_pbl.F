@@ -195,7 +195,6 @@
       if(.not.allocated(pblh_tke_p)          ) allocate(pblh_tke_p(ims:ime,jms:jme)          )
       if(.not.allocated(lh_p)                ) allocate(lh_p(ims:ime,jms:jme)                )
       if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
-      if(.not.allocated(terrain_height_p)    ) allocate(terrain_height_p(ims:ime,jms:jme)    )
       if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(area_p)              ) allocate(area_p(ims:ime,jms:jme)              )
@@ -375,7 +374,6 @@
         if(allocated(pblh_tke_p)          ) deallocate(pblh_tke_p          )
         if(allocated(lh_p)                ) deallocate(lh_p                )
         if(allocated(ht_p)                ) deallocate(ht_p                )
-        if(allocated(terrain_height_p)    ) deallocate(terrain_height_p    )
         if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
         if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
         if(allocated(area_p)              ) deallocate(area_p              )
@@ -481,7 +479,7 @@
 
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
- real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh,terrain_height
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh
  real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell
  real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
@@ -491,7 +489,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_w,mf_moist_w,mf_dry_qt,mf_moist_qt
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_thl,mf_moist_thl,mf_dry_u,mf_moist_u
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_v,mf_moist_v,mf_moist_qc,mf_ae,mf_aw
- real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awu
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awqi,mf_awu
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
@@ -668,9 +666,8 @@
        call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
        call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(sfc_input   , 'ter'              ,terrain_height )
-       call mpas_pool_get_array(sfc_input   , 'uw_sfc'           ,uw_sfc         )
-       call mpas_pool_get_array(sfc_input   , 'vw_sfc'           ,vw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc         )
        call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
        call mpas_pool_get_array(diag_physics, 'lh'               ,lh             )
        call mpas_pool_get_array(mesh        ,'areaCell'          ,area_cell      )
@@ -715,6 +712,7 @@
        call mpas_pool_get_array(diag_physics, 'mf_awthl'         ,mf_awthl       )
        call mpas_pool_get_array(diag_physics, 'mf_awqt'          ,mf_awqt        )
        call mpas_pool_get_array(diag_physics, 'mf_awql'          ,mf_awql        )
+       call mpas_pool_get_array(diag_physics, 'mf_awqi'          ,mf_awqi        )
        call mpas_pool_get_array(diag_physics, 'mf_awu'           ,mf_awu         )
        call mpas_pool_get_array(diag_physics, 'mf_awv'           ,mf_awv         )
        call mpas_pool_get_array(diag_physics, 'mf_thlflx'        ,mf_thlflx      )
@@ -741,7 +739,6 @@
         plumeheight_p(i,j)      = plumeheight(i)
         plume_dry_height_p(i,j) = plume_dry_height(i)
         ztop_b_p(i,j)           = ztop_B(i)
-        terrain_height_p(i,j)   = terrain_height(i)
         uw_sfc_p(i,j)           = uw_sfc(i)
         vw_sfc_p(i,j)           = vw_sfc(i)
 
@@ -889,11 +886,11 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_w,mf_moist_w,mf_dry_qt,mf_moist_qt
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_thl,mf_moist_thl,mf_dry_u,mf_moist_u
  real(kind=RKIND),dimension(:,:),pointer:: mf_dry_v,mf_moist_v,mf_moist_qc,mf_ae,mf_aw
- real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awu
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awqi,mf_awu
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: rino,theta,tke_shmf,dse
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,theta,tke_shmf,dse 
 
  integer,pointer:: index_tke_shmf
 
@@ -1032,8 +1029,8 @@
        call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
        call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(diag_physics, 'uw_sfc',          ,uw_sfc         )
-       call mpas_pool_get_array(diag_physics, 'vw_sfc',          ,vw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc         )
 
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
@@ -1074,6 +1071,7 @@
        call mpas_pool_get_array(diag_physics, 'mf_awthl'         ,mf_awthl       )
        call mpas_pool_get_array(diag_physics, 'mf_awqt'          ,mf_awqt        )
        call mpas_pool_get_array(diag_physics, 'mf_awql'          ,mf_awql        )
+       call mpas_pool_get_array(diag_physics, 'mf_awqi'          ,mf_awqi        )
        call mpas_pool_get_array(diag_physics, 'mf_awu'           ,mf_awu         )
        call mpas_pool_get_array(diag_physics, 'mf_awv'           ,mf_awv         )
        call mpas_pool_get_array(diag_physics, 'mf_thlflx'        ,mf_thlflx      )
@@ -1196,7 +1194,8 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call bl_shocmf_init(kte,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,pres_p,tke_shmf_p)
+      call bl_shocmf_init(kte,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,pres_p,tke_shmf_p, wthv_sec_p, &
+                          kzm_p, kzh_p)
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
@@ -1425,7 +1424,7 @@
             thl_sec_p     = thl_sec_p    , qw_sec_p       = qw_sec_p      , qwthl_sec_p     = qwthl_sec_p,      &
             wthl_sec_p    = wthl_sec_p   , wqw_sec_p      = wqw_sec_p     , wtke_sec_p      = wtke_sec_p,       &
             uw_sec_p      = uw_sec_p     , vw_sec_p       = vw_sec_p      , w3_p            = w3_p,             &
-            wqls_p        = wqls_p       , brunt_p        = brunt_p       , shoc_ql2_p      = shoc_ql2_p,       &
+            wqls_sec_p    = wqls_sec_p   , brunt_p        = brunt_p       , shoc_ql2_p      = shoc_ql2_p,       &
             mf_dry_a_p    = mf_dry_a_p   , mf_moist_a_p   = mf_moist_a_p  , mf_dry_w_p      = mf_dry_w_p,       &
             mf_moist_w_p  = mf_moist_w_p , mf_dry_qt_p    = mf_dry_qt_p   , mf_moist_qt_p   = mf_moist_qt_p,    &
             mf_dry_thl_p  = mf_dry_thl_p , mf_moist_thl_p = mf_moist_thl_p, mf_dry_u_p      = mf_dry_u_p,       &
@@ -1440,7 +1439,7 @@
             wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  ,                                     &
             rho_p         = rho_p        , cda_p          = cda_p         , t_p             = t_p,              &
             qv_p = qv_p, qs_p = qs_p, qi_p = qi_p, qg_p = qg_p, qr_p = qr_p,                                    &
-            its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte
+            its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte                                    &
       )
             
       call mpas_timer_stop('bl_shocmf')
