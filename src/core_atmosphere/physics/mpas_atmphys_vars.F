@@ -435,7 +435,8 @@
     rthblten_p,       &!tendency of potential temperature due to PBL processes.
     rqvblten_p,       &!tendency of water vapor mixing ratio due to PBL processes.
     rqcblten_p,       &!tendency of cloud water mixing ratio due to PBL processes.
-    rqiblten_p         !tendency of cloud ice mixing ratio due to PBL processes.
+    rqiblten_p,       &!tendency of cloud ice mixing ratio due to PBL processes.
+    rtkeblten_p        !tendency of tke due to PBL processes (for now only shocmf).
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
@@ -550,7 +551,6 @@
     wqw_sec_ed_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
     wqw_sec_mf_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
     theta_m_p,        &!virtual potential temperature                                                          [K]
-    theta_p,          &!potential temperature                                                                  [K]
     qw_p,             &!total water mixing ratio                                                           [kg/kg]
     tke_shmf_p,       &!tke from shocmf scheme                                                             [m2/s3]
     dse_p              !dry static energy                                                                   [J/kg]

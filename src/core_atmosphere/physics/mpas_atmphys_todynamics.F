@@ -98,7 +98,7 @@
 
  integer:: i,iCell,k,n
  integer,pointer:: index_qv, index_qc, index_qr, index_qi, index_qs, index_qg
- integer,pointer:: index_ni
+ integer,pointer:: index_ni, index_tke_shmf
  integer,pointer:: index_cnvcf, index_buoyx
  integer,pointer:: nCells,nCellsSolve,nEdges,nEdgesSolve
 
@@ -108,7 +108,7 @@
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rqvblten,rqcblten, &
                                            rqiblten,rqsblten,rublten,rvblten
- real(kind=RKIND),dimension(:,:),pointer:: rniblten
+ real(kind=RKIND),dimension(:,:),pointer:: rniblten,rtkeblten
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten, &
                                            rqrcuten,rqicuten,rqscuten, &
                                            rucuten,rvcuten
@@ -151,6 +151,7 @@
  call mpas_pool_get_dimension(state, 'index_qs', index_qs)
  call mpas_pool_get_dimension(state, 'index_qg', index_qg)
  call mpas_pool_get_dimension(state, 'index_ni', index_ni)
+ call mpas_pool_get_dimension(state, 'index_tke_shmf', index_tke_shmf)
 
  call mpas_pool_get_dimension(state, 'index_cnvcf', index_cnvcf)
  call mpas_pool_get_dimension(state, 'index_buoyx', index_buoyx)
@@ -163,6 +164,7 @@
  call mpas_pool_get_array(tend_physics, 'rqiblten', rqiblten)
  call mpas_pool_get_array(tend_physics, 'rqsblten', rqsblten)
  call mpas_pool_get_array(tend_physics, 'rniblten', rniblten)
+ call mpas_pool_get_array(tend_physics, 'rtkeblten', rtkeblten)
 
  call mpas_pool_get_array(tend_physics, 'rucuten', rucuten)
  call mpas_pool_get_array(tend_physics, 'rvcuten', rvcuten)
@@ -219,6 +221,7 @@
  if (.not. associated(rqicuten)) allocate(rqicuten(0,0))
  if (.not. associated(rqrcuten)) allocate(rqrcuten(0,0))
  if (.not. associated(rqscuten)) allocate(rqscuten(0,0))
+ if (.not. associated(rtkeblten)) allocate(rtkeblten(0,0))
 
 !-srf
  if (.not. associated(rbuoyxcuten)) allocate(rbuoyxcuten(0,0))
@@ -228,11 +231,11 @@
  call physics_get_tend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
                            rk_step, dynamics_substep, &
                            config_pbl_scheme, config_convection_scheme, config_radt_lw_scheme, config_radt_sw_scheme, &
-                           index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, &
+                           index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, index_tke_shmf, &
                            rublten, rvblten, mass_edge, rublten_Edge, &
                            tend_ru_physics, &
                            rucuten, rvcuten, rucuten_Edge, &
-                           tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, &
+                           tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, rtkeblten, &
                            rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                            rthratenlw, rthratensw, &
                            tend_u_phys, &
@@ -262,6 +265,7 @@
  if (size(rqicuten) == 0) deallocate(rqicuten)
  if (size(rqrcuten) == 0) deallocate(rqrcuten)
  if (size(rqscuten) == 0) deallocate(rqscuten)
+ if (size(rtkeblten) == 0) deallocate(rtkeblten)
  !-srf
  if (size(rbuoyxcuten) == 0) deallocate(rbuoyxcuten)
  if (size(rcnvcfcuten) == 0) deallocate(rcnvcfcuten)
@@ -291,10 +295,10 @@
  subroutine physics_get_tend_work(block, mesh, nCells, nEdges, nCellsSolve, nEdgesSolve, &
                                  rk_step, dynamics_substep, &
                                  config_pbl_scheme, config_convection_scheme, config_radt_lw_scheme, config_radt_sw_scheme, &
-                                 index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, &
+                                 index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, index_tke_shmf, &
                                  rublten, rvblten, mass_edge, rublten_Edge, tend_u, &
                                  rucuten, rvcuten, rucuten_Edge, &
-                                 tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, &
+                                 tend_th, tend_scalars, mass, rthblten, rqvblten, rqcblten, rqiblten, rqsblten, rniblten, rtkeblten, &
                                  rthcuten, rqvcuten, rqccuten, rqrcuten, rqicuten, rqscuten, &
                                  rthratenlw, rthratensw, &
                                  tend_u_phys, &
@@ -315,7 +319,7 @@
     character(len=StrKIND), intent(in) :: config_convection_scheme
     character(len=StrKIND), intent(in) :: config_radt_lw_scheme
     character(len=StrKIND), intent(in) :: config_radt_sw_scheme
-    integer, intent(in) :: index_qv, index_qc, index_qr, index_qi, index_qs, index_ni
+    integer, intent(in) :: index_qv, index_qc, index_qr, index_qi, index_qs, index_ni, index_tke_shmf
     integer, intent(in) :: index_cnvcf,index_buoyx
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rublten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rvblten
@@ -334,6 +338,7 @@
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqiblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqsblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rniblten
+    real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rtkeblten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rthcuten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqvcuten
     real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rqccuten
@@ -389,6 +394,14 @@
                 tend_scalars(index_ni,k,i) = tend_scalars(index_ni,k,i) + rniblten(k,i)*mass(k,i)
              enddo
              enddo
+          
+          case("bl_shocmf")
+    
+            do i = 1, nCellsSolve
+            do k = 1, nVertLevels
+                tend_scalars(index_tke_shmf,k,i) = tend_scalars(index_tke_shmf,k,i) + rtkeblten(k,i)*mass(k,i)
+            enddo
+            enddo
    
           case default         
 

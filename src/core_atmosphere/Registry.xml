@@ -2481,6 +2481,10 @@
                        <var name="tend_buoyx" name_in_code="buoyx" array_group="convection" units="J kg^{-1} s^{-1}" 
                              description="Tendency of buoyancy excess from the cold pool scheme multiplied by dry air density divided by d(zeta)/dz"
                              packages="gf_monan_cporg"/>
+
+                       <var name="tend_tke_shmf" name_in_code="tke_shmf" array_group="pbl" units="m^{2} s^{-3}" 
+                             description="Tendency of turbulent kinetic energy from the PBL scheme"
+                             packages="bl_shocmf_in"/>
                 </var_array>
 #endif
         </var_struct>
@@ -4152,23 +4156,23 @@
 
                 <var name="rublten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="tendency of zonal wind due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
                 <var name="rvblten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="tendency of meridional wind due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
                 <var name="rthblten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
                 <var name="rqvblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
                 <var name="rqcblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;bl_shocmf_in"/>
 
                 <var name="rqiblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to pbl processes"
@@ -4181,6 +4185,10 @@
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
                      packages="bl_mynn_in"/>
+
+                <var name="rtkeblten" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2} s^{-1}"
+                     description="tendency of tke due to pbl processes"
+                     packages="bl_shocmf_in"/>
 
 	        <!-- MGD should we add packages to the field below? -->
 	        <var name="rublten_Edge" type="real"     dimensions="nVertLevels nEdges Time"/>
