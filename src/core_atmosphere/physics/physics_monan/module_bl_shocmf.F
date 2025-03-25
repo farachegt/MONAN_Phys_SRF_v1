@@ -58,21 +58,21 @@ module module_bl_shocmf
 
 
  subroutine calculate_thetal(theta, temperature, ql, thetal)
-    ! Calculate liquid water potential temperature
-    ! Reference: https://glossary.ametsoc.org/wiki/Liquid_water_potential_temperature
+    ! Calculate liquid water potential temperature as SHOC calculates it
     real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, temperature, ql
     real(kind=RKIND), dimension(:,:,:), intent(out) :: thetal
 
-    thetal(:,:,:) = theta(:,:,:)*(1.0_RKIND - (xlv/cp)*ql(:,:,:)/temperature(:,:,:))
+    thetal(:,:,:) = theta(:,:,:) - (xlv/cp)*ql(:,:,:)
  end subroutine calculate_thetal
 
 
  subroutine calculate_theta(thetal, temperature, ql, theta)
-    ! Calculate potential temperature. Inverse function of calculate_thetal.
+    ! Calculate potential temperature from liquid water potential temperature.
+    ! Inverse function of calculate_thetal.
     real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, temperature, ql
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
-    theta(:,:,:) = thetal(:,:,:)/(1.0_RKIND - (xlv/cp)*ql(:,:,:)/temperature(:,:,:))
+    theta(:,:,:) = thetal(:,:,:) + (xlv/cp)*ql(:,:,:)
 end subroutine calculate_theta
 
 
@@ -310,19 +310,19 @@ end subroutine calculate_theta
 
     integer :: num_qtracers, nadv, i, j
 
-    allocate(um_p(ite, jte, kte)    , &
-             vm_p(ite, jte, kte)    , &
-             thetam_p(ite, jte, kte), &
-             qvm_p(ite, jte, kte)   , &
-             qcm_p(ite, jte, kte)   , &
-             qim_p(ite, jte, kte)   , &
-             qsm_p(ite, jte, kte)   , &
-             nim_p(ite, jte, kte)   , &
-             tkem_p(ite, jte, kte))
+    allocate(um_p(ite, kte, jte)    , &
+             vm_p(ite, kte, jte)    , &
+             thetam_p(ite, kte, jte), &
+             qvm_p(ite, kte, jte)   , &
+             qcm_p(ite, kte, jte)   , &
+             qim_p(ite, kte, jte)   , &
+             qsm_p(ite, kte, jte)   , &
+             nim_p(ite, kte, jte)   , &
+             tkem_p(ite, kte, jte))
     ! Deep copying the input variables
     um_p = u_p
     vm_p = v_p
-    thetam_p = theta_m
+    thetam_p = theta_p
     qvm_p = qv_p
     qcm_p = qc_p
     qim_p = qi_p
@@ -359,7 +359,7 @@ end subroutine calculate_theta
     num_qtracers = 0
     allocate(wtracer_sfc(ite, jte))
     wtracer_sfc = 0.0_RKIND
-    allocate(qtracers(ite, jte, kte))
+    allocate(qtracers(ite, kte, jte))
     qtracers = 0.0_RKIND
 
     call shoc_main( &
@@ -425,7 +425,7 @@ end subroutine calculate_theta
     rqiblten_p = (qi_p - qim_p)/dt_pbl ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
     rqsblten_p = (qs_p - qsm_p)/dt_pbl
     rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
-    rniblten_p = 0.0_RKIND
+    rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
   
  end subroutine bl_shocmf_driver
 

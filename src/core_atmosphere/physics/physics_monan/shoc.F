@@ -54,6 +54,7 @@ real(rtype) :: lcond ! latent heat of vaporization [J/kg]
 real(rtype) :: lice  ! latent heat of fusion [J/kg]
 real(rtype) :: eps   ! rh2o/rair - 1 [-]
 real(rtype) :: vk    ! von karmann constant [-]
+real(rtype) :: tice  ! (GTF) temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
 
 !=========================================================
 ! Private module parameters
@@ -173,6 +174,9 @@ subroutine shoc_init( &
   lcond = latvap ! [J/kg]
   lice = latice  ! [J/kg]
   vk = karman    ! [-]
+  
+  tice = 240.0   ! [K] (GTF) -33 (C), 
+
   ! Tunable parameters, all unitless
   !  override default values if value is present
   if (present(length_fac_in)) length_fac=length_fac_in
@@ -3028,16 +3032,14 @@ subroutine shoc_assumed_pdf_compute_qs(&
   real(rtype), intent(out) ::   beta2
 
   ! local vars
-  integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
+  !integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
   real(rtype) :: esval1_1
   real(rtype) :: esval1_2
-  real(rtype) :: tice
   real(rtype) :: lstarn1
   real(rtype) :: lstarn2
 
   esval1_1=0._rtype
   esval1_2=0._rtype
-  tice      = 240.0 ! (GTF) -33 (C), temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
 
   ! TODO (GTF): Uncomment this line when module is imported
   !esval1_1=MurphyKoop_svp(Tl1_1, liquid)
