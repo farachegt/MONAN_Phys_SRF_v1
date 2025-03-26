@@ -1397,7 +1397,7 @@
             itimestep     = itimestep    , dt_dyn         = dt_dyn        , dt_pbl          = dt_pbl          , &
             area_p        = area_p       , cda_p          = cda_p         , lh_p            = lh_p            , &
             hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
-            theta_m       = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
+            theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
             zgrid_p       = zgrid_p      , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
             pi_p          = pi_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p      , &
