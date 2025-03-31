@@ -2543,6 +2543,13 @@
 
                         <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
+                        
+                        <var name="lbc_cnvcf" name_in_code="cnvcf" array_group="convection" packages="gf_monan_pcvol" units="s^{-1}"
+                             description="Lateral boundary tendency of Convective cloud fraction"/>
+                        
+                        <var name="lbc_buoyx" name_in_code="buoyx" array_group="convection" packages="gf_monan_cporg" units="J kg^{-1} s^{-1}"
+                             description="Lateral boundary tendency of Buoyancy excess from the cold pool scheme"/>
+
                 </var_array>
         </var_struct>
 
@@ -2880,7 +2887,7 @@
                 <nml_option name="config_gf_gustf" type="integer" default_value="0" in_defaults="false"
                      units="-"
                      description="Option for coupling the Grell-Freitas MONAN cold pool gust front speed with the surface layer scheme, it needs config_gf_cporg greater than zero"
-                     possible_values="0,1,2"/>
+                     possible_values="0,1,2,3"/>
                 
                 <nml_option name="config_gf_sub3d" type="integer" default_value="0" in_defaults="false"
                      units="-"
@@ -3110,7 +3117,7 @@
 
                 <var name="sigma_deep" type="real" dimensions="nCells Time" units="-"
                      description="scale-aware parameter for deep convection"
-                     packages="cu_gf_monan_in"/>
+                     packages="cu_gf_monan_in;gf_monan_sub3d"/>
 
                 <var name="rmfxdpcu" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
                      description="updraft mass flux at cloud base from deep cumulus parameterization"
@@ -3621,6 +3628,14 @@
                      description="wind speed at lowest model level"
                      packages="bl_mynn_in;bl_ysu_in"/>
 
+                <var name="hfx_spr" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="upward heat flux at the surface from ocean spray"
+                     packages="bl_mynn_in;bl_ysu_in"/>
+
+                <var name="lh_spr" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="latent heat flux at the surface from ocean spray"
+                     packages="bl_mynn_in;bl_ysu_in"/>
+
 
                 <!-- ... MONIN-OBUKHOV (SFCLAY): -->
                 <var name="fh" type="real" dimensions="nCells Time" units="unitless"
@@ -3647,14 +3662,6 @@
 
                 <var name="sm3d" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="stability function for moisture"
-                     packages="bl_mynn_in"/>
-
-                <var name="hfx_spr" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="upward heat flux at the surface from ocean spray"
-                     packages="bl_mynn_in"/>
-
-                <var name="lh_spr" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="latent heat flux at the surface from ocean spray"
                      packages="bl_mynn_in"/>
 
                 <!-- DIAGNOSTICS: -->
