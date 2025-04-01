@@ -1,5 +1,6 @@
 module module_bl_shocmf
  use mpas_atmphys_constants
+ use abortutils, only: endrun
 
  use shoc, only: shoc_init, shoc_main, length_fac, mintke
 
@@ -8,7 +9,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -276,7 +277,7 @@ end subroutine calculate_theta
 
 
  subroutine bl_shocmf_driver( &
-    itimestep, dt_dyn, dt_pbl, area_p, cda_p, lh_p, hfx_p, ht_p, theta_m_p, theta_p, &
+    itimestep, dt_pbl, area_p, cda_p, lh_p, hfx_p, ht_p, theta_m_p, theta_p, &
     z_p, zgrid_p, pres_p, pres2_p, uw_sfc_p, vw_sfc_p, w_p, pi_p, dse_p, tke_shmf_p, qw_p, &
     u_p, v_p, wthv_sec_p, kzh_p, kzm_p, qc_p, cldfrabl_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
     rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, &
@@ -295,7 +296,7 @@ end subroutine calculate_theta
     ! It calls the SHOC-MF module to calculate the turbulence
     ! and the EDMF module to calculate the subgrid-scale clouds
     integer, intent(in) :: itimestep, its, ite, jts, jte, kts, kte
-    real(kind=RKIND), intent(in) :: dt_dyn, dt_pbl
+    real(kind=RKIND), intent(in) :: dt_pbl
     real(kind=RKIND),dimension(:,:), intent(in) :: area_p, cda_p, lh_p, hfx_p, ht_p
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
@@ -319,6 +320,7 @@ end subroutine calculate_theta
     real(kind=RKIND), dimension(:,:), allocatable :: wtracer_sfc, dx_p, dy_p, hfx_converted_p, lh_converted_p
 
     integer :: num_qtracers, nadv, i, j
+    real(kind=RKIND) :: shoc_timestep
 
     allocate(um_p(ite, kte, jte)    , &
              vm_p(ite, kte, jte)    , &
@@ -364,7 +366,24 @@ end subroutine calculate_theta
 
     call convert_heat_fluxes(its, ite, jts, jte, hfx_p, lh_p, rho_p, hfx_converted_p, lh_converted_p)
 
-    nadv = floor(dt_dyn/dt_pbl) ! TODO (GTF): Floor or ceiling? It should be integer
+    shoc_timestep = 150.0_RKIND
+    if (shoc_timestep .gt. dt_pbl) then
+        shoc_timestep = dt_pbl
+    endif
+    if (mod(dt_pbl,shoc_timestep) .ne. 0) then
+        shoc_timestep = dt_pbl/2._RKIND
+        do while (shoc_timestep .gt. max_shoc_timestep)
+            shoc_timestep = shoc_timestep/2._RKIND
+        end do
+    endif
+
+    ! If resulting host model time step and SHOC time step do not divide evenly
+    ! into each other, have model throw a fit.
+    if (mod(dt_pbl,shoc_timestep) .ne. 0) then
+        call endrun('bl_shocmf_driver:  SHOC time step and HOST time step NOT compatible')
+    endif
+
+    nadv = max(shoc_timestep/dt_pbl, 1_RKIND)
 
     num_qtracers = 0
     allocate(wtracer_sfc(ite, jte))

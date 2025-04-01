@@ -1394,7 +1394,7 @@
     case("bl_shocmf")
       call mpas_timer_start('bl_shocmf')
       call bl_shocmf_driver( &
-            itimestep     = itimestep    , dt_dyn         = dt_dyn        , dt_pbl          = dt_pbl          , &
+            itimestep     = itimestep    , dt_pbl         = dt_pbl                                            , &
             area_p        = area_p       , cda_p          = cda_p         , lh_p            = lh_p            , &
             hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
             theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
