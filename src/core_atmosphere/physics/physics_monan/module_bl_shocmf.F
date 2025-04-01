@@ -1,7 +1,5 @@
 module module_bl_shocmf
  use mpas_atmphys_constants
- use abortutils, only: endrun
-
  use shoc, only: shoc_init, shoc_main, length_fac, mintke
 
 
@@ -380,10 +378,10 @@ end subroutine calculate_theta
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
     if (mod(dt_pbl,shoc_timestep) .ne. 0) then
-        call endrun('bl_shocmf_driver:  SHOC time step and HOST time step NOT compatible')
+        stop "SHOC time step and HOST time step NOT compatible"
     endif
 
-    nadv = max(shoc_timestep/dt_pbl, 1_RKIND)
+    nadv = max(shoc_timestep/dt_pbl, 1.0)
 
     num_qtracers = 0
     allocate(wtracer_sfc(ite, jte))
