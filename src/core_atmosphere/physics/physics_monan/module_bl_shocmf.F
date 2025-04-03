@@ -364,15 +364,11 @@ end subroutine calculate_theta
 
     call convert_heat_fluxes(its, ite, jts, jte, hfx_p, lh_p, rho_p, hfx_converted_p, lh_converted_p)
 
-    shoc_timestep = 150.0_RKIND
-    if (shoc_timestep .gt. dt_pbl) then
+    nadv = ceiling(dt_pbl/max_shoc_timestep)
+    if (nadv .gt. 1) then
+        shoc_timestep = dt_pbl/nadv
+    else
         shoc_timestep = dt_pbl
-    endif
-    if (mod(dt_pbl,shoc_timestep) .ne. 0) then
-        shoc_timestep = dt_pbl/2._RKIND
-        do while (shoc_timestep .gt. max_shoc_timestep)
-            shoc_timestep = shoc_timestep/2._RKIND
-        end do
     endif
 
     ! If resulting host model time step and SHOC time step do not divide evenly
@@ -380,8 +376,6 @@ end subroutine calculate_theta
     if (mod(dt_pbl,shoc_timestep) .ne. 0) then
         stop "SHOC time step and HOST time step NOT compatible"
     endif
-
-    nadv = max(shoc_timestep/dt_pbl, 1.0)
 
     num_qtracers = 0
     allocate(wtracer_sfc(ite, jte))
@@ -451,10 +445,10 @@ end subroutine calculate_theta
     rthblten_p = (theta_m_p - theta_mm_p)/dt_pbl
     rqvblten_p = (qv_p - qvm_p)/dt_pbl
     rqcblten_p = (qc_p - qcm_p)/dt_pbl
-    rqiblten_p = (qi_p - qim_p)/dt_pbl ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
-    rqsblten_p = (qs_p - qsm_p)/dt_pbl
+    !rqiblten_p = (qi_p - qim_p)/dt_pbl ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
+    !rqsblten_p = (qs_p - qsm_p)/dt_pbl
     rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
-    rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
+    !rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
   
  end subroutine bl_shocmf_driver
 
