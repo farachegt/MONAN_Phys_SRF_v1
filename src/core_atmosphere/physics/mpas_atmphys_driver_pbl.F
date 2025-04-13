@@ -1179,7 +1179,7 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call bl_shocmf_init(kte,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,pres_p,tke_shmf_p, wthv_sec_p, &
+      call bl_shocmf_init(kte,ims,ime,kms,kme,jms,jme,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,pres_p,tke_shmf_p, wthv_sec_p, &
                           kzm_p, kzh_p)
       call mpas_log_write('--- end subroutine shoc_init:')
     case default

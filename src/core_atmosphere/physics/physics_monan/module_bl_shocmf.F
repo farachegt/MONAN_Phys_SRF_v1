@@ -1,6 +1,7 @@
 module module_bl_shocmf
  use mpas_atmphys_constants
  use shoc, only: shoc_init, shoc_main, length_fac, mintke
+ use mpas_pool_routines
 
 
  implicit none
@@ -245,32 +246,41 @@ end subroutine calculate_theta
  end subroutine calculate_thetam_from_thetal
 
  subroutine bl_shocmf_init( &
-    kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
+    kte, ims, ime, kms, kme, jms, jme, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
     xlf_in, karman_in, pres_p, tke_shmf_p, wthv_sec_p, &
     kzm_p, kzh_p &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
-    integer, intent(in) :: kte
+    integer, intent(in) :: kte, ims, ime, kms, kme, jms, jme
     real(RKIND), intent(in) :: gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, &
                                karman_in
     real(RKIND), dimension(:,:,:), intent(in) :: pres_p
-    real(RKIND), dimension(:,:,:), intent(inout) :: tke_shmf_p, wthv_sec_p, &
+    real(RKIND), dimension(:,:,:), allocatable, intent(inout) :: tke_shmf_p, wthv_sec_p, &
                                                     kzm_p, kzh_p
 
     integer:: ntop_shoc, nbot_shoc
 
     ntop_shoc = 1    ! if >1, must be <= nbot_molec
-    nbot_shoc = kte ! currently always pver
+    nbot_shoc = kte ! currently always pver 
+    
+    call mpas_log_write('Before allocation of SHOC-MF variables')
+    if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
+    if(.not.allocated(wthv_sec_p)) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme))
+    if(.not.allocated(kzh_p)) allocate(kzh_p(ims:ime,kms:kme,jms:jme))
+    if(.not.allocated(kzm_p)) allocate(kzm_p(ims:ime,kms:kme,jms:jme))
+    call mpas_log_write('After allocation of SHOC-MF variables')
 
     tke_shmf_p(:,:,:) = mintke
     wthv_sec_p(:,:,:) = 0._RKIND
     kzm_p(:,:,:) = 0._RKIND
     kzh_p(:,:,:) = 0._RKIND
-  
+
+    call mpas_log_write('Calling shoc_init from SHOCMF module')
     ! TODO (GTF): Review pres_p and its usage in the shoc_init method
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
                   pres_p, nbot_shoc, ntop_shoc, length_fac)
+    call mpas_log_write('!! returned from shoc_init !!')
  end subroutine bl_shocmf_init
 
 
@@ -319,6 +329,8 @@ end subroutine calculate_theta
 
     integer :: num_qtracers, nadv, i, j
     real(kind=RKIND) :: shoc_timestep
+
+    call mpas_log_write('!!!!!!!!!!! Entered in bl_shocmf_driver !!!!!!!!!!!!')
 
     allocate(um_p(ite, kte, jte)    , &
              vm_p(ite, kte, jte)    , &
@@ -383,6 +395,7 @@ end subroutine calculate_theta
     allocate(qtracers(ite, kte, jte))
     qtracers = 0.0_RKIND
 
+    call mpas_log_write('!!!!!!!!!!! Calling SHOC-MF main module !!!!!!!!!!!!')
     call shoc_main( &
         itimestep, ite, kte, kte+1, shoc_timestep, nadv, &                                    ! Input
         dx_p(:,1), dy_p(:,1), theta_m_p(:,:,1),&                                              ! Input
@@ -421,6 +434,7 @@ end subroutine calculate_theta
         wthl_sec_ed_p(:,:,1), wthl_sec_mf_p(:,:,1), &                                         ! Output (EDMF diagnostic)
         wqw_sec_ed_p(:,:,1), wqw_sec_mf_p(:,:,1))                                             ! Output (EDMF diagnostic)
 
+    call mpas_log_write('!!!!!!!!!!! Returned from SHOC-MF main module !!!!!!!!!!!!')
     call calculate_theta(thetal_p, t_p, qc_p, theta_p)
     call calculate_thetam_from_thetal(thetal_p, qc_p, qv_p, ep_1, xlv, cp, theta_m_p)
 
