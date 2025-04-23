@@ -198,6 +198,7 @@
       if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(area_p)              ) allocate(area_p(ims:ime,jms:jme)              )
+      if(.not.allocated(cda_p)               ) allocate(cda_p(ims:ime,jms:jme)               )
 
       if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)         )
@@ -248,8 +249,6 @@
       if(.not.allocated(wthl_sec_mf_p)      ) allocate(wthl_sec_mf_p(ims:ime,kms:kme,jms:jme)      )
       if(.not.allocated(wqw_sec_ed_p)       ) allocate(wqw_sec_ed_p(ims:ime,kms:kme,jms:jme)       )
       if(.not.allocated(wqw_sec_mf_p)       ) allocate(wqw_sec_mf_p(ims:ime,kms:kme,jms:jme)       )
-      if(.not.allocated(theta_m_p)          ) allocate(theta_m_p(ims:ime,kms:kme,jms:jme)          )
-      if(.not.allocated(zgrid_p)            ) allocate(zgrid_p(ims:ime,kms:kme,jms:jme)            )
       if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)               )
       if(.not.allocated(cldfrabl_p)         ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(dse_p)              ) allocate(dse_p(ims:ime,kms:kme,jms:jme)              )
@@ -376,6 +375,7 @@
         if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
         if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
         if(allocated(area_p)              ) deallocate(area_p              )
+        if(allocated(cda_p)               ) deallocate(cda_p               )
 
         if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
         if(allocated(shoc_mix_p)         ) deallocate(shoc_mix_p         )
@@ -426,8 +426,6 @@
         if(allocated(wthl_sec_mf_p)      ) deallocate(wthl_sec_mf_p      )
         if(allocated(wqw_sec_ed_p)       ) deallocate(wqw_sec_ed_p       )
         if(allocated(wqw_sec_mf_p)       ) deallocate(wqw_sec_mf_p       )
-        if(allocated(theta_m_p)          ) deallocate(theta_m_p          )
-        if(allocated(zgrid_p)            ) deallocate(zgrid_p            )
         if(allocated(qw_p)               ) deallocate(qw_p               )
         if(allocated(cldfrabl_p)         ) deallocate(cldfrabl_p         )
         if(allocated(dse_p)              ) deallocate(dse_p              )
@@ -478,7 +476,7 @@
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
  real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh
- real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell
+ real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell,cda
  real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
@@ -491,7 +489,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: rino,theta,theta_m,zgrid,dse
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,zgrid,dse
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -657,16 +655,17 @@
        enddo
     
     case("bl_shocmf")
-       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq    )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq  )
-       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq   )
+       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight     )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
-       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc         )
-       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc         )
-       call mpas_pool_get_array(diag_physics, 'zgrid'            ,zgrid          )
-       call mpas_pool_get_array(diag_physics, 'lh'               ,lh             )
-       call mpas_pool_get_array(mesh        ,'areaCell'          ,area_cell      )
+       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B          )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'lh'               ,lh              )
+       call mpas_pool_get_array(diag_physics, 'cda'              ,cda             )
+       call mpas_pool_get_array(mesh        , 'areaCell'          ,area_cell       )
+       call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
 
        
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
@@ -718,10 +717,8 @@
        call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
-       call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
        call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
-       call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
        call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
 
        do j = jts,jte
@@ -733,6 +730,7 @@
         ztop_b_p(i,j)           = ztop_B(i)
         uw_sfc_p(i,j)           = uw_sfc(i)
         vw_sfc_p(i,j)           = vw_sfc(i)
+        cda_p(i,j)              = cda(i)
 
         lh_p(i,j)               = lh(i)
         ht_p(i,j)               = zgrid(1,i)
@@ -796,9 +794,7 @@
         wthl_sec_mf_p(i,k,j)     = wthl_sec_mf(k,i)
         wqw_sec_ed_p(i,k,j)      = wqw_sec_ed(k,i)
         wqw_sec_mf_p(i,k,j)      = wqw_sec_mf(k,i)
-        zgrid_p(i,k,j)           = zgrid(k,i)
         cldfrabl_p(i,k,j)        = cldfrac_bl(k,i)
-        theta_m_p(i,k,j)         = theta_m(k,i)
         dse_p(i,k,j)             = dse(k,i)
 
         rtkeblten_p(i,k,j)       = 0._RKIND
@@ -881,7 +877,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,theta,dse
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,dse
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1013,13 +1009,13 @@
        enddo
 
     case("bl_shocmf")
-       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq    )
-       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq  )
-       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight    )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq   )
+       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight     )
        call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
-       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B         )
-       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc         )
-       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc         )
+       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B          )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
 
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
@@ -1070,8 +1066,7 @@
        call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
-       call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        )
-       call mpas_pool_get_array(diag_physics, 'theta'            ,theta          )
+      ! call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        ) ! already deallocated at interface
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
        call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
        call mpas_pool_get_array(diag_physics, 'rtkeblten'        ,rtkeblten      )
@@ -1398,7 +1393,7 @@
             area_p        = area_p       , cda_p          = cda_p         , lh_p            = lh_p            , &
             hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
             theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
-            zgrid_p       = zgrid_p      , pres_p         = pres_p        , pres2_p         = pres2_p         , &
+            zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
             pi_p          = pi_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p      , &
             qw_p          = qw_p         , u_p            = u_p           , v_p             = v_p             , &
@@ -1429,7 +1424,9 @@
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rqsblten_p     = rqsblten_p    , rniblten_p      = rniblten_p      , &
             rtkeblten_p   = rtkeblten_p                                                                       , & 
-            its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte                                    &
+            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde                             , &
+            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                               &
       )
             
       call mpas_timer_stop('bl_shocmf')
