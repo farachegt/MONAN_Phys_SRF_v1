@@ -299,6 +299,27 @@ end subroutine calculate_theta
     deallocate(pres_p)
  end subroutine calculate_presref_mid
 
+ subroutine calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
+    ! From z_p and zmid_p which are the heights in reference to mean sea level,
+    ! height_i_p and height_mid_p are calculated in reference to surface
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
+    real(RKIND), intent(in) :: z_p(:,:,:), zmid_p(:,:,:)
+    real(RKIND), dimension(:,:,:), allocatable, intent(out) :: height_interface_p, height_mid_p
+
+    integer :: i, j, k
+    allocate(height_interface_p(ims:ime,kms:kme,jms:jme), height_mid_p(ims:ime,kms:kme,jms:jme))
+    
+    do i=ims,ime
+    do j=jms,jme
+    do k=kms,kme
+        height_interface_p(i,k,j) = z_p(i,k,j) - z_p(i,1,j)
+        height_mid_p(i,k,j) = zmid_p(i,k,j) - z_p(i,1,j)
+    enddo
+    enddo
+    enddo
+
+ end subroutine calculate_heights
+
  subroutine bl_shocmf_init( &
     kte, ims, ime, kms, kme, jms, jme, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
     xlf_in, karman_in, diag &
@@ -373,7 +394,7 @@ end subroutine calculate_theta
         qs_p, qi_p, qg_p, qr_p, rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
         rqcblten_p, rqiblten_p, rqsblten_p, rniblten_p
 
-    real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers
+    real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
     real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, nim_p, tkem_p 
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dx_p, dy_p, hfx_converted_p, lh_converted_p
 
@@ -406,6 +427,7 @@ end subroutine calculate_theta
     call calculate_presdiff(pres_p, ims, ime, kms, kme, jms, jme, presdiff_p)
     call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
     call calculate_dry_static_energy(t_p, z_p, gravity, cp, dse_p)
+    call calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
     
     call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
     call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
@@ -464,7 +486,7 @@ end subroutine calculate_theta
     call shoc_main( &
         itimestep, ime, kme-1, kme, shoc_timestep, nadv, &                                    ! Input
         dx_p(:,1), dy_p(:,1), theta_m_p(:,:,1),&                                              ! Input
-        zmid_p(:,:,1), z_p(:,:,1), pres_p(:,:,1), pres2_p(:,:,1), &                           ! Input
+        height_mid_p(:,:,1), height_interface_p(:,:,1), pres_p(:,:,1), pres2_p(:,:,1), &      ! Input
         presdiff_p(:,:,1), hfx_converted_p(:,1), lh_converted_p(:,1), &                       ! Input
         uw_sfc_p(:,1), vw_sfc_p(:,1), &                                                       ! Input
         wtracer_sfc(:,1), num_qtracers, w_p(:,:,1), &                                         ! Input
@@ -532,6 +554,7 @@ end subroutine calculate_theta
     deallocate(um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, nim_p, tkem_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dx_p, dy_p)
+    deallocate(height_interface_p, height_mid_p)
     call mpas_log_write('!!!!!!!!!!! Exiting bl_shocmf_driver !!!!!!!!!!!!')
   
  end subroutine bl_shocmf_driver

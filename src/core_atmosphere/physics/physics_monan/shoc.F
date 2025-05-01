@@ -538,6 +538,7 @@ subroutine shoc_main ( &
        mf_dry_freq = 0._rtype
        mf_moist_freq = 0._rtype
     endif
+    ! TODO (GTF): Keep it hardcoded mf_ae value?
     ! Test it
     mf_ae = 1._rtype
     
@@ -2168,7 +2169,6 @@ subroutine compute_diag_third_shoc_moment(&
      kb=k+1
      kc=k-1
      do i=1,shcol
-
         !Compute inputs for computing f0 to f5 terms
         call fterms_input_for_diag_third_shoc_moment(&
 	     dz_zi(i,k), dz_zt(i,k), dz_zt(i,kc), &               ! Input
@@ -4726,8 +4726,10 @@ subroutine pblintd_height(&
              if (rino(i,k) >= ricr) then
                 pblh(i) = z(i,k+1) + (ricr - rino(i,k+1))/(rino(i,k) -rino(i,k+1)) * &
                      (z(i,k) - z(i,k+1))
-                check(i) = .false.                
+                check(i) = .false.               
              end if
+             !--- sanity check
+             pblh(i) = max(0.0_rtype, pblh(i)) 
           end if
        end do
     end do
@@ -5171,7 +5173,6 @@ subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_in
 
   do k=1,nlev
     do i=1,shcol
-
       tkes = sqrt(tke(i,k))
 
       if(brunt(i,k) .ge. 0) brunt2(i,k) = brunt(i,k)
