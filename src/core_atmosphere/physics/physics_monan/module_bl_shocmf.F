@@ -261,21 +261,59 @@ end subroutine calculate_theta
     theta_m(:,:,:) = (thetal(:,:,:) + (xlv_in/cp_in)*ql(:,:,:))*(1.0_RKIND + ep_1_in*qv(:,:,:) - ql(:,:,:))
  end subroutine calculate_thetam_from_thetal
 
+ subroutine calculate_presref_mid(kte,ims,ime,kms,kme,jms,jme,diag,presref_mid)
+    ! Calculate the reference pressure at the mid-levels
+    ! For now it is calculated as the average of the pressure at the levels
+    integer, intent(in) :: ims,ime,kms,kme,jms,jme,kte
+    type(mpas_pool_type), intent(in) :: diag
+    real(RKIND), dimension(:), allocatable, intent(inout) :: presref_mid
+
+    integer :: i, j, k
+    real(kind=RKIND), dimension(:,:,:), allocatable :: pres_p
+    real(kind=RKIND),dimension(:,:), pointer :: pressure_b,pressure_p
+
+    call mpas_pool_get_array(diag,'pressure_base',pressure_b)
+    call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
+    if(.not.allocated(pres_p) ) allocate(pres_p(ims:ime,kms:kme,jms:jme))
+
+    do k=kms,kte
+    do j=jms,jme
+    do i=ims,ime
+        pres_p(i,k,j) = pressure_p(k,i) + pressure_b(k,i)
+    enddo
+    enddo
+    enddo
+
+    allocate(presref_mid(kte))
+    presref_mid = 0.0_RKIND
+
+    do k=kms,kte
+    do j=jms,jme
+    do i=ims,ime
+        presref_mid(k) = presref_mid(k) + pres_p(i,k,j)
+    enddo
+    enddo
+    enddo
+    presref_mid = presref_mid/ime
+
+    deallocate(pres_p)
+ end subroutine calculate_presref_mid
+
  subroutine bl_shocmf_init( &
     kte, ims, ime, kms, kme, jms, jme, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
-    xlf_in, karman_in, pres_p, tke_shmf_p, wthv_sec_p, &
-    kzm_p, kzh_p &
+    xlf_in, karman_in, diag &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
     integer, intent(in) :: kte, ims, ime, kms, kme, jms, jme
+    type(mpas_pool_type), intent(in) :: diag
     real(RKIND), intent(in) :: gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, &
                                karman_in
-    real(RKIND), dimension(:,:,:), intent(in) :: pres_p
-    real(RKIND), dimension(:,:,:), allocatable, intent(inout) :: tke_shmf_p, wthv_sec_p, &
-                                                    kzm_p, kzh_p
 
     integer:: ntop_shoc, nbot_shoc
+    real(RKIND), dimension(:), allocatable :: presref_mid
+
+    call calculate_presref_mid(kte,ims,ime,kms,kme,jms,jme,diag,presref_mid)
 
     ntop_shoc = 1    ! if >1, must be <= nbot_molec
     nbot_shoc = kte ! currently always pver 
@@ -286,7 +324,7 @@ end subroutine calculate_theta
     call mpas_log_write('Calling shoc_init from SHOCMF module')
     ! TODO (GTF): Review pres_p and its usage in the shoc_init method
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
-                  pres_p, nbot_shoc, ntop_shoc, length_fac)
+    presref_mid, nbot_shoc, ntop_shoc, length_fac)
     call mpas_log_write('!! returned from shoc_init !!')
  end subroutine bl_shocmf_init
 

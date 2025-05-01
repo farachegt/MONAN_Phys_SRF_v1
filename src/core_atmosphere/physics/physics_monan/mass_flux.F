@@ -360,8 +360,9 @@ contains
                                  
          ! calculate mixed layer height using wthv_sec profile (its minimum/inflection point)
          ztop_B(j) = 0._rtype   
-              
-         do k=1,nz-1
+         
+         ! TODO (GTF): Changed by me, it was "do k=1,nz-1" because in case k=1 it violates memory access
+         do k=2,nz-1
             if (zt(j,k) < 100._rtype) cycle
             if (wthv_sec(j,k) < 0 .and. wthv_sec(j,k-1)>wthv_sec(j,k) .and. wthv_sec(j,k+1)>wthv_sec(j,k) ) then
                ztop_B(j) = zt(j,k)
