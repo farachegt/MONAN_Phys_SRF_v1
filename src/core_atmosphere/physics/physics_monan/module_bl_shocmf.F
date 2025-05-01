@@ -104,9 +104,9 @@ end subroutine calculate_theta
     mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
     wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-    kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, &
-    pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, rho_p, thetal_p, &
-    presdiff_p &
+    kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, height_interface_p, &
+    height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
+    rho_p, thetal_p, presdiff_p &
   )
     integer, intent(in) :: kme
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
@@ -122,8 +122,8 @@ end subroutine calculate_theta
                                                         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, &
                                                         wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, dse_p, qw_p, u_p, &
                                                         v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, cldfrabl_p, &
-                                                        theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, &
-                                                        pres2_p, w_p, pi_p, qv_p, qs_p, &
+                                                        theta_p, t_p, theta_m_p, height_interface_p, height_mid_p, &
+                                                        pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, &
                                                         qi_p, qg_p, qr_p, rho_p, thetal_p, presdiff_p
 
     ! Flip the vertical coordinates of the SHOC-MF variables
@@ -169,7 +169,7 @@ end subroutine calculate_theta
     wqw_sec_ed_p = wqw_sec_ed_p(:, kme:1:-1, :)
     wqw_sec_mf_p = wqw_sec_mf_p(:, kme:1:-1, :)
     w_p = w_p(:, kme:1:-1, :)
-    z_p = z_p(:, kme:1:-1, :)
+    height_interface_p = height_interface_p(:, kme:1:-1, :)
 
     ! All variables were allocated with kme levels, but some
     ! of them are only kme-1 levels. So, in these cases we
@@ -206,7 +206,7 @@ end subroutine calculate_theta
     pres_p(:,1:kme-1,:) = pres_p(:,kme-1:1:-1,:)
     pres2_p(:,1:kme-1,:) = pres2_p(:,kme-1:1:-1,:)
     theta_p(:,1:kme-1,:) = theta_p(:,kme-1:1:-1,:)
-    zmid_p(:,1:kme-1,:) = zmid_p(:,kme-1:1:-1,:)
+    height_mid_p(:,1:kme-1,:) = height_mid_p(:,kme-1:1:-1,:)
     thetal_p(:,1:kme-1,:) = thetal_p(:,kme-1:1:-1,:)
     presdiff_p(:,1:kme-1,:) = presdiff_p(:,kme-1:1:-1,:)
  end subroutine flip_vertical_coordinates
@@ -454,12 +454,12 @@ end subroutine calculate_theta
     allocate(qtracers(ime, kme, jme))
     qtracers = 0.0_RKIND
 
-    print *, 'antes thetal_p(9588, :, 1)', thetal_p(9588, :, 1)
+    print *, 'antes thetal_p(1469, :, 1)', thetal_p(1469, :, 1)
 
     do i=1,ime
          do k=1,kme
-               if (zmid_p(i,k,1) .lt. 0.0_RKIND) then
-                  print*, 'i', i, 'k', k, 'zmid_p', zmid_p(i,k,1), 'z_p', z_p(i,k,1)
+               if (z_p(i,k,1) .lt. 0.0_RKIND) then
+                  print*, 'i', i, 'k', k, 'zmid_p', zmid_p(i,k,1), 'z_p', z_p(i,k,1), 'height_interface_p', height_interface_p(i,k,1), 'height_mid_p', height_mid_p(i,k,1)
                endif
         enddo
     enddo
@@ -475,12 +475,12 @@ end subroutine calculate_theta
         mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, &
-        pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, rho_p, thetal_p, &
-        presdiff_p &
+        kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, height_interface_p, &
+        height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
+        rho_p, thetal_p, presdiff_p &
     )
 
-    print *, 'depois thetal_p(9588, :, 1)', thetal_p(9588, :, 1)
+    print *, 'depois thetal_p(1469, :, 1)', thetal_p(1469, :, 1)
 
     call mpas_log_write('!!!!!!!!!!! Calling SHOC-MF main module !!!!!!!!!!!!')
     call shoc_main( &
