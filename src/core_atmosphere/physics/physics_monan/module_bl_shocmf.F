@@ -8,7 +8,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 50.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -94,7 +94,7 @@ end subroutine calculate_theta
 
 
  subroutine flip_vertical_coordinates(&
-    kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
+    kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
     tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
     wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
     wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &
@@ -108,7 +108,7 @@ end subroutine calculate_theta
     height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
     rho_p, thetal_p, presdiff_p &
   )
-    integer, intent(in) :: kme
+    integer, intent(in) :: kms, kme
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
                                                         tke_dissip_p, tke_prod_b_p, &
                                                         tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
@@ -130,85 +130,85 @@ end subroutine calculate_theta
     ! This is necessary because SHOC-MF expects the vertical
     ! coordinate starting from the top of the atmosphere.
     ! This subroutine is called before and after the SHOC-MF call
-    thl_sec_p = thl_sec_p(:, kme:1:-1, :)
-    qw_sec_p = qw_sec_p(:, kme:1:-1, :)
-    qwthl_sec_p = qwthl_sec_p(:, kme:1:-1, :)
-    wthl_sec_p = wthl_sec_p(:, kme:1:-1, :)
-    wqw_sec_p = wqw_sec_p(:, kme:1:-1, :)
-    wtke_sec_p = wtke_sec_p(:, kme:1:-1, :)
-    uw_sec_p = uw_sec_p(:, kme:1:-1, :)
-    vw_sec_p = vw_sec_p(:, kme:1:-1, :)
-    w3_p = w3_p(:, kme:1:-1, :)
-    mf_dry_a_p = mf_dry_a_p(:, kme:1:-1, :)
-    mf_moist_a_p = mf_moist_a_p(:, kme:1:-1, :)
-    mf_dry_w_p = mf_dry_w_p(:, kme:1:-1, :)
-    mf_moist_w_p = mf_moist_w_p(:, kme:1:-1, :)
-    mf_dry_qt_p = mf_dry_qt_p(:, kme:1:-1, :)
-    mf_moist_qt_p = mf_moist_qt_p(:, kme:1:-1, :)
-    mf_dry_thl_p = mf_dry_thl_p(:, kme:1:-1, :)
-    mf_moist_thl_p = mf_moist_thl_p(:, kme:1:-1, :)
-    mf_dry_u_p = mf_dry_u_p(:, kme:1:-1, :)
-    mf_moist_u_p = mf_moist_u_p(:, kme:1:-1, :)
-    mf_dry_v_p = mf_dry_v_p(:, kme:1:-1, :)
-    mf_moist_v_p = mf_moist_v_p(:, kme:1:-1, :)
-    mf_moist_qc_p = mf_moist_qc_p(:, kme:1:-1, :)
-    mf_thlflx_p = mf_thlflx_p(:, kme:1:-1, :)
-    mf_qtflx_p = mf_qtflx_p(:, kme:1:-1, :)
-    mf_ae_p = mf_ae_p(:, kme:1:-1, :)
-    mf_aw_p = mf_aw_p(:, kme:1:-1, :)
-    mf_awthv_p = mf_awthv_p(:, kme:1:-1, :)
-    mf_awthl_p = mf_awthl_p(:, kme:1:-1, :)
-    mf_awqt_p = mf_awqt_p(:, kme:1:-1, :)
-    mf_awql_p = mf_awql_p(:, kme:1:-1, :)
-    mf_awqi_p = mf_awqi_p(:, kme:1:-1, :)
-    mf_awu_p = mf_awu_p(:, kme:1:-1, :)
-    mf_awv_p = mf_awv_p(:, kme:1:-1, :)
-    cfl_mf_p = cfl_mf_p(:, kme:1:-1, :)
-    wthl_sec_ed_p = wthl_sec_ed_p(:, kme:1:-1, :)
-    wthl_sec_mf_p = wthl_sec_mf_p(:, kme:1:-1, :)
-    wqw_sec_ed_p = wqw_sec_ed_p(:, kme:1:-1, :)
-    wqw_sec_mf_p = wqw_sec_mf_p(:, kme:1:-1, :)
-    w_p = w_p(:, kme:1:-1, :)
-    height_interface_p = height_interface_p(:, kme:1:-1, :)
+    thl_sec_p = thl_sec_p(:, kme:kms:-1, :)
+    qw_sec_p = qw_sec_p(:, kme:kms:-1, :)
+    qwthl_sec_p = qwthl_sec_p(:, kme:kms:-1, :)
+    wthl_sec_p = wthl_sec_p(:, kme:kms:-1, :)
+    wqw_sec_p = wqw_sec_p(:, kme:kms:-1, :)
+    wtke_sec_p = wtke_sec_p(:, kme:kms:-1, :)
+    uw_sec_p = uw_sec_p(:, kme:kms:-1, :)
+    vw_sec_p = vw_sec_p(:, kme:kms:-1, :)
+    w3_p = w3_p(:, kme:kms:-1, :)
+    mf_dry_a_p = mf_dry_a_p(:, kme:kms:-1, :)
+    mf_moist_a_p = mf_moist_a_p(:, kme:kms:-1, :)
+    mf_dry_w_p = mf_dry_w_p(:, kme:kms:-1, :)
+    mf_moist_w_p = mf_moist_w_p(:, kme:kms:-1, :)
+    mf_dry_qt_p = mf_dry_qt_p(:, kme:kms:-1, :)
+    mf_moist_qt_p = mf_moist_qt_p(:, kme:kms:-1, :)
+    mf_dry_thl_p = mf_dry_thl_p(:, kme:kms:-1, :)
+    mf_moist_thl_p = mf_moist_thl_p(:, kme:kms:-1, :)
+    mf_dry_u_p = mf_dry_u_p(:, kme:kms:-1, :)
+    mf_moist_u_p = mf_moist_u_p(:, kme:kms:-1, :)
+    mf_dry_v_p = mf_dry_v_p(:, kme:kms:-1, :)
+    mf_moist_v_p = mf_moist_v_p(:, kme:kms:-1, :)
+    mf_moist_qc_p = mf_moist_qc_p(:, kme:kms:-1, :)
+    mf_thlflx_p = mf_thlflx_p(:, kme:kms:-1, :)
+    mf_qtflx_p = mf_qtflx_p(:, kme:kms:-1, :)
+    mf_ae_p = mf_ae_p(:, kme:kms:-1, :)
+    mf_aw_p = mf_aw_p(:, kme:kms:-1, :)
+    mf_awthv_p = mf_awthv_p(:, kme:kms:-1, :)
+    mf_awthl_p = mf_awthl_p(:, kme:kms:-1, :)
+    mf_awqt_p = mf_awqt_p(:, kme:kms:-1, :)
+    mf_awql_p = mf_awql_p(:, kme:kms:-1, :)
+    mf_awqi_p = mf_awqi_p(:, kme:kms:-1, :)
+    mf_awu_p = mf_awu_p(:, kme:kms:-1, :)
+    mf_awv_p = mf_awv_p(:, kme:kms:-1, :)
+    cfl_mf_p = cfl_mf_p(:, kme:kms:-1, :)
+    wthl_sec_ed_p = wthl_sec_ed_p(:, kme:kms:-1, :)
+    wthl_sec_mf_p = wthl_sec_mf_p(:, kme:kms:-1, :)
+    wqw_sec_ed_p = wqw_sec_ed_p(:, kme:kms:-1, :)
+    wqw_sec_mf_p = wqw_sec_mf_p(:, kme:kms:-1, :)
+    w_p = w_p(:, kme:kms:-1, :)
+    height_interface_p = height_interface_p(:, kme:kms:-1, :)
 
     ! All variables were allocated with kme levels, but some
     ! of them are only kme-1 levels. So, in these cases we
     ! need to flip only the vertical coordinates of the kme-1 levels
-    rino_p(:,1:kme-1,:) = rino_p(:,kme-1:1:-1,:)
-    theta_m_p(:,1:kme-1,:) = theta_m_p(:,kme-1:1:-1,:)
-    shoc_mix_p(:,1:kme-1,:) = shoc_mix_p(:,kme-1:1:-1,:)
-    isotropy_p(:,1:kme-1,:) = isotropy_p(:,kme-1:1:-1,:)
-    tke_dissip_p(:,1:kme-1,:) = tke_dissip_p(:,kme-1:1:-1,:)
-    tke_prod_b_p(:,1:kme-1,:) = tke_prod_b_p(:,kme-1:1:-1,:)
-    tke_prod_sh_p(:,1:kme-1,:) = tke_prod_sh_p(:,kme-1:1:-1,:)
-    w_sec_p(:,1:kme-1,:) = w_sec_p(:,kme-1:1:-1,:)
-    wqls_sec_p(:,1:kme-1,:) = wqls_sec_p(:,kme-1:1:-1,:)
-    brunt_p(:,1:kme-1,:) = brunt_p(:,kme-1:1:-1,:)
-    shoc_ql2_p(:,1:kme-1,:) = shoc_ql2_p(:,kme-1:1:-1,:)
-    dse_p(:,1:kme-1,:) = dse_p(:,kme-1:1:-1,:)
-    u_p(:,1:kme-1,:) = u_p(:,kme-1:1:-1,:)
-    v_p(:,1:kme-1,:) = v_p(:,kme-1:1:-1,:)
-    wthv_sec_p(:,1:kme-1,:) = wthv_sec_p(:,kme-1:1:-1,:)
-    tke_shmf_p(:,1:kme-1,:) = tke_shmf_p(:,kme-1:1:-1,:)
-    kzh_p(:,1:kme-1,:) = kzh_p(:,kme-1:1:-1,:)
-    kzm_p(:,1:kme-1,:) = kzm_p(:,kme-1:1:-1,:)
-    qc_p(:,1:kme-1,:) = qc_p(:,kme-1:1:-1,:)
-    cldfrabl_p(:,1:kme-1,:) = cldfrabl_p(:,kme-1:1:-1,:)
-    pi_p(:,1:kme-1,:) = pi_p(:,kme-1:1:-1,:)
-    qv_p(:,1:kme-1,:) = qv_p(:,kme-1:1:-1,:)
-    qs_p(:,1:kme-1,:) = qs_p(:,kme-1:1:-1,:)
-    qi_p(:,1:kme-1,:) = qi_p(:,kme-1:1:-1,:)
-    qg_p(:,1:kme-1,:) = qg_p(:,kme-1:1:-1,:)
-    qr_p(:,1:kme-1,:) = qr_p(:,kme-1:1:-1,:)
-    qw_p(:,1:kme-1,:) = qw_p(:,kme-1:1:-1,:)
-    rho_p(:,1:kme-1,:) = rho_p(:,kme-1:1:-1,:)
-    t_p(:,1:kme-1,:) = t_p(:,kme-1:1:-1,:)
-    pres_p(:,1:kme-1,:) = pres_p(:,kme-1:1:-1,:)
-    pres2_p(:,1:kme-1,:) = pres2_p(:,kme-1:1:-1,:)
-    theta_p(:,1:kme-1,:) = theta_p(:,kme-1:1:-1,:)
-    height_mid_p(:,1:kme-1,:) = height_mid_p(:,kme-1:1:-1,:)
-    thetal_p(:,1:kme-1,:) = thetal_p(:,kme-1:1:-1,:)
-    presdiff_p(:,1:kme-1,:) = presdiff_p(:,kme-1:1:-1,:)
+    rino_p(:,kms:kme-1,:) = rino_p(:,kme-1:kms:-1,:)
+    theta_m_p(:,kms:kme-1,:) = theta_m_p(:,kme-1:kms:-1,:)
+    shoc_mix_p(:,kms:kme-1,:) = shoc_mix_p(:,kme-1:kms:-1,:)
+    isotropy_p(:,kms:kme-1,:) = isotropy_p(:,kme-1:kms:-1,:)
+    tke_dissip_p(:,kms:kme-1,:) = tke_dissip_p(:,kme-1:kms:-1,:)
+    tke_prod_b_p(:,kms:kme-1,:) = tke_prod_b_p(:,kme-1:kms:-1,:)
+    tke_prod_sh_p(:,kms:kme-1,:) = tke_prod_sh_p(:,kme-1:kms:-1,:)
+    w_sec_p(:,kms:kme-1,:) = w_sec_p(:,kme-1:kms:-1,:)
+    wqls_sec_p(:,kms:kme-1,:) = wqls_sec_p(:,kme-1:kms:-1,:)
+    brunt_p(:,kms:kme-1,:) = brunt_p(:,kme-1:kms:-1,:)
+    shoc_ql2_p(:,kms:kme-1,:) = shoc_ql2_p(:,kme-1:kms:-1,:)
+    dse_p(:,kms:kme-1,:) = dse_p(:,kme-1:kms:-1,:)
+    u_p(:,kms:kme-1,:) = u_p(:,kme-1:kms:-1,:)
+    v_p(:,kms:kme-1,:) = v_p(:,kme-1:kms:-1,:)
+    wthv_sec_p(:,kms:kme-1,:) = wthv_sec_p(:,kme-1:kms:-1,:)
+    tke_shmf_p(:,kms:kme-1,:) = tke_shmf_p(:,kme-1:kms:-1,:)
+    kzh_p(:,kms:kme-1,:) = kzh_p(:,kme-1:kms:-1,:)
+    kzm_p(:,kms:kme-1,:) = kzm_p(:,kme-1:kms:-1,:)
+    qc_p(:,kms:kme-1,:) = qc_p(:,kme-1:kms:-1,:)
+    cldfrabl_p(:,kms:kme-1,:) = cldfrabl_p(:,kme-1:kms:-1,:)
+    pi_p(:,kms:kme-1,:) = pi_p(:,kme-1:kms:-1,:)
+    qv_p(:,kms:kme-1,:) = qv_p(:,kme-1:kms:-1,:)
+    qs_p(:,kms:kme-1,:) = qs_p(:,kme-1:kms:-1,:)
+    qi_p(:,kms:kme-1,:) = qi_p(:,kme-1:kms:-1,:)
+    qg_p(:,kms:kme-1,:) = qg_p(:,kme-1:kms:-1,:)
+    qr_p(:,kms:kme-1,:) = qr_p(:,kme-1:kms:-1,:)
+    qw_p(:,kms:kme-1,:) = qw_p(:,kme-1:kms:-1,:)
+    rho_p(:,kms:kme-1,:) = rho_p(:,kme-1:kms:-1,:)
+    t_p(:,kms:kme-1,:) = t_p(:,kme-1:kms:-1,:)
+    pres_p(:,kms:kme-1,:) = pres_p(:,kme-1:kms:-1,:)
+    pres2_p(:,kms:kme-1,:) = pres2_p(:,kme-1:kms:-1,:)
+    theta_p(:,kms:kme-1,:) = theta_p(:,kme-1:kms:-1,:)
+    height_mid_p(:,kms:kme-1,:) = height_mid_p(:,kme-1:kms:-1,:)
+    thetal_p(:,kms:kme-1,:) = thetal_p(:,kme-1:kms:-1,:)
+    presdiff_p(:,kms:kme-1,:) = presdiff_p(:,kme-1:kms:-1,:)
  end subroutine flip_vertical_coordinates
 
  
@@ -317,7 +317,6 @@ end subroutine calculate_theta
     enddo
     enddo
     enddo
-
  end subroutine calculate_heights
 
  subroutine bl_shocmf_init( &
@@ -345,7 +344,7 @@ end subroutine calculate_theta
     call mpas_log_write('Calling shoc_init from SHOCMF module')
     ! TODO (GTF): Review pres_p and its usage in the shoc_init method
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
-    presref_mid, nbot_shoc, ntop_shoc, length_fac)
+                   presref_mid, nbot_shoc, ntop_shoc, length_fac)
     call mpas_log_write('!! returned from shoc_init !!')
  end subroutine bl_shocmf_init
 
@@ -454,18 +453,8 @@ end subroutine calculate_theta
     allocate(qtracers(ime, kme, jme))
     qtracers = 0.0_RKIND
 
-    print *, 'antes thetal_p(1469, :, 1)', thetal_p(1469, :, 1)
-
-    do i=1,ime
-         do k=1,kme
-               if (z_p(i,k,1) .lt. 0.0_RKIND) then
-                  print*, 'i', i, 'k', k, 'zmid_p', zmid_p(i,k,1), 'z_p', z_p(i,k,1), 'height_interface_p', height_interface_p(i,k,1), 'height_mid_p', height_mid_p(i,k,1)
-               endif
-        enddo
-    enddo
-
     call flip_vertical_coordinates(&
-        kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
+        kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
         tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
         wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
         wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &
@@ -480,7 +469,9 @@ end subroutine calculate_theta
         rho_p, thetal_p, presdiff_p &
     )
 
-    print *, 'depois thetal_p(1469, :, 1)', thetal_p(1469, :, 1)
+    ! As last position of the array is a extra position, to not letting a
+    ! zero value, we are going to repeat the last value of the array
+    thetal_p(:,kme,:) = thetal_p(:,kme-1,:)
 
     call mpas_log_write('!!!!!!!!!!! Calling SHOC-MF main module !!!!!!!!!!!!')
     call shoc_main( &
@@ -523,7 +514,7 @@ end subroutine calculate_theta
 
     call mpas_log_write('!!!!!!!!!!! Returned from SHOC-MF main module !!!!!!!!!!!!')
     call flip_vertical_coordinates(&
-        kte, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
+        kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
         tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
         wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
         wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &

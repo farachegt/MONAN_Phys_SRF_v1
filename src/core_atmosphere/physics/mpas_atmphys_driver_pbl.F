@@ -1066,10 +1066,10 @@
        call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
-      ! call mpas_pool_get_array(diag_physics, 'theta_m'          ,theta_m        ) ! already deallocated at interface
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
        call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
-       call mpas_pool_get_array(diag_physics, 'rtkeblten'        ,rtkeblten      )
+
+       call mpas_pool_get_array(tend_physics, 'rtkeblten'        ,rtkeblten      )
 
         
        do j = jts,jte
