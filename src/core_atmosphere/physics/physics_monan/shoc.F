@@ -1001,10 +1001,10 @@ subroutine update_prognostics_implicit( &
      ksrf,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
 
   ! march u_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awu,tmpi3,rdp_zt,u_wind)
+  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awu,tmpi3,rdp_zt,u_wind)
 
   ! march v_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awv,tmpi3,rdp_zt,v_wind)
+  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awv,tmpi3,rdp_zt,v_wind)
 
  ! Call decomp for thermo variables
   flux_dummy(:) = 0._rtype ! fluxes applied explicitly, so zero fluxes out
@@ -1013,20 +1013,20 @@ subroutine update_prognostics_implicit( &
      flux_dummy,do_mf,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
 
   ! march temperature one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awthl,tmpi3,rdp_zt,thetal)
+  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awthl,tmpi3,rdp_zt,thetal)
 
   ! march total water one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awqt,tmpi3,rdp_zt,qw)
+  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awqt,tmpi3,rdp_zt,qw)
 
   ! Call decomp one more time for TKE and tracers so they don't "see" MF plumes
   call vd_shoc_decomp(shcol,nlev,nlevi,tkh_zi,tmpi,rdp_zt,dtime,&
           flux_dummy,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
   ! march tke one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tke)
+  call vd_shoc_solve(.true.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tke)
 
   ! march tracers one step forward using implicit solver
   do p=1,num_tracer
-    call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tracer(:shcol,:nlev,p))
+    call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tracer(:shcol,:nlev,p))
   enddo
 
   return
@@ -1643,7 +1643,7 @@ subroutine diag_second_moments(&
   real(rtype), intent(out) :: mf_qtflx(shcol,nlevi)
 
   ! LOCAL VARIABLES
-  integer :: p
+  integer :: p, k, i
   real(rtype) :: isotropy_zi(shcol,nlevi)
   real(rtype) :: tkh_zi(shcol,nlevi)
   real(rtype) :: tk_zi(shcol,nlevi)
@@ -1671,6 +1671,14 @@ subroutine diag_second_moments(&
 
   ! Vertical velocity variance is assumed to be propotional
   !  to the TKE
+  do i=1,shcol
+    do k=1,nlev
+        if (tke(i,k) .le. 0._rtype) then
+        print *, 'i', i, 'k', k, 'tke(i, k)', tke(i,k)
+        endif
+    enddo
+  enddo
+  
   w_sec = w2tune*(2._rtype/3._rtype)*tke
 
   ! Calculate the temperature variance
@@ -2590,6 +2598,10 @@ subroutine shoc_assumed_pdf(&
 
       ! Compute square roots of some variables so we don't
       !  have to compute these again
+      if (w_sec(i,k) .le. 0._rtype) then
+        print *, 'ERROR: w_sec is negative in shoc_assumed_pdf'
+        print *, 'i', i, 'k', k, 'w_sec(i,k) = ', w_sec(i,k)
+      endif
       sqrtw2 = bfb_sqrt(w_sec(i,k))
       sqrtthl = max(thl_tol,bfb_sqrt(thlsec))
       sqrtqt = max(rt_tol,bfb_sqrt(qwsec))
@@ -3468,6 +3480,14 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
      enddo
   enddo
 
+  do k = 1, nlev
+    do i = 1, shcol
+      if (tke(i,k) .lt. mintke .or. tke(i,k) .gt. maxtke) then
+        print *, '!!!!!!!!!!!!!!!!!!!!!!!!!!! >>>> TKE OUT OF BOUNDS', i, k, tke(i,k)
+      endif
+    enddo
+  enddo
+
   return
 
 end subroutine adv_sgs_tke
@@ -3925,7 +3945,7 @@ end subroutine vd_shoc_decomp
 ! ---------------------------------------------------------------
 
 subroutine vd_shoc_solve(&
-         shcol,nlev,nlevi,&   ! Input
+         is_tke,shcol,nlev,nlevi,&   ! Input
          ca,cc,denom,ze,&     ! Input
          do_mf,mf_awvar,&      ! EDMF Input
          tmpi3,rdp_zt,&       ! EDMF Input
@@ -3934,6 +3954,7 @@ subroutine vd_shoc_solve(&
   implicit none
 
 ! INPUT VARIABLES
+  logical, intent(in) :: is_tke
   ! number of columns
   integer, intent(in) :: shcol
   ! number of mid-point levels
@@ -4003,6 +4024,16 @@ subroutine vd_shoc_solve(&
       var(i,k) = zf(i,k) + ze(i,k)*var(i,k-1)
     enddo
   enddo
+
+  if (is_tke) then
+    do k = 1, nlev
+      do i = 1, shcol
+        if (var(i,k) .lt. mintke .or. var(i,k) .gt. maxtke) then
+          print *, '!!!!!!!! >>>> TKE OUT OF BOUNDS', i, k, var(i,k)
+        endif
+      enddo
+    enddo
+  endif
 
   return
 

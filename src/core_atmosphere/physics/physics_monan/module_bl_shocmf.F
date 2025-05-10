@@ -8,7 +8,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 50.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -74,14 +74,26 @@ module module_bl_shocmf
  end subroutine calculate_thetal
 
 
- subroutine calculate_theta(thetal, temperature, ql, theta)
+ subroutine calculate_theta(thetal, ql, theta)
     ! Calculate potential temperature from liquid water potential temperature.
     ! Inverse function of calculate_thetal.
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, temperature, ql
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, ql
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
     theta(:,:,:) = thetal(:,:,:) + (xlv/cp)*ql(:,:,:)
-end subroutine calculate_theta
+ end subroutine calculate_theta
+
+
+ subroutine calculate_thetam(theta, qv, R_v_in, R_d_in, theta_m)
+   ! Calculate moist potential temperature from potential temperature.
+   ! Equation got from Skamarock et al (2012)
+   ! DOI: https://doi.org/10.1175/MWR-D-11-00215.1
+   real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv
+   real(kind=RKIND), intent(in) :: R_v_in, R_d_in
+   real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
+
+   theta_m(:,:,:) = theta(:,:,:)*(1.0_RKIND + (R_v_in/R_d_in)*qv(:,:,:))
+ end subroutine calculate_thetam
 
 
  subroutine calculate_qw(qc, qv, qs, qi, qg, qr, qw)
@@ -251,15 +263,6 @@ end subroutine calculate_theta
     enddo
  end subroutine convert_heat_fluxes
 
- subroutine calculate_thetam_from_thetal(thetal, ql, qv, ep_1_in, xlv_in, cp_in, theta_m)
-    ! Calculate moist potential temperature from liquid water potential temperature.
-    ! Inverse function of calculate_thetal.
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, ql, qv
-    real(kind=RKIND), intent(in) :: ep_1_in, xlv_in, cp_in
-    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
-
-    theta_m(:,:,:) = (thetal(:,:,:) + (xlv_in/cp_in)*ql(:,:,:))*(1.0_RKIND + ep_1_in*qv(:,:,:) - ql(:,:,:))
- end subroutine calculate_thetam_from_thetal
 
  subroutine calculate_presref_mid(kte,ims,ime,kms,kme,jms,jme,diag,presref_mid)
     ! Calculate the reference pressure at the mid-levels
@@ -441,6 +444,8 @@ end subroutine calculate_theta
         shoc_timestep = dt_pbl
     endif
 
+    print *, 'max timestep', max_shoc_timestep, 'dt_pbl', dt_pbl, 'shoc timestep', shoc_timestep, 'nadv', nadv
+
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
     if (mod(dt_pbl,shoc_timestep) .ne. 0) then
@@ -527,8 +532,8 @@ end subroutine calculate_theta
         kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, &
         pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, rho_p, thetal_p, presdiff_p &
     )
-    call calculate_theta(thetal_p, t_p, qc_p, theta_p)
-    call calculate_thetam_from_thetal(thetal_p, qc_p, qv_p, ep_1, xlv, cp, theta_m_p)
+    call calculate_theta(thetal_p, qc_p, theta_p)
+    call calculate_thetam(theta_p, qv_p, R_v, R_d, theta_m_p)
 
     ! Calculating tendencies
     rublten_p = (u_p - um_p)/dt_pbl
