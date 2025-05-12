@@ -32,7 +32,6 @@ module module_bl_shocmf
 
    real(kind=RKIND), dimension(:,:), allocatable :: mag_velocity
 
-   integer :: i, j
    mag_velocity = sqrt(u_p**2 + v_p**2)
 
    uw_sfc_p = rho_p*cda_p*u_p*mag_velocity
