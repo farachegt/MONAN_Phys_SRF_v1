@@ -24,6 +24,21 @@ module module_bl_shocmf
     surface_momentum_flux(:,:) = -cda_p(:,:)*velocity_p(:,:)*velocity_p(:,:)
  end subroutine calculate_surface_momentum_flux
 
+ subroutine calculate_surface_momentum_fluxes(cda_p, u_p, v_p, rho_p, uw_sfc_p, vw_sfc_p)
+   ! Calculate the surface momentum flux
+   ! Reference: ChatGPT
+   real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, u_p, v_p, rho_p
+   real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
+
+   real(kind=RKIND), dimension(:,:), allocatable :: mag_velocity
+
+   integer :: i, j
+   mag_velocity = sqrt(u_p**2 + v_p**2)
+
+   uw_sfc_p = rho_p*cda_p*u_p*mag_velocity
+   vw_sfc_p = rho_p*cda_p*v_p*mag_velocity
+end subroutine calculate_surface_momentum_fluxes
+
 
  subroutine calculate_dry_static_energy(t, z, gravity_in, cp_in, dse)
     ! Calculate the dry static energy considering the terrain height.
@@ -116,7 +131,7 @@ module module_bl_shocmf
     mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
     wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-    kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, height_interface_p, &
+    kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
     height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
     rho_p, thetal_p, presdiff_p &
   )
@@ -134,7 +149,7 @@ module module_bl_shocmf
                                                         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, &
                                                         wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, dse_p, qw_p, u_p, &
                                                         v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, cldfrabl_p, &
-                                                        theta_p, t_p, theta_m_p, height_interface_p, height_mid_p, &
+                                                        theta_p, theta_m_p, height_interface_p, height_mid_p, &
                                                         pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, &
                                                         qi_p, qg_p, qr_p, rho_p, thetal_p, presdiff_p
 
@@ -214,7 +229,6 @@ module module_bl_shocmf
     qr_p(:,kms:kme-1,:) = qr_p(:,kme-1:kms:-1,:)
     qw_p(:,kms:kme-1,:) = qw_p(:,kme-1:kms:-1,:)
     rho_p(:,kms:kme-1,:) = rho_p(:,kme-1:kms:-1,:)
-    t_p(:,kms:kme-1,:) = t_p(:,kme-1:kms:-1,:)
     pres_p(:,kms:kme-1,:) = pres_p(:,kme-1:kms:-1,:)
     pres2_p(:,kms:kme-1,:) = pres2_p(:,kme-1:kms:-1,:)
     theta_p(:,kms:kme-1,:) = theta_p(:,kme-1:kms:-1,:)
@@ -240,7 +254,7 @@ module module_bl_shocmf
 
  
  subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, hfx_converted_p, lh_converted_p)
-    ! Convert the surface heat fluxes from W/m^2 to m/s
+    ! Convert the surface heat fluxes from W/m^2 to both K*m/s and kg/kg m/s
     ! hfx_p is the sensible heat flux
     ! lh_p is the latent heat flux
     integer, intent(in) :: ims, ime, jms, jme
@@ -255,10 +269,10 @@ module module_bl_shocmf
     do j = jms,jme
     do i = ims,ime
         ! Converting hfx_p from W/m^2 to K*m/s
-        hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,1,j))
+        hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,1,j)) ! [K m/s] = [W/m^2]/([J kg-1 K-1]*[kg m^{-3}])
       
         ! Converting lh_p from W/m^2 to kg/kg m/s
-        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,1,j))
+        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
     enddo
     enddo
  end subroutine convert_heat_fluxes
@@ -431,8 +445,9 @@ module module_bl_shocmf
     call calculate_dry_static_energy(t_p, z_p, gravity, cp, dse_p)
     call calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
     
-    call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
-    call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
+   !  call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
+   !  call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
+    call calculate_surface_momentum_fluxes(cda_p, u_p(:,1,:), v_p(:,1,:), rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
     call define_horizontal_discretization(ime, jme, area_p, dx_p, dy_p)
 
     call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
@@ -469,7 +484,7 @@ module module_bl_shocmf
         mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, height_interface_p, &
+        kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
         height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
         rho_p, thetal_p, presdiff_p &
     )
@@ -529,10 +544,12 @@ module module_bl_shocmf
         mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, &
-        pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, rho_p, thetal_p, presdiff_p &
+        kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
+        height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
+        rho_p, thetal_p, presdiff_p &
     )
     call calculate_theta(thetal_p, qc_p, theta_p)
+    qv_p = qw_p - (qc_p + qs_p + qi_p + qg_p + qr_p) 
     call calculate_thetam(theta_p, qv_p, R_v, R_d, theta_m_p)
 
     ! Calculating tendencies

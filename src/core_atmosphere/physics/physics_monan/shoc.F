@@ -1670,15 +1670,7 @@ subroutine diag_second_moments(&
   call linear_interp(zt_grid,zi_grid,qw,qw_zi,nlev,nlevi,shcol,0._rtype)
 
   ! Vertical velocity variance is assumed to be propotional
-  !  to the TKE
-  do i=1,shcol
-    do k=1,nlev
-        if (tke(i,k) .le. 0._rtype) then
-        print *, 'i', i, 'k', k, 'tke(i, k)', tke(i,k)
-        endif
-    enddo
-  enddo
-  
+  !  to the TKE  
   w_sec = w2tune*(2._rtype/3._rtype)*tke
 
   ! Calculate the temperature variance
@@ -2598,10 +2590,6 @@ subroutine shoc_assumed_pdf(&
 
       ! Compute square roots of some variables so we don't
       !  have to compute these again
-      if (w_sec(i,k) .le. 0._rtype) then
-        print *, 'ERROR: w_sec is negative in shoc_assumed_pdf'
-        print *, 'i', i, 'k', k, 'w_sec(i,k) = ', w_sec(i,k)
-      endif
       sqrtw2 = bfb_sqrt(w_sec(i,k))
       sqrtthl = max(thl_tol,bfb_sqrt(thlsec))
       sqrtqt = max(rt_tol,bfb_sqrt(qwsec))
@@ -3480,14 +3468,6 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
      enddo
   enddo
 
-  do k = 1, nlev
-    do i = 1, shcol
-      if (tke(i,k) .lt. mintke .or. tke(i,k) .gt. maxtke) then
-        print *, '!!!!!!!!!!!!!!!!!!!!!!!!!!! >>>> TKE OUT OF BOUNDS', i, k, tke(i,k)
-      endif
-    enddo
-  enddo
-
   return
 
 end subroutine adv_sgs_tke
@@ -4024,16 +4004,6 @@ subroutine vd_shoc_solve(&
       var(i,k) = zf(i,k) + ze(i,k)*var(i,k-1)
     enddo
   enddo
-
-  if (is_tke) then
-    do k = 1, nlev
-      do i = 1, shcol
-        if (var(i,k) .lt. mintke .or. var(i,k) .gt. maxtke) then
-          print *, '!!!!!!!! >>>> TKE OUT OF BOUNDS', i, k, var(i,k)
-        endif
-      enddo
-    enddo
-  endif
 
   return
 

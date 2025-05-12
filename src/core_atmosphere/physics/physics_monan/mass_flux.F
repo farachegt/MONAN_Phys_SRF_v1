@@ -29,7 +29,7 @@ module edmf
 
   logical, protected :: do_edmf         = .false. ! TODO (GTF): Set all to true? They are responsible to add the MF contribution to diffusion solver
   logical, protected :: do_condensation = .true.
-  logical, protected :: do_mf_diag      = .true.
+  logical, protected :: do_mf_diag      = .false.
   logical, protected :: do_wthv_mf      = .true.
 
 
