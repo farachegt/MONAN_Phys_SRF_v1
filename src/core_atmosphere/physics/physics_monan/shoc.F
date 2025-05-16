@@ -192,6 +192,7 @@ subroutine shoc_init( &
   !     end if
   !  end do
   ! npbl = max(npbl,1)
+  ! print *, "npbl = ", npbl
   npbl = nlev-1
 
    return
@@ -801,6 +802,7 @@ subroutine shoc_grid( &
         dz_zi(i,k) = zt_grid(i,k-1) - zt_grid(i,k)
       endif
 
+      ! TODO (GTF): We could pass through parameter 'rho' from MPAS instead of defining it here.
       ! Define the air density on the thermo grid
       rho_zt(i,k) = (1._rtype/ggr)*(pdel(i,k)/dz_zt(i,k))
       
@@ -1001,10 +1003,10 @@ subroutine update_prognostics_implicit( &
      ksrf,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
 
   ! march u_wind one step forward using implicit solver
-  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awu,tmpi3,rdp_zt,u_wind)
+  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awu,tmpi3,rdp_zt,u_wind)
 
   ! march v_wind one step forward using implicit solver
-  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awv,tmpi3,rdp_zt,v_wind)
+  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awv,tmpi3,rdp_zt,v_wind)
 
  ! Call decomp for thermo variables
   flux_dummy(:) = 0._rtype ! fluxes applied explicitly, so zero fluxes out
@@ -1013,20 +1015,20 @@ subroutine update_prognostics_implicit( &
      flux_dummy,do_mf,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
 
   ! march temperature one step forward using implicit solver
-  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awthl,tmpi3,rdp_zt,thetal)
+  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awthl,tmpi3,rdp_zt,thetal)
 
   ! march total water one step forward using implicit solver
-  call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awqt,tmpi3,rdp_zt,qw)
+  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awqt,tmpi3,rdp_zt,qw)
 
   ! Call decomp one more time for TKE and tracers so they don't "see" MF plumes
   call vd_shoc_decomp(shcol,nlev,nlevi,tkh_zi,tmpi,rdp_zt,dtime,&
           flux_dummy,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
   ! march tke one step forward using implicit solver
-  call vd_shoc_solve(.true.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tke)
+  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tke)
 
   ! march tracers one step forward using implicit solver
   do p=1,num_tracer
-    call vd_shoc_solve(.false.,shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tracer(:shcol,:nlev,p))
+    call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tracer(:shcol,:nlev,p))
   enddo
 
   return
@@ -2191,7 +2193,7 @@ subroutine compute_diag_third_shoc_moment(&
 
         !Compute the X0, Y0, X1, Y1 terms
         call x_y_terms_diag_third_shoc_moment(&
-	     buoy_sgs2, f0, f1, f2, &   ! Input
+	     i, k, buoy_sgs2, f0, f1, f2, &   ! Input
 	     x0, y0, x1, y1)            ! Output
 
         !Compute the AA0, AA1 terms
@@ -2317,7 +2319,7 @@ subroutine omega_terms_diag_third_shoc_moment(&
 end subroutine omega_terms_diag_third_shoc_moment
 
 subroutine x_y_terms_diag_third_shoc_moment(&
-           buoy_sgs2, f0, f1, f2,&  ! Input
+           i,k,buoy_sgs2, f0, f1, f2,&  ! Input
 	   x0, y0, x1, y1)          ! Output
 
   implicit none
@@ -2325,6 +2327,7 @@ subroutine x_y_terms_diag_third_shoc_moment(&
   !Compute the X0, Y0, X1, Y1 terms
 
   !intent-ins
+  integer, intent(in) :: i, k
   real(rtype), intent(in) :: buoy_sgs2, f0, f1, f2
 
   !intent-outs
@@ -2337,9 +2340,11 @@ subroutine x_y_terms_diag_third_shoc_moment(&
   a1=0.87_rtype/bfb_square(c_diag_3rd_mom)
   a2=0.5_rtype/c_diag_3rd_mom
   a3=0.6_rtype/(c_diag_3rd_mom*(c_diag_3rd_mom-2._rtype))
-
   x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
+  if (abs(1._rtype-a3*buoy_sgs2) .eq. 0.0_rtype) then
+    print *, 'i', i, 'k', k, 'a3', a3, 'buoy_sgs2', buoy_sgs2, 'value', 1._rtype-a3*buoy_sgs2
+  endif
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
   x1 = (a0 * f0 + a1 * f1 + a2 * (1._rtype - a3 * buoy_sgs2) * f2) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
@@ -3925,7 +3930,7 @@ end subroutine vd_shoc_decomp
 ! ---------------------------------------------------------------
 
 subroutine vd_shoc_solve(&
-         is_tke,shcol,nlev,nlevi,&   ! Input
+         shcol,nlev,nlevi,&   ! Input
          ca,cc,denom,ze,&     ! Input
          do_mf,mf_awvar,&      ! EDMF Input
          tmpi3,rdp_zt,&       ! EDMF Input
@@ -3934,7 +3939,6 @@ subroutine vd_shoc_solve(&
   implicit none
 
 ! INPUT VARIABLES
-  logical, intent(in) :: is_tke
   ! number of columns
   integer, intent(in) :: shcol
   ! number of mid-point levels

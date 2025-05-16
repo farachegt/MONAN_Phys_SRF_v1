@@ -8,7 +8,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -410,7 +410,7 @@ end subroutine calculate_surface_momentum_fluxes
         rqcblten_p, rqiblten_p, rqsblten_p, rniblten_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
-    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, nim_p, tkem_p 
+    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p 
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dx_p, dy_p, hfx_converted_p, lh_converted_p
 
     integer :: num_qtracers, nadv, i, j, k
@@ -423,9 +423,6 @@ end subroutine calculate_surface_momentum_fluxes
              theta_mm_p(ime, kme, jme), &
              qvm_p(ime, kme, jme)   , &
              qcm_p(ime, kme, jme)   , &
-             qim_p(ime, kme, jme)   , &
-             qsm_p(ime, kme, jme)   , &
-             nim_p(ime, kme, jme)   , &
              tkem_p(ime, kme, jme))
     ! Deep copying the input variables
     um_p = u_p
@@ -433,9 +430,6 @@ end subroutine calculate_surface_momentum_fluxes
     theta_mm_p = theta_m_p
     qvm_p = qv_p
     qcm_p = qc_p
-    qim_p = qi_p
-    qsm_p = qs_p
-    nim_p = qi_p
     tkem_p = tke_shmf_p
 
     call calculate_thetal(ime, jme, kme, theta_p, qc_p, thetal_p)
@@ -444,9 +438,9 @@ end subroutine calculate_surface_momentum_fluxes
     call calculate_dry_static_energy(t_p, z_p, gravity, cp, dse_p)
     call calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
     
-   !  call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
-   !  call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
-    call calculate_surface_momentum_fluxes(cda_p, u_p(:,1,:), v_p(:,1,:), rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
+    call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
+    call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
+    !call calculate_surface_momentum_fluxes(cda_p, u_p(:,1,:), v_p(:,1,:), rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
     call define_horizontal_discretization(ime, jme, area_p, dx_p, dy_p)
 
     call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
@@ -557,13 +551,14 @@ end subroutine calculate_surface_momentum_fluxes
     rthblten_p = (theta_m_p - theta_mm_p)/dt_pbl
     rqvblten_p = (qv_p - qvm_p)/dt_pbl
     rqcblten_p = (qc_p - qcm_p)/dt_pbl
+    rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
+
     !rqiblten_p = (qi_p - qim_p)/dt_pbl ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
     !rqsblten_p = (qs_p - qsm_p)/dt_pbl
-    rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
     !rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
 
     deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc)
-    deallocate(um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, nim_p, tkem_p)
+    deallocate(um_p, vm_p, theta_mm_p, qvm_p, qcm_p, tkem_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dx_p, dy_p)
     deallocate(height_interface_p, height_mid_p)
