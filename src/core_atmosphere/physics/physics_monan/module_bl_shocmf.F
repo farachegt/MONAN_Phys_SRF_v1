@@ -8,35 +8,25 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
 
  contains
 
- subroutine calculate_surface_momentum_flux(cda_p, velocity_p, surface_momentum_flux)
+ subroutine calculate_surface_momentum_fluxes(ime, kme, cda_p, u_p, v_p, uw_sfc_p, vw_sfc_p)
     ! Calculate the surface momentum flux
-    ! Reference: Kubota's class notes
-    ! cda_p is the drag coefficient
-    ! velocity_p is the velocity (zonal or meridional) at the surface
-    ! surface_momentum_flux is the surface momentum flux
-    real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, velocity_p
-    real(kind=RKIND), dimension(:,:), intent(out) :: surface_momentum_flux
+    ! Reference: Stull's Book - An Introduction to Boundary Layer Meteorology, chapter 7.4.1.
+    integer, intent(in) :: ime, kme
+    real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, u_p, v_p
+    real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
+    
+    real(kind=RKIND), dimension(:,:), allocatable :: mag_velocity
+    allocate(mag_velocity(ime, kme))
 
-    surface_momentum_flux(:,:) = -cda_p(:,:)*velocity_p(:,:)*velocity_p(:,:)
- end subroutine calculate_surface_momentum_flux
+    mag_velocity = sqrt(u_p**2 + v_p**2)
 
- subroutine calculate_surface_momentum_fluxes(cda_p, u_p, v_p, rho_p, uw_sfc_p, vw_sfc_p)
-   ! Calculate the surface momentum flux
-   ! Reference: ChatGPT
-   real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, u_p, v_p, rho_p
-   real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
-
-   real(kind=RKIND), dimension(:,:), allocatable :: mag_velocity
-
-   mag_velocity = sqrt(u_p**2 + v_p**2)
-
-   uw_sfc_p = rho_p*cda_p*u_p*mag_velocity
-   vw_sfc_p = rho_p*cda_p*v_p*mag_velocity
-end subroutine calculate_surface_momentum_fluxes
+    uw_sfc_p = -cda_p*mag_velocity*u_p
+    vw_sfc_p = -cda_p*mag_velocity*v_p
+ end subroutine calculate_surface_momentum_fluxes
 
 
  subroutine calculate_dry_static_energy(t, z, gravity_in, cp_in, dse)
@@ -47,7 +37,7 @@ end subroutine calculate_surface_momentum_fluxes
     real(kind=RKIND), intent(in) :: gravity_in, cp_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: dse
   
-    dse(:,:,:) = cp_in*t(:,:,:) + gravity_in*z(:,:,:)
+    dse = cp_in*t + gravity_in*z
  end subroutine calculate_dry_static_energy
 
 
@@ -76,6 +66,21 @@ end subroutine calculate_surface_momentum_fluxes
  end subroutine calculate_presdiff
 
 
+ subroutine calculate_qv(qw, qc, qs, qi, qg, qr, qv)
+    ! Calculate the water vapor mixing ratio
+    ! qw is the total water mixing ratio
+    ! qc is the cloud water mixing ratio
+    ! qs is the cloud ice mixing ratio
+    ! qi is the rain water mixing ratio
+    ! qg is the graupel mixing ratio
+    ! qr is the snow mixing ratio
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
+    real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
+
+    qv = qw - qc - qs - qi - qg - qr
+ end subroutine calculate_qv
+
+
  subroutine calculate_thetal(ime, jme, kme, theta, ql, thetal)
     ! Calculate liquid water potential temperature as SHOC updated it
     integer, intent(in) :: ime, jme, kme
@@ -84,7 +89,7 @@ end subroutine calculate_surface_momentum_fluxes
 
     allocate(thetal(ime, kme, jme))
 
-    thetal(:,:,:) = theta(:,:,:) - (xlv/cp)*ql(:,:,:)
+    thetal = theta - (xlv/cp)*ql
  end subroutine calculate_thetal
 
 
@@ -94,7 +99,7 @@ end subroutine calculate_surface_momentum_fluxes
     real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, ql
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
-    theta(:,:,:) = thetal(:,:,:) + (xlv/cp)*ql(:,:,:)
+    theta = thetal + (xlv/cp)*ql
  end subroutine calculate_theta
 
 
@@ -106,7 +111,7 @@ end subroutine calculate_surface_momentum_fluxes
    real(kind=RKIND), intent(in) :: R_v_in, R_d_in
    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
-   theta_m(:,:,:) = theta(:,:,:)*(1.0_RKIND + (R_v_in/R_d_in)*qv(:,:,:))
+   theta_m = theta*(1.0_RKIND + (R_v_in/R_d_in)*qv)
  end subroutine calculate_thetam
 
 
@@ -115,7 +120,7 @@ end subroutine calculate_surface_momentum_fluxes
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
-    qw(:,:,:) = qc(:,:,:) + qv(:,:,:) + qs(:,:,:) + qi(:,:,:) + qg(:,:,:) + qr(:,:,:)
+    qw = qc + qv + qs + qi + qg + qr
  end subroutine calculate_qw 
 
 
@@ -130,9 +135,9 @@ end subroutine calculate_surface_momentum_fluxes
     mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
     wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-    kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
-    height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
-    rho_p, thetal_p, presdiff_p &
+    kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
+    height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+    thetal_p, presdiff_p &
   )
     integer, intent(in) :: kms, kme
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
@@ -148,9 +153,8 @@ end subroutine calculate_surface_momentum_fluxes
                                                         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, &
                                                         wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, dse_p, qw_p, u_p, &
                                                         v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, cldfrabl_p, &
-                                                        theta_p, theta_m_p, height_interface_p, height_mid_p, &
-                                                        pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, &
-                                                        qi_p, qg_p, qr_p, rho_p, thetal_p, presdiff_p
+                                                        theta_m_p, height_interface_p, height_mid_p, &
+                                                        pres_p, pres2_p, w_p, pi_p, thetal_p, presdiff_p
 
     ! Flip the vertical coordinates of the SHOC-MF variables
     ! This is necessary because SHOC-MF expects the vertical
@@ -221,16 +225,9 @@ end subroutine calculate_surface_momentum_fluxes
     qc_p(:,kms:kme-1,:) = qc_p(:,kme-1:kms:-1,:)
     cldfrabl_p(:,kms:kme-1,:) = cldfrabl_p(:,kme-1:kms:-1,:)
     pi_p(:,kms:kme-1,:) = pi_p(:,kme-1:kms:-1,:)
-    qv_p(:,kms:kme-1,:) = qv_p(:,kme-1:kms:-1,:)
-    qs_p(:,kms:kme-1,:) = qs_p(:,kme-1:kms:-1,:)
-    qi_p(:,kms:kme-1,:) = qi_p(:,kme-1:kms:-1,:)
-    qg_p(:,kms:kme-1,:) = qg_p(:,kme-1:kms:-1,:)
-    qr_p(:,kms:kme-1,:) = qr_p(:,kme-1:kms:-1,:)
     qw_p(:,kms:kme-1,:) = qw_p(:,kme-1:kms:-1,:)
-    rho_p(:,kms:kme-1,:) = rho_p(:,kme-1:kms:-1,:)
     pres_p(:,kms:kme-1,:) = pres_p(:,kme-1:kms:-1,:)
     pres2_p(:,kms:kme-1,:) = pres2_p(:,kme-1:kms:-1,:)
-    theta_p(:,kms:kme-1,:) = theta_p(:,kme-1:kms:-1,:)
     height_mid_p(:,kms:kme-1,:) = height_mid_p(:,kme-1:kms:-1,:)
     thetal_p(:,kms:kme-1,:) = thetal_p(:,kme-1:kms:-1,:)
     presdiff_p(:,kms:kme-1,:) = presdiff_p(:,kme-1:kms:-1,:)
@@ -277,10 +274,10 @@ end subroutine calculate_surface_momentum_fluxes
  end subroutine convert_heat_fluxes
 
 
- subroutine calculate_presref_mid(kte,ims,ime,kms,kme,jms,jme,diag,presref_mid)
+ subroutine calculate_presref_mid(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,diag,presref_mid)
     ! Calculate the reference pressure at the mid-levels
     ! For now it is calculated as the average of the pressure at the levels
-    integer, intent(in) :: ims,ime,kms,kme,jms,jme,kte
+    integer, intent(in) :: ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte
     type(mpas_pool_type), intent(in) :: diag
     real(RKIND), dimension(:), allocatable, intent(inout) :: presref_mid
 
@@ -292,20 +289,20 @@ end subroutine calculate_surface_momentum_fluxes
     call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
     if(.not.allocated(pres_p) ) allocate(pres_p(ims:ime,kms:kme,jms:jme))
 
-    do k=kms,kte
-    do j=jms,jme
-    do i=ims,ime
+    do k=kts,kte
+    do j=jts,jte
+    do i=its,ite
         pres_p(i,k,j) = pressure_p(k,i) + pressure_b(k,i)
     enddo
     enddo
     enddo
 
-    allocate(presref_mid(kte))
+    allocate(presref_mid(kme))
     presref_mid = 0.0_RKIND
 
-    do k=kms,kte
-    do j=jms,jme
-    do i=ims,ime
+    do k=kts,kte
+    do j=jts,jte
+    do i=its,ite
         presref_mid(k) = presref_mid(k) + pres_p(i,k,j)
     enddo
     enddo
@@ -319,7 +316,7 @@ end subroutine calculate_surface_momentum_fluxes
     ! From z_p and zmid_p which are the heights in reference to mean sea level,
     ! height_i_p and height_mid_p are calculated in reference to surface
     integer, intent(in) :: ims, ime, jms, jme, kms, kme
-    real(RKIND), intent(in) :: z_p(:,:,:), zmid_p(:,:,:)
+    real(RKIND), dimension(:,:,:), intent(in) :: z_p, zmid_p
     real(RKIND), dimension(:,:,:), allocatable, intent(out) :: height_interface_p, height_mid_p
 
     integer :: i, j, k
@@ -336,12 +333,12 @@ end subroutine calculate_surface_momentum_fluxes
  end subroutine calculate_heights
 
  subroutine bl_shocmf_init( &
-    kte, ims, ime, kms, kme, jms, jme, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
+    ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
     xlf_in, karman_in, diag &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
-    integer, intent(in) :: kte, ims, ime, kms, kme, jms, jme
+    integer, intent(in) :: ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte
     type(mpas_pool_type), intent(in) :: diag
     real(RKIND), intent(in) :: gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, &
                                karman_in
@@ -349,21 +346,18 @@ end subroutine calculate_surface_momentum_fluxes
     integer:: ntop_shoc, nbot_shoc
     real(RKIND), dimension(:), allocatable :: presref_mid
 
-    call calculate_presref_mid(kte,ims,ime,kms,kme,jms,jme,diag,presref_mid)
+    call calculate_presref_mid(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,diag,presref_mid)
 
     ntop_shoc = 1    ! if >1, must be <= nbot_molec
     nbot_shoc = kte ! currently always pver 
 
    ! TODO (GTF): Check if its possible to set default value in Registry to tke_shmf = mintke 
-   !  tke_shmf_p(:,:,:) = mintke
 
     call mpas_log_write('Calling shoc_init from SHOCMF module')
-    ! TODO (GTF): Review pres_p and its usage in the shoc_init method
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
                    presref_mid, nbot_shoc, ntop_shoc, length_fac)
     call mpas_log_write('!! returned from shoc_init !!')
  end subroutine bl_shocmf_init
-
 
  subroutine bl_shocmf_driver( &
     itimestep, dt_pbl, area_p, cda_p, lh_p, hfx_p, ht_p, theta_m_p, theta_p, &
@@ -378,7 +372,7 @@ end subroutine calculate_surface_momentum_fluxes
     mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
     ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, rho_p, t_p, qv_p, &
     qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
-    rqiblten_p, rqsblten_p, rniblten_p, rtkeblten_p, &
+    rqiblten_p, rtkeblten_p, &
     ids, ide, jds, jde, kds, kde, &
     ims, ime, jms, jme, kms, kme, &
     its, ite, jts, jte, kts, kte  &
@@ -407,7 +401,7 @@ end subroutine calculate_surface_momentum_fluxes
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, &
         cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, pres2_p, w_p, pi_p, qv_p, &
         qs_p, qi_p, qg_p, qr_p, rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
-        rqcblten_p, rqiblten_p, rqsblten_p, rniblten_p
+        rqcblten_p, rqiblten_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
     real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p 
@@ -432,15 +426,19 @@ end subroutine calculate_surface_momentum_fluxes
     qcm_p = qc_p
     tkem_p = tke_shmf_p
 
+    ! In the case of first time step, we need to set the initial value of tke_shmf_p
+    ! to the minimum value of tke_shmf_p
+    if (itimestep == 1) then
+        tke_shmf_p = mintke
+    endif
+
     call calculate_thetal(ime, jme, kme, theta_p, qc_p, thetal_p)
     call calculate_presdiff(pres_p, ims, ime, kms, kme, jms, jme, presdiff_p)
     call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
     call calculate_dry_static_energy(t_p, z_p, gravity, cp, dse_p)
     call calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
     
-    call calculate_surface_momentum_flux(cda_p, u_p(:, 1, :), uw_sfc_p)
-    call calculate_surface_momentum_flux(cda_p, v_p(:, 1, :), vw_sfc_p)
-    !call calculate_surface_momentum_fluxes(cda_p, u_p(:,1,:), v_p(:,1,:), rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
+    call calculate_surface_momentum_fluxes(ime, kme, cda_p, u_p(:,1,:), v_p(:,1,:), uw_sfc_p, vw_sfc_p)
     call define_horizontal_discretization(ime, jme, area_p, dx_p, dy_p)
 
     call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
@@ -477,14 +475,16 @@ end subroutine calculate_surface_momentum_fluxes
         mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
-        rho_p, thetal_p, presdiff_p &
+        kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
+        height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+        thetal_p, presdiff_p &
     )
 
     ! As last position of the array is a extra position, to not letting a
-    ! zero value, we are going to repeat the last value of the array
-    thetal_p(:,kme,:) = thetal_p(:,kme-1,:)
+    ! zero value, we are going to extrapolate it considering that
+    ! the kme-1 value is the average among kme-2 and kme
+    ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
+    thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
     call mpas_log_write('!!!!!!!!!!! Calling SHOC-MF main module !!!!!!!!!!!!')
     call shoc_main( &
@@ -537,12 +537,13 @@ end subroutine calculate_surface_momentum_fluxes
         mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, theta_p, theta_m_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_p, pi_p, qv_p, qs_p, qi_p, qg_p, qr_p, &
-        rho_p, thetal_p, presdiff_p &
+        kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
+        height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+        thetal_p, presdiff_p &
     )
+
     call calculate_theta(thetal_p, qc_p, theta_p)
-    qv_p = qw_p - (qc_p + qs_p + qi_p + qg_p + qr_p) 
+    call calculate_qv(qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
     call calculate_thetam(theta_p, qv_p, R_v, R_d, theta_m_p)
 
     ! Calculating tendencies
@@ -553,8 +554,8 @@ end subroutine calculate_surface_momentum_fluxes
     rqcblten_p = (qc_p - qcm_p)/dt_pbl
     rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
 
-    !rqiblten_p = (qi_p - qim_p)/dt_pbl ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
-    !rqsblten_p = (qs_p - qsm_p)/dt_pbl
+    rqiblten_p = 0.0_RKIND  ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
+    !rqsblten_p = 0.0_RKIND
     !rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
 
     deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc)

@@ -184,18 +184,17 @@ subroutine shoc_init( &
    ! Limit pbl height to regions below 400 mb
    ! npbl = max number of levels (from bottom) in pbl
 
-  ! TODO (GTF): Check later. For now, set to npbl = kte-1
-  !  npbl = 0
-  !  do k=nbot_shoc,ntop_shoc,-1
-  !     if (pref_mid(k) >= pblmaxp) then
-  !        npbl = npbl + 1
-  !     end if
-  !  end do
-  ! npbl = max(npbl,1)
-  ! print *, "npbl = ", npbl
-  npbl = nlev-1
-
-   return
+  ! TODO (GTF): Prepare this code to parallelized case (different npbl for each processor).
+  npbl = 0
+  do k=nbot_shoc,ntop_shoc,-1
+    if (pref_mid(k) >= pblmaxp) then
+       npbl = npbl + 1
+    end if
+  end do
+  npbl = max(npbl,1)
+   
+  print *, "npbl = ", npbl
+  return
 
 end subroutine shoc_init
 
@@ -2595,6 +2594,9 @@ subroutine shoc_assumed_pdf(&
 
       ! Compute square roots of some variables so we don't
       !  have to compute these again
+      if (w_sec(i,k) .lt. w_thresh) then
+          print *, 'i', i, 'k', k, 'w_sec(i,k)', w_sec(i,k)
+      endif
       sqrtw2 = bfb_sqrt(w_sec(i,k))
       sqrtthl = max(thl_tol,bfb_sqrt(thlsec))
       sqrtqt = max(rt_tol,bfb_sqrt(qwsec))

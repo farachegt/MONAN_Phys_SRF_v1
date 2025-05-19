@@ -1175,7 +1175,8 @@
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
-      call bl_shocmf_init(kte,ims,ime,kms,kme,jms,jme,gravity,R_d,R_v,cp,ep_1,xlv,xlf,karman,diag)
+      call bl_shocmf_init(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,gravity,R_d,R_v,cp,ep_1,xlv, &
+                          xlf,karman,diag)
       call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
@@ -1422,8 +1423,7 @@
             qs_p          = qs_p         , qi_p           = qi_p          , qg_p            = qg_p            , &
             qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
-            rqiblten_p    = rqiblten_p   , rqsblten_p     = rqsblten_p    , rniblten_p      = rniblten_p      , &
-            rtkeblten_p   = rtkeblten_p                                                                       , & 
+            rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde                             , &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                               &

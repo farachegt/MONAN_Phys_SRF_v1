@@ -368,8 +368,7 @@
         do j = jts,jte
         do k = kts,kte
         do i = its,ite
-            tke_shmf_p(i,k,j) = max(0._RKIND,tke_shmf(k,i))
-
+            tke_shmf_p(i,k,j) = max(0.,tke_shmf(k,i))
             theta_m_p(i,k,j) = theta_m(k,i)
         enddo
         enddo
