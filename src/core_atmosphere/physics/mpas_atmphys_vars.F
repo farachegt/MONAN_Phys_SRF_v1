@@ -507,7 +507,6 @@
     wqls_sec_p,       &!liquid water flux.                                                             [kg/kg m/s]
     isotropy_p,       &!timescale.                                                                             [s]
     brunt_p,          &!brunt frequency.                                                                     [1/s]
-    relvar_p,         &!shoc cloud liquid relative variance.                                               [kg/kg]
     tke_dissip_p,     &!tke budget: dissipation term.                                                      [m2/s3]
     tke_prod_b_p,     &!tke budget: buoyancy production term.                                              [m2/s3]
     tke_prod_sh_p,    &!tke budget: shear production term.                                                 [m2/s3]

@@ -362,7 +362,6 @@
        enddo
     case("bl_shocmf")
         call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
-        call mpas_pool_get_array(state, 'theta_m'          ,theta_m        )
         tke_shmf => scalars(index_tke_shmf,:,:)
         
         do j = jts,jte

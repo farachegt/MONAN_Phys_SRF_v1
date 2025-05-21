@@ -664,7 +664,7 @@
        call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
        call mpas_pool_get_array(diag_physics, 'lh'               ,lh              )
        call mpas_pool_get_array(diag_physics, 'cda'              ,cda             )
-       call mpas_pool_get_array(mesh        , 'areaCell'          ,area_cell       )
+       call mpas_pool_get_array(mesh        , 'areaCell'         ,area_cell       )
        call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
 
        
