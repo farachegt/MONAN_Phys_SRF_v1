@@ -29,15 +29,25 @@ module module_bl_shocmf
  end subroutine calculate_surface_momentum_fluxes
 
 
- subroutine calculate_dry_static_energy(t, z, gravity_in, cp_in, dse)
+ subroutine calculate_dry_static_energy(ims, ime, kms, kme, jts, jte, t, z, gravity_in, ht_p, cp_in, dse)
     ! Calculate the dry static energy considering the terrain height.
     ! This is the calculation waited by the SHOCMF module. 
     ! Reference: https://glossary.ametsoc.org/wiki/Dry_static_energy
+    integer, intent(in) :: ims, ime, kms, kme, jts, jte
     real(kind=RKIND), dimension(:,:,:), intent(in) :: t, z
+    real(kind=RKIND), dimension(:,:), intent(in) :: ht_p
     real(kind=RKIND), intent(in) :: gravity_in, cp_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: dse
-  
-    dse = cp_in*t + gravity_in*z
+
+    integer :: i, j, k
+    
+    do i=ims,ime
+    do k=kms,kme
+    do j=jts,jte
+        dse(i,k,j) = cp_in*t(i,k,j) + gravity_in*z(i,k,j) + ht_p(i,j)
+    enddo
+    enddo
+    enddo
  end subroutine calculate_dry_static_energy
 
 
@@ -47,11 +57,9 @@ module module_bl_shocmf
     ! presdiff_levels is the pressure difference between the interfaces
     real(kind=RKIND), dimension(:,:,:), intent(in) :: pres_levels
     integer, intent(in) :: ims,ime,kms,kme,jms,jme
-    real(kind=RKIND), dimension(:,:,:), allocatable, intent(out) :: presdiff_levels
+    real(kind=RKIND), dimension(:,:,:), intent(inout) :: presdiff_levels
 
     integer :: i, j, k
-   
-    allocate(presdiff_levels(ime, kme, jme))
 
     ! As MPAS vertical coordinates has its origin at the surface,
     ! the pressure difference is calculated between the levels
@@ -66,44 +74,41 @@ module module_bl_shocmf
  end subroutine calculate_presdiff
 
 
- subroutine calculate_qv(qw, qc, qs, qi, qg, qr, qv)
-    ! Calculate the water vapor mixing ratio
-    ! qw is the total water mixing ratio
-    ! qc is the cloud water mixing ratio
-    ! qs is the cloud ice mixing ratio
-    ! qi is the rain water mixing ratio
-    ! qg is the graupel mixing ratio
-    ! qr is the snow mixing ratio
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
-    real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
-
-    qv = qw - qc - qs - qi - qg - qr
- end subroutine calculate_qv
-
-
- subroutine calculate_thetal(ime, jme, kme, theta, ql, thetal)
-    ! Calculate liquid water potential temperature as SHOC updated it
+ subroutine calculate_thetal(ime, jme, kme, theta, qc, inv_exner, thetal)
+    ! Calculate liquid water potential temperature
+    ! Reference: shoc_intr.F90 in E3SM code and
+    ! https://glossary.ametsoc.org/wiki/Liquid_water_potential_temperature
     integer, intent(in) :: ime, jme, kme
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, ql
-    real(kind=RKIND), dimension(:,:,:), allocatable, intent(out) :: thetal
-
-    allocate(thetal(ime, kme, jme))
-
-    thetal = theta - (xlv/cp)*ql
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qc, inv_exner
+    real(kind=RKIND), dimension(:,:,:), intent(inout) :: thetal
+    
+    thetal = theta - inv_exner*(xlv/cp)*qc
  end subroutine calculate_thetal
 
 
- subroutine calculate_theta(thetal, ql, theta)
+ subroutine calculate_theta(thetal, qc, inv_exner, theta)
     ! Calculate potential temperature from liquid water potential temperature.
     ! Inverse function of calculate_thetal.
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, ql
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, qc, inv_exner
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
-    theta = thetal + (xlv/cp)*ql
+    theta = thetal + inv_exner*(xlv/cp)*qc
  end subroutine calculate_theta
 
 
- subroutine calculate_thetam(theta, qv, R_v_in, R_d_in, theta_m)
+ subroutine calculate_thetam_to_shocmf(theta, qv, qc, R_v_in, R_d_in, theta_m)
+    ! Update the moist potential temperature as SHOCMF expects it
+    ! This is called before the SHOCMF call
+    ! Reference: shoc_intr.F90 in E3SM code
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv, qc
+    real(kind=RKIND), intent(in) :: R_v_in, R_d_in
+    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
+
+    theta_m = theta*(1.0_RKIND + (R_v_in/R_d_in)*qv - qc)
+ end subroutine calculate_thetam_to_shocmf
+
+
+ subroutine calculate_thetam_to_mpas(theta, qv, R_v_in, R_d_in, theta_m)
    ! Calculate moist potential temperature from potential temperature.
    ! Equation got from Skamarock et al (2012)
    ! DOI: https://doi.org/10.1175/MWR-D-11-00215.1
@@ -112,7 +117,16 @@ module module_bl_shocmf
    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
    theta_m = theta*(1.0_RKIND + (R_v_in/R_d_in)*qv)
- end subroutine calculate_thetam
+ end subroutine calculate_thetam_to_mpas
+
+
+ subroutine calculate_qv(qw, qc, qs, qi, qg, qr, qv)
+    ! Calculate the water vapor mixing ratio
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
+    real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
+
+    qv = qw - qc !- qs - qi - qg - qr
+ end subroutine calculate_qv
 
 
  subroutine calculate_qw(qc, qv, qs, qi, qg, qr, qw)
@@ -120,8 +134,8 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
-    qw = qc + qv + qs + qi + qg + qr
- end subroutine calculate_qw 
+    qw = qc + qv !+ qs + qi + qg + qr
+ end subroutine calculate_qw
 
 
  subroutine flip_vertical_coordinates(&
@@ -136,7 +150,7 @@ module module_bl_shocmf
     mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
     wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
     kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
-    height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+    height_mid_p, pres_p, pres2_p, w_p, inv_exner_p, &
     thetal_p, presdiff_p &
   )
     integer, intent(in) :: kms, kme
@@ -154,83 +168,83 @@ module module_bl_shocmf
                                                         wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, dse_p, qw_p, u_p, &
                                                         v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, cldfrabl_p, &
                                                         theta_m_p, height_interface_p, height_mid_p, &
-                                                        pres_p, pres2_p, w_p, pi_p, thetal_p, presdiff_p
+                                                        pres_p, pres2_p, w_p, inv_exner_p, thetal_p, presdiff_p
 
     ! Flip the vertical coordinates of the SHOC-MF variables
     ! This is necessary because SHOC-MF expects the vertical
     ! coordinate starting from the top of the atmosphere.
     ! This subroutine is called before and after the SHOC-MF call
-    thl_sec_p = thl_sec_p(:, kme:kms:-1, :)
-    qw_sec_p = qw_sec_p(:, kme:kms:-1, :)
-    qwthl_sec_p = qwthl_sec_p(:, kme:kms:-1, :)
-    wthl_sec_p = wthl_sec_p(:, kme:kms:-1, :)
-    wqw_sec_p = wqw_sec_p(:, kme:kms:-1, :)
-    wtke_sec_p = wtke_sec_p(:, kme:kms:-1, :)
-    uw_sec_p = uw_sec_p(:, kme:kms:-1, :)
-    vw_sec_p = vw_sec_p(:, kme:kms:-1, :)
-    w3_p = w3_p(:, kme:kms:-1, :)
-    mf_dry_a_p = mf_dry_a_p(:, kme:kms:-1, :)
-    mf_moist_a_p = mf_moist_a_p(:, kme:kms:-1, :)
-    mf_dry_w_p = mf_dry_w_p(:, kme:kms:-1, :)
-    mf_moist_w_p = mf_moist_w_p(:, kme:kms:-1, :)
-    mf_dry_qt_p = mf_dry_qt_p(:, kme:kms:-1, :)
-    mf_moist_qt_p = mf_moist_qt_p(:, kme:kms:-1, :)
-    mf_dry_thl_p = mf_dry_thl_p(:, kme:kms:-1, :)
-    mf_moist_thl_p = mf_moist_thl_p(:, kme:kms:-1, :)
-    mf_dry_u_p = mf_dry_u_p(:, kme:kms:-1, :)
-    mf_moist_u_p = mf_moist_u_p(:, kme:kms:-1, :)
-    mf_dry_v_p = mf_dry_v_p(:, kme:kms:-1, :)
-    mf_moist_v_p = mf_moist_v_p(:, kme:kms:-1, :)
-    mf_moist_qc_p = mf_moist_qc_p(:, kme:kms:-1, :)
-    mf_thlflx_p = mf_thlflx_p(:, kme:kms:-1, :)
-    mf_qtflx_p = mf_qtflx_p(:, kme:kms:-1, :)
-    mf_ae_p = mf_ae_p(:, kme:kms:-1, :)
-    mf_aw_p = mf_aw_p(:, kme:kms:-1, :)
-    mf_awthv_p = mf_awthv_p(:, kme:kms:-1, :)
-    mf_awthl_p = mf_awthl_p(:, kme:kms:-1, :)
-    mf_awqt_p = mf_awqt_p(:, kme:kms:-1, :)
-    mf_awql_p = mf_awql_p(:, kme:kms:-1, :)
-    mf_awqi_p = mf_awqi_p(:, kme:kms:-1, :)
-    mf_awu_p = mf_awu_p(:, kme:kms:-1, :)
-    mf_awv_p = mf_awv_p(:, kme:kms:-1, :)
-    cfl_mf_p = cfl_mf_p(:, kme:kms:-1, :)
-    wthl_sec_ed_p = wthl_sec_ed_p(:, kme:kms:-1, :)
-    wthl_sec_mf_p = wthl_sec_mf_p(:, kme:kms:-1, :)
-    wqw_sec_ed_p = wqw_sec_ed_p(:, kme:kms:-1, :)
-    wqw_sec_mf_p = wqw_sec_mf_p(:, kme:kms:-1, :)
-    w_p = w_p(:, kme:kms:-1, :)
+    thl_sec_p          = thl_sec_p(:, kme:kms:-1, :)
+    qw_sec_p           = qw_sec_p(:, kme:kms:-1, :)
+    qwthl_sec_p        = qwthl_sec_p(:, kme:kms:-1, :)
+    wthl_sec_p         = wthl_sec_p(:, kme:kms:-1, :)
+    wqw_sec_p          = wqw_sec_p(:, kme:kms:-1, :)
+    wtke_sec_p         = wtke_sec_p(:, kme:kms:-1, :)
+    uw_sec_p           = uw_sec_p(:, kme:kms:-1, :)
+    vw_sec_p           = vw_sec_p(:, kme:kms:-1, :)
+    w3_p               = w3_p(:, kme:kms:-1, :)
+    mf_dry_a_p         = mf_dry_a_p(:, kme:kms:-1, :)
+    mf_moist_a_p       = mf_moist_a_p(:, kme:kms:-1, :)
+    mf_dry_w_p         = mf_dry_w_p(:, kme:kms:-1, :)
+    mf_moist_w_p       = mf_moist_w_p(:, kme:kms:-1, :)
+    mf_dry_qt_p        = mf_dry_qt_p(:, kme:kms:-1, :)
+    mf_moist_qt_p      = mf_moist_qt_p(:, kme:kms:-1, :)
+    mf_dry_thl_p       = mf_dry_thl_p(:, kme:kms:-1, :)
+    mf_moist_thl_p     = mf_moist_thl_p(:, kme:kms:-1, :)
+    mf_dry_u_p         = mf_dry_u_p(:, kme:kms:-1, :)
+    mf_moist_u_p       = mf_moist_u_p(:, kme:kms:-1, :)
+    mf_dry_v_p         = mf_dry_v_p(:, kme:kms:-1, :)
+    mf_moist_v_p       = mf_moist_v_p(:, kme:kms:-1, :)
+    mf_moist_qc_p      = mf_moist_qc_p(:, kme:kms:-1, :)
+    mf_thlflx_p        = mf_thlflx_p(:, kme:kms:-1, :)
+    mf_qtflx_p         = mf_qtflx_p(:, kme:kms:-1, :)
+    mf_ae_p            = mf_ae_p(:, kme:kms:-1, :)
+    mf_aw_p            = mf_aw_p(:, kme:kms:-1, :)
+    mf_awthv_p         = mf_awthv_p(:, kme:kms:-1, :)
+    mf_awthl_p         = mf_awthl_p(:, kme:kms:-1, :)
+    mf_awqt_p          = mf_awqt_p(:, kme:kms:-1, :)
+    mf_awql_p          = mf_awql_p(:, kme:kms:-1, :)
+    mf_awqi_p          = mf_awqi_p(:, kme:kms:-1, :)
+    mf_awu_p           = mf_awu_p(:, kme:kms:-1, :)
+    mf_awv_p           = mf_awv_p(:, kme:kms:-1, :)
+    cfl_mf_p           = cfl_mf_p(:, kme:kms:-1, :)
+    wthl_sec_ed_p      = wthl_sec_ed_p(:, kme:kms:-1, :)
+    wthl_sec_mf_p      = wthl_sec_mf_p(:, kme:kms:-1, :)
+    wqw_sec_ed_p       = wqw_sec_ed_p(:, kme:kms:-1, :)
+    wqw_sec_mf_p       = wqw_sec_mf_p(:, kme:kms:-1, :)
     height_interface_p = height_interface_p(:, kme:kms:-1, :)
+    pres2_p            = pres2_p(:, kme:kms:-1, :)
 
     ! All variables were allocated with kme levels, but some
     ! of them are only kme-1 levels. So, in these cases we
     ! need to flip only the vertical coordinates of the kme-1 levels
-    rino_p(:,kms:kme-1,:) = rino_p(:,kme-1:kms:-1,:)
-    theta_m_p(:,kms:kme-1,:) = theta_m_p(:,kme-1:kms:-1,:)
-    shoc_mix_p(:,kms:kme-1,:) = shoc_mix_p(:,kme-1:kms:-1,:)
-    isotropy_p(:,kms:kme-1,:) = isotropy_p(:,kme-1:kms:-1,:)
-    tke_dissip_p(:,kms:kme-1,:) = tke_dissip_p(:,kme-1:kms:-1,:)
-    tke_prod_b_p(:,kms:kme-1,:) = tke_prod_b_p(:,kme-1:kms:-1,:)
+    rino_p(:,kms:kme-1,:)        = rino_p(:,kme-1:kms:-1,:)
+    theta_m_p(:,kms:kme-1,:)     = theta_m_p(:,kme-1:kms:-1,:)
+    shoc_mix_p(:,kms:kme-1,:)    = shoc_mix_p(:,kme-1:kms:-1,:)
+    isotropy_p(:,kms:kme-1,:)    = isotropy_p(:,kme-1:kms:-1,:)
+    tke_dissip_p(:,kms:kme-1,:)  = tke_dissip_p(:,kme-1:kms:-1,:)
+    tke_prod_b_p(:,kms:kme-1,:)  = tke_prod_b_p(:,kme-1:kms:-1,:)
     tke_prod_sh_p(:,kms:kme-1,:) = tke_prod_sh_p(:,kme-1:kms:-1,:)
-    w_sec_p(:,kms:kme-1,:) = w_sec_p(:,kme-1:kms:-1,:)
-    wqls_sec_p(:,kms:kme-1,:) = wqls_sec_p(:,kme-1:kms:-1,:)
-    brunt_p(:,kms:kme-1,:) = brunt_p(:,kme-1:kms:-1,:)
-    shoc_ql2_p(:,kms:kme-1,:) = shoc_ql2_p(:,kme-1:kms:-1,:)
-    dse_p(:,kms:kme-1,:) = dse_p(:,kme-1:kms:-1,:)
-    u_p(:,kms:kme-1,:) = u_p(:,kme-1:kms:-1,:)
-    v_p(:,kms:kme-1,:) = v_p(:,kme-1:kms:-1,:)
-    wthv_sec_p(:,kms:kme-1,:) = wthv_sec_p(:,kme-1:kms:-1,:)
-    tke_shmf_p(:,kms:kme-1,:) = tke_shmf_p(:,kme-1:kms:-1,:)
-    kzh_p(:,kms:kme-1,:) = kzh_p(:,kme-1:kms:-1,:)
-    kzm_p(:,kms:kme-1,:) = kzm_p(:,kme-1:kms:-1,:)
-    qc_p(:,kms:kme-1,:) = qc_p(:,kme-1:kms:-1,:)
-    cldfrabl_p(:,kms:kme-1,:) = cldfrabl_p(:,kme-1:kms:-1,:)
-    pi_p(:,kms:kme-1,:) = pi_p(:,kme-1:kms:-1,:)
-    qw_p(:,kms:kme-1,:) = qw_p(:,kme-1:kms:-1,:)
-    pres_p(:,kms:kme-1,:) = pres_p(:,kme-1:kms:-1,:)
-    pres2_p(:,kms:kme-1,:) = pres2_p(:,kme-1:kms:-1,:)
-    height_mid_p(:,kms:kme-1,:) = height_mid_p(:,kme-1:kms:-1,:)
-    thetal_p(:,kms:kme-1,:) = thetal_p(:,kme-1:kms:-1,:)
-    presdiff_p(:,kms:kme-1,:) = presdiff_p(:,kme-1:kms:-1,:)
+    w_sec_p(:,kms:kme-1,:)       = w_sec_p(:,kme-1:kms:-1,:)
+    wqls_sec_p(:,kms:kme-1,:)    = wqls_sec_p(:,kme-1:kms:-1,:)
+    brunt_p(:,kms:kme-1,:)       = brunt_p(:,kme-1:kms:-1,:)
+    shoc_ql2_p(:,kms:kme-1,:)    = shoc_ql2_p(:,kme-1:kms:-1,:)
+    dse_p(:,kms:kme-1,:)         = dse_p(:,kme-1:kms:-1,:)
+    u_p(:,kms:kme-1,:)           = u_p(:,kme-1:kms:-1,:)
+    v_p(:,kms:kme-1,:)           = v_p(:,kme-1:kms:-1,:)
+    wthv_sec_p(:,kms:kme-1,:)    = wthv_sec_p(:,kme-1:kms:-1,:)
+    tke_shmf_p(:,kms:kme-1,:)    = tke_shmf_p(:,kme-1:kms:-1,:)
+    kzh_p(:,kms:kme-1,:)         = kzh_p(:,kme-1:kms:-1,:)
+    kzm_p(:,kms:kme-1,:)         = kzm_p(:,kme-1:kms:-1,:)
+    qc_p(:,kms:kme-1,:)          = qc_p(:,kme-1:kms:-1,:)
+    cldfrabl_p(:,kms:kme-1,:)    = cldfrabl_p(:,kme-1:kms:-1,:)
+    inv_exner_p(:,kms:kme-1,:)   = inv_exner_p(:,kme-1:kms:-1,:)
+    qw_p(:,kms:kme-1,:)          = qw_p(:,kme-1:kms:-1,:)
+    pres_p(:,kms:kme-1,:)        = pres_p(:,kme-1:kms:-1,:)
+    height_mid_p(:,kms:kme-1,:)  = height_mid_p(:,kme-1:kms:-1,:)
+    thetal_p(:,kms:kme-1,:)      = thetal_p(:,kme-1:kms:-1,:)
+    presdiff_p(:,kms:kme-1,:)    = presdiff_p(:,kme-1:kms:-1,:)
+    w_p(:,kms:kme-1,:)           = w_p(:,kme-1:kms:-1,:)
  end subroutine flip_vertical_coordinates
 
  
@@ -240,9 +254,8 @@ module module_bl_shocmf
     ! dy_p is the horizontal grid spacing in the y direction
     integer, intent(in) :: ime, jme
     real(kind=RKIND), dimension(:,:), intent(in) :: area_p
-    real(kind=RKIND), dimension(:,:), allocatable, intent(out) :: dx_p, dy_p
+    real(kind=RKIND), dimension(:,:), intent(inout) :: dx_p, dy_p
 
-    allocate(dx_p(ime, jme), dy_p(ime, jme))
     ! dx_p and dy_p are calculated as sqrt(area_p) in the main driver
     dx_p = sqrt(area_p)
     dy_p = sqrt(area_p)
@@ -312,15 +325,14 @@ module module_bl_shocmf
     deallocate(pres_p)
  end subroutine calculate_presref_mid
 
- subroutine calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
+ subroutine calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
     ! From z_p and zmid_p which are the heights in reference to mean sea level,
     ! height_i_p and height_mid_p are calculated in reference to surface
-    integer, intent(in) :: ims, ime, jms, jme, kms, kme
+    integer, intent(in) :: ims, ime, kms, kme, jms, jme
     real(RKIND), dimension(:,:,:), intent(in) :: z_p, zmid_p
-    real(RKIND), dimension(:,:,:), allocatable, intent(out) :: height_interface_p, height_mid_p
+    real(RKIND), dimension(:,:,:), intent(out) :: height_interface_p, height_mid_p
 
     integer :: i, j, k
-    allocate(height_interface_p(ims:ime,kms:kme,jms:jme), height_mid_p(ims:ime,kms:kme,jms:jme))
     
     do i=ims,ime
     do j=jms,jme
@@ -350,8 +362,6 @@ module module_bl_shocmf
 
     ntop_shoc = 1    ! if >1, must be <= nbot_molec
     nbot_shoc = kte ! currently always pver 
-
-   ! TODO (GTF): Check if its possible to set default value in Registry to tke_shmf = mintke 
 
     call mpas_log_write('Calling shoc_init from SHOCMF module')
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
@@ -404,7 +414,8 @@ module module_bl_shocmf
         rqcblten_p, rqiblten_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
-    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p 
+    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p, w_zt
+    real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dx_p, dy_p, hfx_converted_p, lh_converted_p
 
     integer :: num_qtracers, nadv, i, j, k
@@ -412,12 +423,16 @@ module module_bl_shocmf
 
     call mpas_log_write('!!!!!!!!!!! Entered in bl_shocmf_driver !!!!!!!!!!!!')
 
-    allocate(um_p(ime, kme, jme)    , &
-             vm_p(ime, kme, jme)    , &
-             theta_mm_p(ime, kme, jme), &
-             qvm_p(ime, kme, jme)   , &
-             qcm_p(ime, kme, jme)   , &
-             tkem_p(ime, kme, jme))
+    tke_shmf_p = max(mintke, tke_shmf_p)
+
+    allocate(                                  &
+        um_p(ims:ime, kms:kme, jms:jme)      , &
+        vm_p(ims:ime, kms:kme, jms:jme)      , &
+        theta_mm_p(ims:ime, kms:kme, jms:jme), &
+        qvm_p(ims:ime, kms:kme, jms:jme)     , &
+        qcm_p(ims:ime, kms:kme, jms:jme)     , &
+        tkem_p(ims:ime, kms:kme, jms:jme)      &
+    )
     ! Deep copying the input variables
     um_p = u_p
     vm_p = v_p
@@ -426,19 +441,34 @@ module module_bl_shocmf
     qcm_p = qc_p
     tkem_p = tke_shmf_p
 
-    ! In the case of first time step, we need to set the initial value of tke_shmf_p
-    ! to the minimum value of tke_shmf_p
-    if (itimestep == 1) then
-        tke_shmf_p = mintke
-    endif
+    allocate(inv_exner_p(ims:ime, kms:kme, jms:jme))
+    do i=ims,ime
+    do k=kms,kme-1
+    do j=jms,jme
+        inv_exner_p(i,k,j) = 1.0_RKIND/pi_p(i,k,j) ! inv_exner_p = theta_p/t_p
+    enddo
+    enddo
+    enddo
 
-    call calculate_thetal(ime, jme, kme, theta_p, qc_p, thetal_p)
-    call calculate_presdiff(pres_p, ims, ime, kms, kme, jms, jme, presdiff_p)
+    call calculate_thetam_to_shocmf(theta_p, qv_p, qc_p, R_v, R_d, theta_m_p)
+
+    allocate(thetal_p(ims:ime, kms:kme, jms:jme))
+    call calculate_thetal(ime, jme, kme, theta_p, qc_p, inv_exner_p, thetal_p)
+
+    allocate(presdiff_p(ims:ime, kms:kme, jms:jme))
+    call calculate_presdiff(pres2_p, ims, ime, kms, kme, jms, jme, presdiff_p)
+
     call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
-    call calculate_dry_static_energy(t_p, z_p, gravity, cp, dse_p)
-    call calculate_heights(ims, ime, jms, jme, kms, kme, z_p, zmid_p, height_interface_p, height_mid_p)
+
+    allocate(height_interface_p(ims:ime,kms:kme,jms:jme), height_mid_p(ims:ime,kms:kme,jms:jme))
+    call calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
+    call calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t_p, height_interface_p, gravity, ht_p, cp, dse_p)
     
     call calculate_surface_momentum_fluxes(ime, kme, cda_p, u_p(:,1,:), v_p(:,1,:), uw_sfc_p, vw_sfc_p)
+    ! TODO (GTF): w should be in thermodynamic grid 
+    !call calculate_w_zt(ims, ime, kms, kme, jms, jme, w_p, gravity, rho_p, w_zt)
+
+    allocate(dx_p(ims:ime, jms:jme), dy_p(ims:ime, jms:jme))
     call define_horizontal_discretization(ime, jme, area_p, dx_p, dy_p)
 
     call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
@@ -476,10 +506,9 @@ module module_bl_shocmf
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
         kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+        height_mid_p, pres_p, pres2_p, w_p, inv_exner_p, &
         thetal_p, presdiff_p &
     )
-
     ! As last position of the array is a extra position, to not letting a
     ! zero value, we are going to extrapolate it considering that
     ! the kme-1 value is the average among kme-2 and kme
@@ -494,7 +523,7 @@ module module_bl_shocmf
         presdiff_p(:,:,1), hfx_converted_p(:,1), lh_converted_p(:,1), &                       ! Input
         uw_sfc_p(:,1), vw_sfc_p(:,1), &                                                       ! Input
         wtracer_sfc(:,1), num_qtracers, w_p(:,:,1), &                                         ! Input
-        pi_p(:,:,1),ht_p(:,1), &                                                              ! Input
+        inv_exner_p(:,:,1),ht_p(:,1), &                                                              ! Input
         dse_p(:,:,1), tke_shmf_p(:,:,1), thetal_p(:,:,1), qw_p(:,:,1), &                      ! Input/Ouput
         u_p(:,:,1), v_p(:,:,1), qtracers(:,:,:), &                                            ! Input/Output
         wthv_sec_p(:,:,1), kzh_p(:,:,1),kzm_p(:,:,1), &                                       ! Input/Output
@@ -538,13 +567,18 @@ module module_bl_shocmf
         mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
         kzm_p, qc_p, cldfrabl_p, theta_m_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_p, pi_p, &
+        height_mid_p, pres_p, pres2_p, w_p, inv_exner_p, &
         thetal_p, presdiff_p &
     )
+    ! As last position of the array is a extra position,
+    ! we are going to extrapolate it considering that
+    ! the kme-1 value is the average among kme-2 and kme
+    ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
+    thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    call calculate_theta(thetal_p, qc_p, theta_p)
+    call calculate_theta(thetal_p, qc_p, inv_exner_p, theta_p)
     call calculate_qv(qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
-    call calculate_thetam(theta_p, qv_p, R_v, R_d, theta_m_p)
+    call calculate_thetam_to_mpas(theta_p, qv_p, R_v, R_d, theta_m_p)
 
     ! Calculating tendencies
     rublten_p = (u_p - um_p)/dt_pbl
@@ -554,15 +588,16 @@ module module_bl_shocmf
     rqcblten_p = (qc_p - qcm_p)/dt_pbl
     rtkeblten_p = (tke_shmf_p - tkem_p)/dt_pbl
 
-    rqiblten_p = 0.0_RKIND  ! TODO: qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
+    rqiblten_p = 0.0_RKIND  ! TODO (GTF): qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
     !rqsblten_p = 0.0_RKIND
-    !rniblten_p = 0.0_RKIND ! TODO: Is it possible to calculate it?
+    !rniblten_p = 0.0_RKIND ! TODO (GTF): Is it possible to calculate it?
 
     deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc)
     deallocate(um_p, vm_p, theta_mm_p, qvm_p, qcm_p, tkem_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dx_p, dy_p)
     deallocate(height_interface_p, height_mid_p)
+    deallocate(inv_exner_p)
     call mpas_log_write('!!!!!!!!!!! Exiting bl_shocmf_driver !!!!!!!!!!!!')
   
  end subroutine bl_shocmf_driver
