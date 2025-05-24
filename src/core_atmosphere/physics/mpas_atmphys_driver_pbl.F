@@ -718,7 +718,6 @@
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
-       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
 
        do j = jts,jte
