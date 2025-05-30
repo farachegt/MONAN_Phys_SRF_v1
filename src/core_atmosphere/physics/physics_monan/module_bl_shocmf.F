@@ -8,7 +8,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -465,8 +465,6 @@ module module_bl_shocmf
     ! TODO (GTF): w should be in thermodynamic grid 
     allocate(w_zt(ims:ime, kms:kme, jms:jme))
     call linear_interp(height_interface_p,height_mid_p,w_p,w_zt,kme,kme-1,ime,-1000.0_RKIND)
-    print *, 'w_p(1,:,1)', w_p(1,:,1)
-    print *, 'w_zt(1,:,1)', w_zt(1,:,1)
 
     allocate(dx_p(ims:ime, jms:jme), dy_p(ims:ime, jms:jme))
     call define_horizontal_discretization(ime, jme, area_p, dx_p, dy_p)

@@ -1887,7 +1887,8 @@ subroutine calc_shoc_vertflux(&
         grid_dz_aux(i,k) = 1._rtype/dz_zi(i,k)
         invar_dz_aux(i,k) =  invar(i,kt)-invar(i,k)
         invar_dz_mf_aux(i,k) =  invar(i,kt)+invar(i,k)
-    
+        ! TODO (GTF): We could calculate vertflux as vertflux_ed + vertflux_mf
+        ! TODO (GTF): instead of calculating it twice.
         !! Centered
         vertflux(i,k)=(-1._rtype*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))) + &
           mf_aw_invar(i,k) - mf_aw(i,k)*0.5_rtype*(invar(i,kt)+invar(i,k)) 
@@ -1914,6 +1915,8 @@ subroutine calc_shoc_vertflux(&
         grid_dz_aux(i,k) = 1._rtype/dz_zi(i,k)
         invar_dz_aux(i,k) =  invar(i,kt)-invar(i,k)
         
+        ! TODO (GTF): We could calculate vertflux = vertflux_ed instead
+        ! TODO (GTF): of calculating it twice.
         vertflux(i,k)=-1._rtype*tkh_zi(i,k)*grid_dz*&
           (invar(i,kt)-invar(i,k))
           

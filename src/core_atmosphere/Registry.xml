@@ -2551,6 +2551,9 @@
                         <var name="lbc_buoyx" name_in_code="buoyx" array_group="convection" packages="gf_monan_cporg" units="J kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of Buoyancy excess from the cold pool scheme"/>
 
+                        <var name="lbc_tke_shmf" name_in_code="tke_shmf" array_group="pbl" packages="bl_shocmf_in" units="m^{2} s^{-3}"
+                               description="Lateral boundary tendency of Turbulent Kinetic Energy from the SHOCMF PBL scheme"/>
+
                 </var_array>
         </var_struct>
 
