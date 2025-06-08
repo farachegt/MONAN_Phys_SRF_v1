@@ -16,7 +16,7 @@ OBJS = \
 	module_bl_mixingscalars.o      \
 	mass_flux.o                    \
 	shoc.o                         \
-	module_bl_shocmf.o                      
+	module_bl_shocmf.o               
 
 physics_monan: $(OBJS)
 	ar -ru ./../libphys.a $(OBJS)
@@ -28,6 +28,8 @@ module_cu_gf.monan.o:   \
 	modGate.o               \
 	modHenrysLawCts.o       \
 	lib_module_cu_gf.monan.o
+
+lib_module_cu_gf.monan.o: modGate.o
 
 module_bl_shocmf.o:     \
 	shoc.o

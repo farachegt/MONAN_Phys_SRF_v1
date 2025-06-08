@@ -186,7 +186,7 @@ subroutine shoc_init( &
 
   ! TODO (GTF): Prepare this code to parallelized case (different npbl for each processor).
   npbl = 0
-  do k=nbot_shoc,ntop_shoc,-1
+  do k=nbot_shoc,ntop_shoc
     if (pref_mid(k) >= pblmaxp) then
        npbl = npbl + 1
     end if
@@ -2338,20 +2338,24 @@ subroutine x_y_terms_diag_third_shoc_moment(&
 ! local variables
   real(rtype) :: a0, a1, a2, a3
 
+  real(rtype) :: one_minus_a3_buoysgs
+
   a0=(0.52_rtype*(1._rtype/bfb_square(c_diag_3rd_mom)))/(c_diag_3rd_mom-2._rtype)
   a1=0.87_rtype/bfb_square(c_diag_3rd_mom)
   a2=0.5_rtype/c_diag_3rd_mom
   a3=0.6_rtype/(c_diag_3rd_mom*(c_diag_3rd_mom-2._rtype))
-  x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
+
+  one_minus_a3_buoysgs = 1._rtype - a3 * buoy_sgs2
+  x0 = (a2 * buoy_sgs2 * (one_minus_a3_buoysgs)) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
-  if (abs(1._rtype-a3*buoy_sgs2) .eq. 0.0_rtype) then
-    print *, 'i', i, 'k', k, 'a3', a3, 'buoy_sgs2', buoy_sgs2, 'value', 1._rtype-a3*buoy_sgs2
-  endif
-  y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
-  x1 = (a0 * f0 + a1 * f1 + a2 * (1._rtype - a3 * buoy_sgs2) * f2) / &
+  !if (abs(denom_y0) .lt. 0.01_rtype) then
+    ! denom_y0 = sign(0.01_rtype, denom_y0)
+  !endif
+  y0 = (2._rtype * a2 * buoy_sgs2 * x0) / one_minus_a3_buoysgs
+  x1 = (a0 * f0 + a1 * f1 + a2 * (one_minus_a3_buoysgs) * f2) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
-       (1._rtype - a3* buoy_sgs2)
+       (one_minus_a3_buoysgs)
 
   return
 end subroutine x_y_terms_diag_third_shoc_moment
@@ -2597,9 +2601,6 @@ subroutine shoc_assumed_pdf(&
 
       ! Compute square roots of some variables so we don't
       !  have to compute these again
-      if (w_sec(i,k) .lt. w_thresh) then
-          print *, 'i', i, 'k', k, 'w_sec(i,k)', w_sec(i,k)
-      endif
       sqrtw2 = bfb_sqrt(w_sec(i,k))
       sqrtthl = max(thl_tol,bfb_sqrt(thlsec))
       sqrtqt = max(rt_tol,bfb_sqrt(qwsec))
@@ -4097,7 +4098,7 @@ end subroutine shoc_energy_integrals
 
 subroutine update_host_dse(&
          shcol,nlev,thlm,&                 ! Input
-         shoc_ql,exner,zt_grid,phis,&      ! Input
+         shoc_ql,inv_exner,zt_grid,phis,&      ! Input
          host_dse)                         ! Output
 
 ! #ifdef SCREAM_CONFIG_IS_CMAKE
@@ -4115,8 +4116,8 @@ subroutine update_host_dse(&
   real(rtype), intent(in) :: thlm(shcol,nlev)
   ! cloud liquid water mixing ratio [kg/kg]
   real(rtype), intent(in) :: shoc_ql(shcol,nlev)
-  ! exner function [-]
-  real(rtype), intent(in) :: exner(shcol,nlev)
+  ! inverse exner function [-]
+  real(rtype), intent(in) :: inv_exner(shcol,nlev)
   ! heights at mid point [m]
   real(rtype), intent(in) :: zt_grid(shcol,nlev)
   ! surface geopotential height of host model [m]
@@ -4142,7 +4143,7 @@ subroutine update_host_dse(&
 
   do k=1,nlev
     do i=1,shcol
-      temp = (thlm(i,k)+(lcond/cp)*shoc_ql(i,k))/exner(i,k)
+      temp = thlm(i,k)/inv_exner(i,k)+(lcond/cp)*shoc_ql(i,k)
       host_dse(i,k) = cp*temp+ggr*zt_grid(i,k)+phis(i)
     enddo
   enddo

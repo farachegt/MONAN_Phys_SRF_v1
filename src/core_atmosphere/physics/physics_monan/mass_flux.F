@@ -27,9 +27,9 @@ module edmf
   real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
   real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
-  logical, protected :: do_edmf         = .false. ! TODO (GTF): Set all to true? They are responsible to add the MF contribution to diffusion solver
+  logical, protected :: do_edmf         = .true.
   logical, protected :: do_condensation = .true.
-  logical, protected :: do_mf_diag      = .false.
+  logical, protected :: do_mf_diag      = .true.
   logical, protected :: do_wthv_mf      = .true.
 
 
@@ -1091,13 +1091,13 @@ contains
     
     !---------------------------------------------------------------------------------------------------
     real function satur_spec_hum(pt,press) result(qs)
-         implicit none
-         real, parameter :: p_max_qsat = 0.5
-         real, intent(in ) :: pt,press ! Kelvin, hPa
-         !---locals
-         real :: zew,zqs,zcor,foealfcu,foeewmcu
-         real, parameter ::           &
-             c_rd=287.06              &
+        implicit none
+        real, parameter :: p_max_qsat = 0.5
+        real, intent(in) :: pt,press ! Kelvin, hPa
+        !---locals
+        real :: zew,zqs,zcor,foealfcu,foeewmcu,press_hpa
+        real, parameter ::            &
+            c_rd=287.06               &
             ,c_rv=461.52              &
             ,c_rtt=273.16             &
             ,c_retv=c_rv/c_rd-1.0     &
@@ -1111,21 +1111,23 @@ contains
             ,c_rticecu=c_rtt-23.      &
             ,c_rtwat_rtice_r=1./(c_rtwat-c_rtice)   &
             ,c_rtwat_rticecu_r=1./(c_rtwat-c_rticecu)
+        
+        ! press is in Pa, convert to hPa
+        press_hpa = press / 100.0
 
-         foealfcu = min(1.0,((max(c_rticecu,min(c_rtwat,pt))-c_rticecu)*c_rtwat_rticecu_r)**2)
-         foeewmcu = c_r2es *(    foealfcu *exp(c_r3les*(pt-c_rtt)/(pt-c_r4les))+ &
-                            (1.0-foealfcu)*exp(c_r3ies*(pt-c_rtt)/(pt-c_r4ies)))
+        foealfcu = min(1.0,((max(c_rticecu,min(c_rtwat,pt))-c_rticecu)*c_rtwat_rticecu_r)**2)
+        foeewmcu = c_r2es *(    foealfcu *exp(c_r3les*(pt-c_rtt)/(pt-c_r4les))+ &
+                           (1.0-foealfcu)*exp(c_r3ies*(pt-c_rtt)/(pt-c_r4ies)))
 
-         zew  = foeewmcu
-         zqs  = zew/(100.*press)
-         if(1.0-c_retv*zqs > 0. )then
+        zew  = foeewmcu
+        zqs  = zew/(100.*press_hpa)
+        if(1.0-c_retv*zqs > 0. )then
             zcor = 1.0/(1.0-c_retv*zqs)  ! divide by zero
             qs= zqs*zcor
-         else
+        else
             qs= p_max_qsat
-         endif
-
-      end function satur_spec_hum
+        endif
+    end function satur_spec_hum
 
       logical function is_first_step(itimestep)
         ! Return true on first step of initial run only.
