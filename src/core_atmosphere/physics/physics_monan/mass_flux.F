@@ -1,7 +1,6 @@
 module edmf
 
   use mpas_kind_types, only: rtype=>RKIND, rtype8=>R8KIND
-!  use physics_utils, only: rtype, rtype8, itype
 
   use mpas_atmphys_constants, only: lcond => xlv, & ! Latent heat of vaporization (J/kg) 
                                     lice => xlf, & ! Latent heat of fusion (J/kg) 
@@ -328,7 +327,6 @@ contains
      ! START MAIN COMPUTATION
      ! NOTE: SHOC does not invert the vertical coordinate, which by default is ordered from lowest to highest pressure
      ! (i.e. top of atmosphere to bottom) so surface-based do loops are performed in reverse (i.e. from nz to 1)
-     ! TODO (GTF): Check if it alligns with MONAN structures.
      do j=1,shcol
        ! zero out plume properties
        upw   = 0._rtype

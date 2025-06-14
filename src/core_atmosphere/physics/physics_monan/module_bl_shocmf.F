@@ -2,6 +2,8 @@ module module_bl_shocmf
  use mpas_atmphys_constants
  use shoc, only: shoc_init, shoc_main, length_fac, mintke, linear_interp
  use mpas_pool_routines
+ use, intrinsic :: ieee_arithmetic
+ use, intrinsic :: ieee_exceptions
 
 
  implicit none
@@ -258,14 +260,14 @@ module module_bl_shocmf
  end subroutine define_horizontal_discretization
 
  
- subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, inv_exner_p, hfx_converted_p, lh_converted_p)
+ subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, hfx_converted_p, lh_converted_p)
     ! Convert the surface heat fluxes from W/m^2 to both K*m/s and kg/kg m/s
     ! hfx_p is the sensible heat flux
     ! lh_p is the latent heat flux
     integer, intent(in) :: ims, ime, jms, jme
     real(kind=RKIND), intent(in) :: cp_in, xlv_in
     real(kind=RKIND), dimension(:,:), intent(in) :: hfx_p, lh_p
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p, inv_exner_p
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p
     real(kind=RKIND), dimension(:,:), intent(inout) :: hfx_converted_p, lh_converted_p
 
     integer :: i, j
@@ -380,7 +382,6 @@ module module_bl_shocmf
     ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, rho_p, t_p, qv_p, &
     qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
     rqiblten_p, rtkeblten_p, &
-    ids, ide, jds, jde, kds, kde, &
     ims, ime, jms, jme, kms, kme, &
     its, ite, jts, jte, kts, kte  &
  )
@@ -388,7 +389,7 @@ module module_bl_shocmf
     ! This subroutine is called from the main driver
     ! It calls the SHOC-MF module to calculate the turbulence
     ! and the EDMF module to calculate the subgrid-scale clouds
-    integer, intent(in) :: itimestep, ids, ide, jds, jde, kds, kde, &
+    integer, intent(in) :: itimestep, &
                            ims, ime, jms, jme, kms, kme, its, ite, &
                            jts, jte, kts, kte
     real(kind=RKIND), intent(in) :: dt_pbl
@@ -419,7 +420,6 @@ module module_bl_shocmf
     real(kind=RKIND) :: shoc_timestep
 
     call mpas_log_write('!!!!!!!!!!! Entered in bl_shocmf_driver !!!!!!!!!!!!')
-
     tke_shmf_p = max(mintke, tke_shmf_p)
 
     allocate(                                  &
@@ -471,7 +471,7 @@ module module_bl_shocmf
     call define_horizontal_discretization(area_p, dx_p, dy_p)
 
     allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme))
-    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, inv_exner_p, hfx_converted_p, lh_converted_p)
+    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
@@ -553,7 +553,7 @@ module module_bl_shocmf
         plume_dry_height_p(:,1), ztop_b_p(:,1), &                                             ! Output (EDMF diagnostic)
         wthl_sec_ed_p(:ime,:,1), wthl_sec_mf_p(:ime,:,1), &                                         ! Output (EDMF diagnostic)
         wqw_sec_ed_p(:ime,:,1), wqw_sec_mf_p(:ime,:,1) &                        ! Output (EDMF diagnostic)  
-    )                                             
+    )
     call mpas_log_write('!!!!!!!!!!! Returned from SHOC-MF main module !!!!!!!!!!!!')
     call flip_vertical_coordinates(&
         kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &

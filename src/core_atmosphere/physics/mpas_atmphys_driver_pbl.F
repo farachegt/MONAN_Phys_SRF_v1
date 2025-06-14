@@ -1423,7 +1423,6 @@
             qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
-            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde                             , &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                               &
       )
