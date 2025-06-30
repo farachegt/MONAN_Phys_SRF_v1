@@ -43,7 +43,7 @@ module module_bl_shocmf
     integer :: i, j, k
     
     do i=ims,ime
-    do k=kms,kme
+    do k=kms,kme-1
     do j=jms,jme
         dse(i,k,j) = cp_in*t(i,k,j) + gravity_in*z(i,k,j) + ht_p(i,j)
     enddo
@@ -75,66 +75,108 @@ module module_bl_shocmf
  end subroutine calculate_presdiff
 
 
- subroutine calculate_thetal(theta, qc, inv_exner, thetal)
+ subroutine calculate_thetal(ims, ime, jms, jme, kms, kme, theta, qc, inv_exner, thetal)
     ! Calculate liquid water potential temperature
     ! Reference: shoc_intr.F90 in E3SM code and
     ! https://glossary.ametsoc.org/wiki/Liquid_water_potential_temperature
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qc, inv_exner
     real(kind=RKIND), dimension(:,:,:), intent(inout) :: thetal
     
-    thetal = theta - inv_exner*(xlv/cp)*qc
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        thetal(i,k,j) = theta(i,k,j) - inv_exner(i,k,j)*(xlv/cp)*qc(i,k,j)
+    enddo
+    enddo
+    enddo
  end subroutine calculate_thetal
 
 
- subroutine calculate_theta(thetal, qc, inv_exner, theta)
+ subroutine calculate_theta(ims, ime, jms, jme, kms, kme, thetal, qc, inv_exner, theta)
     ! Calculate potential temperature from liquid water potential temperature.
     ! Inverse function of calculate_thetal.
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, qc, inv_exner
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
-    theta = thetal + inv_exner*(xlv/cp)*qc
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        theta(i,k,j) = thetal(i,k,j) + inv_exner(i,k,j)*(xlv/cp)*qc(i,k,j)
+    enddo
+    enddo
+    enddo
  end subroutine calculate_theta
 
 
- subroutine calculate_thetam_to_shocmf(theta, qv, qc, R_v_in, R_d_in, theta_m)
+ subroutine calculate_thetam_to_shocmf(ims, ime, jms, jme, kms, kme, theta, qv, qc, R_v_in, R_d_in, theta_m)
     ! Update the moist potential temperature as SHOCMF expects it
     ! This is called before the SHOCMF call
     ! Reference: shoc_intr.F90 in E3SM code
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv, qc
     real(kind=RKIND), intent(in) :: R_v_in, R_d_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
-    theta_m = theta*(1.0_RKIND + (R_v_in/R_d_in)*qv - qc)
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        theta_m(i,k,j) = theta(i,k,j)*(1.0_RKIND + (R_v_in/R_d_in)*qv(i,k,j) - qc(i,k,j))
+    enddo
+    enddo
+    enddo
  end subroutine calculate_thetam_to_shocmf
 
 
- subroutine calculate_thetam_to_mpas(theta, qv, R_v_in, R_d_in, theta_m)
-   ! Calculate moist potential temperature from potential temperature.
-   ! Equation got from Skamarock et al (2012)
-   ! DOI: https://doi.org/10.1175/MWR-D-11-00215.1
-   real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv
-   real(kind=RKIND), intent(in) :: R_v_in, R_d_in
-   real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
+ subroutine calculate_thetam_to_mpas(ims, ime, jms, jme, kms, kme, theta, qv, R_v_in, R_d_in, theta_m)
+    ! Calculate moist potential temperature from potential temperature.
+    ! Equation got from Skamarock et al (2012)
+    ! DOI: https://doi.org/10.1175/MWR-D-11-00215.1
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv
+    real(kind=RKIND), intent(in) :: R_v_in, R_d_in
+    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
-   theta_m = theta*(1.0_RKIND + (R_v_in/R_d_in)*qv)
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        theta_m(i,k,j) = theta(i,k,j)*(1.0_RKIND + (R_v_in/R_d_in)*qv(i,k,j))
+    enddo
+    enddo
+    enddo
  end subroutine calculate_thetam_to_mpas
 
 
- subroutine calculate_qv(qw, qc, qs, qi, qg, qr, qv)
+ subroutine calculate_qv(ims, ime, jms, jme, kms, kme, qw, qc, qs, qi, qg, qr, qv)
     ! Calculate the water vapor mixing ratio
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
 
-    qv = qw - qc !- qs - qi - qg - qr
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        qv(i,k,j) = qw(i,k,j) - qc(i,k,j) !- qs - qi - qg - qr
+    enddo
+    enddo
+    enddo
  end subroutine calculate_qv
 
 
- subroutine calculate_qw(qc, qv, qs, qi, qg, qr, qw)
+ subroutine calculate_qw(ims, ime, jms, jme, kms, kme, qc, qv, qs, qi, qg, qr, qw)
     ! Calculate total water mixing ratio
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
-    qw = qc + qv !+ qs + qi + qg + qr
+    do j = jms,jme
+    do k = kms,kme-1
+    do i = ims,ime
+        qw(i,k,j) = qc(i,k,j) + qv(i,k,j) !+ qs + qi + qg + qr
+    enddo
+    enddo
+    enddo
  end subroutine calculate_qw
 
 
@@ -447,15 +489,15 @@ module module_bl_shocmf
     enddo
     enddo
 
-    call calculate_thetam_to_shocmf(theta_p, qv_p, qc_p, R_v, R_d, theta_m_p)
+    call calculate_thetam_to_shocmf(ims, ime, jms, jme, kms, kme, theta_p, qv_p, qc_p, R_v, R_d, theta_m_p)
 
     allocate(thetal_p(ims:ime, kms:kme, jms:jme))
-    call calculate_thetal(theta_p, qc_p, inv_exner_p, thetal_p)
+    call calculate_thetal(ims, ime, jms, jme, kms, kme, theta_p, qc_p, inv_exner_p, thetal_p)
 
     allocate(presdiff_p(ims:ime, kms:kme, jms:jme))
     call calculate_presdiff(ims, ime, kms, kme, jms, jme, pres2_p, presdiff_p)
 
-    call calculate_qw(qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
+    call calculate_qw(ims, ime, jms, jme, kms, kme,qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
 
     allocate(height_interface_p(ims:ime, kms:kme, jms:jme), height_mid_p(ims:ime, kms:kme, jms:jme))
     call calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
@@ -576,9 +618,9 @@ module module_bl_shocmf
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    call calculate_theta(thetal_p, qc_p, inv_exner_p, theta_p)
-    call calculate_qv(qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
-    call calculate_thetam_to_mpas(theta_p, qv_p, R_v, R_d, theta_m_p)
+    call calculate_theta(ims, ime, jms, jme, kms, kme, thetal_p, qc_p, inv_exner_p, theta_p)
+    call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
+    call calculate_thetam_to_mpas(ims, ime, jms, jme, kms, kme, theta_p, qv_p, R_v, R_d, theta_m_p)
 
     ! Calculating tendencies
     rublten_p = (u_p - um_p)/dt_pbl
