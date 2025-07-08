@@ -5187,13 +5187,19 @@ subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_in
       tkes = sqrt(tke(i,k))
 
       if(brunt(i,k) .ge. 0) brunt2(i,k) = brunt(i,k)
-      
-      shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale(i)*tkes*vk*zt_grid(i,k)))&
-        +(1._rtype/(tscale(i)*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
+
+      ! (GTF): The original SHOCMF code uses shoc_mix with a tscale that varies with
+      ! the column. However, in E3SM code, SHOC uses a constant tscale.
+      ! We have tested varying tscale but it was found to be numerically unstable.
+      ! Therefore, we use a constant tscale for SHOCMF, which is consistent with the
+      ! SHOC code in E3SM.
+
+      ! shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale(i)*tkes*vk*zt_grid(i,k)))&
+      !   +(1._rtype/(tscale(i)*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
       
       !! shoc_mix using tscale_const
-      !shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale_const*tkes*vk*zt_grid(i,k)))&
-      !  +(1._rtype/(tscale_const*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
+      shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale_const*tkes*vk*zt_grid(i,k)))&
+       +(1._rtype/(tscale_const*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
       
     enddo ! end i loop (column loop)
   enddo ! end k loop (vertical loop)

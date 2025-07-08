@@ -2,8 +2,6 @@ module module_bl_shocmf
  use mpas_atmphys_constants
  use shoc, only: shoc_init, shoc_main, length_fac, mintke, linear_interp
  use mpas_pool_routines
- use, intrinsic :: ieee_arithmetic
- use, intrinsic :: ieee_exceptions
 
 
  implicit none
@@ -83,6 +81,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qc, inv_exner
     real(kind=RKIND), dimension(:,:,:), intent(inout) :: thetal
     
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -100,6 +99,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), intent(in) :: thetal, qc, inv_exner
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta
 
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -119,6 +119,7 @@ module module_bl_shocmf
     real(kind=RKIND), intent(in) :: R_v_in, R_d_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -138,6 +139,7 @@ module module_bl_shocmf
     real(kind=RKIND), intent(in) :: R_v_in, R_d_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
 
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -153,7 +155,8 @@ module module_bl_shocmf
     integer, intent(in) :: ims, ime, jms, jme, kms, kme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
-
+    
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -170,6 +173,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
+    integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
@@ -455,7 +459,7 @@ module module_bl_shocmf
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
     real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p, w_zt
-    real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p
+    real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p, rho_interface_p
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dx_p, dy_p, hfx_converted_p, lh_converted_p
 
     integer :: num_qtracers, nadv, i, j, k
@@ -512,8 +516,10 @@ module module_bl_shocmf
     allocate(dx_p(ims:ime, jms:jme), dy_p(ims:ime, jms:jme))
     call define_horizontal_discretization(area_p, dx_p, dy_p)
 
-    allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme))
-    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp, xlv, hfx_converted_p, lh_converted_p)
+    allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme), rho_interface_p(ims:ime, kms:kme, jms:jme))
+    ! Get density on the interface grid
+    call linear_interp(height_mid_p,height_interface_p,rho_p,rho_interface_p,kme-1,kme,ime,0.0_RKIND)
+    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xlv, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
