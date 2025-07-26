@@ -1417,7 +1417,7 @@
             cfl_mf_p      = cfl_mf_p     , mf_dry_freq_p  = mf_dry_freq_p , mf_moist_freq_p = mf_moist_freq_p , &
             plumeheight_p = plumeheight_p, plume_dry_height_p = plume_dry_height_p                            , &
             ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p   , &
-            wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl            = kpbl_p          , &
+            wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl_p          = kpbl_p          , &
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
             qs_p          = qs_p         , qi_p           = qi_p          , qg_p            = qg_p            , &
             qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &

@@ -386,14 +386,15 @@ module module_bl_shocmf
     enddo
  end subroutine calculate_heights
 
- subroutine calulate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
+ subroutine calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
     ! Calculate the PBL height kpbl_p from hpbl_p and height_mid_p
     ! We get the last vertical level that is below the PBL height
     ! hpbl_p is the PBL height in reference to surface
     ! height_mid_p is the height thermodynamic grid in reference to surface
     integer, intent(in) :: ims, ime, jms, jme, kms, kme
-    real(RKIND), dimension(:,:), intent(in) :: hpbl_p, height_mid_p
-    real(RKIND), dimension(:,:), intent(inout) :: kpbl_p
+    real(RKIND), dimension(:,:), intent(in) :: hpbl_p
+    real(RKIND), dimension(:,:,:), intent(in) :: height_mid_p
+    integer, dimension(:,:), intent(inout) :: kpbl_p
 
     integer :: i, j, k
     
@@ -402,12 +403,12 @@ module module_bl_shocmf
     do k=kms,kme-1
         if (height_mid_p(i,k,j) > hpbl_p(i,j)) then
             kpbl_p(i,j) = k-1
-            cycle
+            exit
         endif
     enddo
     enddo
     enddo
- end subroutine calulate_kpbl
+ end subroutine calculate_kpbl
 
  subroutine bl_shocmf_init( &
     ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
@@ -464,7 +465,8 @@ module module_bl_shocmf
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
                                                       mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, & 
-                                                      plume_dry_height_p, ztop_b_p, kpbl_p
+                                                      plume_dry_height_p, ztop_b_p
+    integer, dimension(:,:), intent(inout) :: kpbl_p
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
         tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
         qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
