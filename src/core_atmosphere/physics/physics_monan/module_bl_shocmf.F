@@ -386,6 +386,29 @@ module module_bl_shocmf
     enddo
  end subroutine calculate_heights
 
+ subroutine calulate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
+    ! Calculate the PBL height kpbl_p from hpbl_p and height_mid_p
+    ! We get the last vertical level that is below the PBL height
+    ! hpbl_p is the PBL height in reference to surface
+    ! height_mid_p is the height thermodynamic grid in reference to surface
+    integer, intent(in) :: ims, ime, jms, jme, kms, kme
+    real(RKIND), dimension(:,:), intent(in) :: hpbl_p, height_mid_p
+    real(RKIND), dimension(:,:), intent(inout) :: kpbl_p
+
+    integer :: i, j, k
+    
+    do i=ims,ime
+    do j=jms,jme
+    do k=kms,kme-1
+        if (height_mid_p(i,k,j) > hpbl_p(i,j)) then
+            kpbl_p(i,j) = k-1
+            cycle
+        endif
+    enddo
+    enddo
+    enddo
+ end subroutine calulate_kpbl
+
  subroutine bl_shocmf_init( &
     ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
     xlf_in, karman_in, diag &
@@ -406,10 +429,8 @@ module module_bl_shocmf
     ntop_shoc = kte
     nbot_shoc = 1
 
-    call mpas_log_write('Calling shoc_init from SHOCMF module')
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
                    presref_mid, nbot_shoc, ntop_shoc, length_fac)
-    call mpas_log_write('!! returned from shoc_init !!')
 
     deallocate(presref_mid)
  end subroutine bl_shocmf_init
@@ -425,8 +446,8 @@ module module_bl_shocmf
     mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, &
     mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
-    ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, rho_p, t_p, qv_p, &
-    qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
+    ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, kpbl_p, rho_p, t_p, &
+    qv_p, qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
     rqiblten_p, rtkeblten_p, &
     ims, ime, jms, jme, kms, kme, &
     its, ite, jts, jte, kts, kte  &
@@ -443,7 +464,7 @@ module module_bl_shocmf
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
                                                       mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, & 
-                                                      plume_dry_height_p, ztop_b_p
+                                                      plume_dry_height_p, ztop_b_p, kpbl_p
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
         tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
         qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
@@ -465,7 +486,6 @@ module module_bl_shocmf
     integer :: num_qtracers, nadv, i, j, k
     real(kind=RKIND) :: shoc_timestep
 
-    call mpas_log_write('!!!!!!!!!!! Entered in bl_shocmf_driver !!!!!!!!!!!!')
     tke_shmf_p = max(mintke, tke_shmf_p)
 
     allocate(                                  &
@@ -528,8 +548,6 @@ module module_bl_shocmf
         shoc_timestep = dt_pbl
     endif
 
-    print *, 'max timestep', max_shoc_timestep, 'dt_pbl', dt_pbl, 'shoc timestep', shoc_timestep, 'nadv', nadv
-
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
     if (mod(dt_pbl,shoc_timestep) .ne. 0) then
@@ -563,7 +581,6 @@ module module_bl_shocmf
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    call mpas_log_write('!!!!!!!!!!! Calling SHOC-MF main module !!!!!!!!!!!!')
     call shoc_main( &
         itimestep, ime, kme-1, kme, shoc_timestep, nadv, &                                    ! Input
         dx_p(:ime,1), dy_p(:ime,1), theta_m_p(:ime,:kme-1,1),&                                              ! Input
@@ -602,7 +619,6 @@ module module_bl_shocmf
         wthl_sec_ed_p(:ime,:,1), wthl_sec_mf_p(:ime,:,1), &                                         ! Output (EDMF diagnostic)
         wqw_sec_ed_p(:ime,:,1), wqw_sec_mf_p(:ime,:,1) &                        ! Output (EDMF diagnostic)  
     )
-    call mpas_log_write('!!!!!!!!!!! Returned from SHOC-MF main module !!!!!!!!!!!!')
     call flip_vertical_coordinates(&
         kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
         tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
@@ -627,6 +643,7 @@ module module_bl_shocmf
     call calculate_theta(ims, ime, jms, jme, kms, kme, thetal_p, qc_p, inv_exner_p, theta_p)
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
     call calculate_thetam_to_mpas(ims, ime, jms, jme, kms, kme, theta_p, qv_p, R_v, R_d, theta_m_p)
+    call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
     ! Calculating tendencies
     rublten_p = (u_p - um_p)/dt_pbl
@@ -646,7 +663,6 @@ module module_bl_shocmf
     deallocate(dx_p, dy_p)
     deallocate(height_interface_p, height_mid_p)
     deallocate(inv_exner_p)
-    call mpas_log_write('!!!!!!!!!!! Exiting bl_shocmf_driver !!!!!!!!!!!!')
   
  end subroutine bl_shocmf_driver
 
