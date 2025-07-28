@@ -217,7 +217,8 @@ else if (trim(config_physics_suite) == 'mesoscale_reference_monan') then
 !pbl scheme:
  if(.not. (config_pbl_scheme .eq. 'off'     .or. &
            config_pbl_scheme .eq. 'bl_mynn' .or. &
-           config_pbl_scheme .eq. 'bl_ysu')) then
+           config_pbl_scheme .eq. 'bl_ysu'  .or. &
+           config_pbl_scheme .eq. 'bl_shocmf')) then
 
     write(mpas_err_message,'(A,A10)') 'illegal value for pbl_scheme: ', &
           trim(config_pbl_scheme)

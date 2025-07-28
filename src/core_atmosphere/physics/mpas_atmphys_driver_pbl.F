@@ -17,6 +17,7 @@
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_ysu
+ use module_bl_shocmf, only: bl_shocmf_init, bl_shocmf_driver
 
  implicit none
  private
@@ -185,6 +186,74 @@
        !allocation of additional arrays:
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
+    case("bl_shocmf")
+      if(.not.allocated(mf_dry_freq_p)       ) allocate(mf_dry_freq_p(ims:ime,jms:jme)       )
+      if(.not.allocated(mf_moist_freq_p)     ) allocate(mf_moist_freq_p(ims:ime,jms:jme)     )
+      if(.not.allocated(plumeheight_p)       ) allocate(plumeheight_p(ims:ime,jms:jme)       )
+      if(.not.allocated(plume_dry_height_p)  ) allocate(plume_dry_height_p(ims:ime,jms:jme)  )
+      if(.not.allocated(ztop_b_p)            ) allocate(ztop_b_p(ims:ime,jms:jme)            )
+      if(.not.allocated(pblh_wthl_p)         ) allocate(pblh_wthl_p(ims:ime,jms:jme)         )
+      if(.not.allocated(pblh_tke_p)          ) allocate(pblh_tke_p(ims:ime,jms:jme)          )
+      if(.not.allocated(lh_p)                ) allocate(lh_p(ims:ime,jms:jme)                )
+      if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
+      if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
+      if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
+      if(.not.allocated(area_p)              ) allocate(area_p(ims:ime,jms:jme)              )
+      if(.not.allocated(cda_p)               ) allocate(cda_p(ims:ime,jms:jme)               )
+
+      if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(w_sec_p)            ) allocate(w_sec_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(wqls_sec_p)         ) allocate(wqls_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(isotropy_p)         ) allocate(isotropy_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(brunt_p)            ) allocate(brunt_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(shoc_ql2_p)         ) allocate(shoc_ql2_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(tke_dissip_p)       ) allocate(tke_dissip_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(tke_prod_b_p)       ) allocate(tke_prod_b_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(tke_prod_sh_p)      ) allocate(tke_prod_sh_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(rino_p)             ) allocate(rino_p(ims:ime,kms:kme,jms:jme)             )
+      if(.not.allocated(thl_sec_p)          ) allocate(thl_sec_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(qw_sec_p)           ) allocate(qw_sec_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(qwthl_sec_p)        ) allocate(qwthl_sec_p(ims:ime,kms:kme,jms:jme)        )
+      if(.not.allocated(wthl_sec_p)         ) allocate(wthl_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(wqw_sec_p)          ) allocate(wqw_sec_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(wtke_sec_p)         ) allocate(wtke_sec_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(uw_sec_p)           ) allocate(uw_sec_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(vw_sec_p)           ) allocate(vw_sec_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(w3_p)               ) allocate(w3_p(ims:ime,kms:kme,jms:jme)               )
+      if(.not.allocated(mf_dry_a_p)         ) allocate(mf_dry_a_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_moist_a_p)       ) allocate(mf_moist_a_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(mf_dry_w_p)         ) allocate(mf_dry_w_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_moist_w_p)       ) allocate(mf_moist_w_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(mf_dry_qt_p)        ) allocate(mf_dry_qt_p(ims:ime,kms:kme,jms:jme)        )
+      if(.not.allocated(mf_moist_qt_p)      ) allocate(mf_moist_qt_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(mf_dry_thl_p)       ) allocate(mf_dry_thl_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(mf_moist_thl_p)     ) allocate(mf_moist_thl_p(ims:ime,kms:kme,jms:jme)     )
+      if(.not.allocated(mf_dry_u_p)         ) allocate(mf_dry_u_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_moist_u_p)       ) allocate(mf_moist_u_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(mf_dry_v_p)         ) allocate(mf_dry_v_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_moist_v_p)       ) allocate(mf_moist_v_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(mf_moist_qc_p)      ) allocate(mf_moist_qc_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(mf_ae_p)            ) allocate(mf_ae_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(mf_aw_p)            ) allocate(mf_aw_p(ims:ime,kms:kme,jms:jme)            )
+      if(.not.allocated(mf_awthv_p)         ) allocate(mf_awthv_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_awthl_p)         ) allocate(mf_awthl_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(mf_awqt_p)          ) allocate(mf_awqt_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(mf_awql_p)          ) allocate(mf_awql_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(mf_awqi_p)          ) allocate(mf_awqi_p(ims:ime,kms:kme,jms:jme)          )
+      if(.not.allocated(mf_awu_p)           ) allocate(mf_awu_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(mf_awv_p)           ) allocate(mf_awv_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(mf_thlflx_p)        ) allocate(mf_thlflx_p(ims:ime,kms:kme,jms:jme)        )
+      if(.not.allocated(mf_qtflx_p)         ) allocate(mf_qtflx_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(cfl_mf_p)           ) allocate(cfl_mf_p(ims:ime,kms:kme,jms:jme)           )
+      if(.not.allocated(wthl_sec_ed_p)      ) allocate(wthl_sec_ed_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(wthl_sec_mf_p)      ) allocate(wthl_sec_mf_p(ims:ime,kms:kme,jms:jme)      )
+      if(.not.allocated(wqw_sec_ed_p)       ) allocate(wqw_sec_ed_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(wqw_sec_mf_p)       ) allocate(wqw_sec_mf_p(ims:ime,kms:kme,jms:jme)       )
+      if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)               )
+      if(.not.allocated(cldfrabl_p)         ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)         )
+      if(.not.allocated(dse_p)              ) allocate(dse_p(ims:ime,kms:kme,jms:jme)              )
+      if(.not.allocated(rtkeblten_p)        ) allocate(rtkeblten_p(ims:ime,kms:kme,jms:jme)        )
     case default
 
  end select pbl_select
@@ -292,6 +361,74 @@
 
        !deallocation of additional arrays:
        if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
+    case("bl_shocmf")
+        if(allocated(mf_dry_freq_p)       ) deallocate(mf_dry_freq_p       )
+        if(allocated(mf_moist_freq_p)     ) deallocate(mf_moist_freq_p     )
+        if(allocated(plumeheight_p)       ) deallocate(plumeheight_p       )
+        if(allocated(plume_dry_height_p)  ) deallocate(plume_dry_height_p  )
+        if(allocated(ztop_b_p)            ) deallocate(ztop_b_p            )
+        if(allocated(pblh_wthl_p)         ) deallocate(pblh_wthl_p         )
+        if(allocated(pblh_tke_p)          ) deallocate(pblh_tke_p          )
+        if(allocated(lh_p)                ) deallocate(lh_p                )
+        if(allocated(ht_p)                ) deallocate(ht_p                )
+        if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
+        if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
+        if(allocated(area_p)              ) deallocate(area_p              )
+        if(allocated(cda_p)               ) deallocate(cda_p               )
+
+        if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
+        if(allocated(shoc_mix_p)         ) deallocate(shoc_mix_p         )
+        if(allocated(w_sec_p)            ) deallocate(w_sec_p            )
+        if(allocated(wqls_sec_p)         ) deallocate(wqls_sec_p         )
+        if(allocated(isotropy_p)         ) deallocate(isotropy_p         )
+        if(allocated(brunt_p)            ) deallocate(brunt_p            )
+        if(allocated(shoc_ql2_p)         ) deallocate(shoc_ql2_p         )
+        if(allocated(tke_dissip_p)       ) deallocate(tke_dissip_p       )
+        if(allocated(tke_prod_b_p)       ) deallocate(tke_prod_b_p       )
+        if(allocated(tke_prod_sh_p)      ) deallocate(tke_prod_sh_p      )
+        if(allocated(rino_p)             ) deallocate(rino_p             )
+        if(allocated(thl_sec_p)          ) deallocate(thl_sec_p          )
+        if(allocated(qw_sec_p)           ) deallocate(qw_sec_p           )
+        if(allocated(qwthl_sec_p)        ) deallocate(qwthl_sec_p        )
+        if(allocated(wthl_sec_p)         ) deallocate(wthl_sec_p         )
+        if(allocated(wqw_sec_p)          ) deallocate(wqw_sec_p          )
+        if(allocated(wtke_sec_p)         ) deallocate(wtke_sec_p         )
+        if(allocated(uw_sec_p)           ) deallocate(uw_sec_p           )
+        if(allocated(vw_sec_p)           ) deallocate(vw_sec_p           )
+        if(allocated(w3_p)               ) deallocate(w3_p               )
+        if(allocated(mf_dry_a_p)         ) deallocate(mf_dry_a_p         )
+        if(allocated(mf_moist_a_p)       ) deallocate(mf_moist_a_p       )
+        if(allocated(mf_dry_w_p)         ) deallocate(mf_dry_w_p         )
+        if(allocated(mf_moist_w_p)       ) deallocate(mf_moist_w_p       )
+        if(allocated(mf_dry_qt_p)        ) deallocate(mf_dry_qt_p        )
+        if(allocated(mf_moist_qt_p)      ) deallocate(mf_moist_qt_p      )
+        if(allocated(mf_dry_thl_p)       ) deallocate(mf_dry_thl_p       )
+        if(allocated(mf_moist_thl_p)     ) deallocate(mf_moist_thl_p     )
+        if(allocated(mf_dry_u_p)         ) deallocate(mf_dry_u_p         )
+        if(allocated(mf_moist_u_p)       ) deallocate(mf_moist_u_p       )
+        if(allocated(mf_dry_v_p)         ) deallocate(mf_dry_v_p         )
+        if(allocated(mf_moist_v_p)       ) deallocate(mf_moist_v_p       )
+        if(allocated(mf_moist_qc_p)      ) deallocate(mf_moist_qc_p      )
+        if(allocated(mf_ae_p)            ) deallocate(mf_ae_p            )
+        if(allocated(mf_aw_p)            ) deallocate(mf_aw_p            )
+        if(allocated(mf_awthv_p)         ) deallocate(mf_awthv_p         )
+        if(allocated(mf_awthl_p)         ) deallocate(mf_awthl_p         )
+        if(allocated(mf_awqt_p)          ) deallocate(mf_awqt_p          )
+        if(allocated(mf_awql_p)          ) deallocate(mf_awql_p          )
+        if(allocated(mf_awqi_p)          ) deallocate(mf_awqi_p          )
+        if(allocated(mf_awu_p)           ) deallocate(mf_awu_p           )
+        if(allocated(mf_awv_p)           ) deallocate(mf_awv_p           )
+        if(allocated(mf_thlflx_p)        ) deallocate(mf_thlflx_p        )
+        if(allocated(mf_qtflx_p)         ) deallocate(mf_qtflx_p         )
+        if(allocated(cfl_mf_p)           ) deallocate(cfl_mf_p           )
+        if(allocated(wthl_sec_ed_p)      ) deallocate(wthl_sec_ed_p      )
+        if(allocated(wthl_sec_mf_p)      ) deallocate(wthl_sec_mf_p      )
+        if(allocated(wqw_sec_ed_p)       ) deallocate(wqw_sec_ed_p       )
+        if(allocated(wqw_sec_mf_p)       ) deallocate(wqw_sec_mf_p       )
+        if(allocated(qw_p)               ) deallocate(qw_p               )
+        if(allocated(cldfrabl_p)         ) deallocate(cldfrabl_p         )
+        if(allocated(dse_p)              ) deallocate(dse_p              )
+        if(allocated(rtkeblten_p)        ) deallocate(rtkeblten_p        )
 
     case default
 
@@ -335,6 +472,23 @@
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
+ !local pointers for SHOCMF scheme:
+ real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh
+ real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell,cda
+ real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
+ real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
+ real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
+ real(kind=RKIND),dimension(:,:),pointer:: qw_sec,qwthl_sec,wthl_sec,wqw_sec,wtke_sec
+ real(kind=RKIND),dimension(:,:),pointer:: uw_sec,vw_sec,w3,mf_dry_a,mf_moist_a
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_w,mf_moist_w,mf_dry_qt,mf_moist_qt
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_thl,mf_moist_thl,mf_dry_u,mf_moist_u
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_v,mf_moist_v,mf_moist_qc,mf_ae,mf_aw
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awqi,mf_awu
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
+ real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,zgrid,dse
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -499,6 +653,152 @@
        enddo
        enddo
 
+    case("bl_shocmf")
+       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq   )
+       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight     )
+       call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
+       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B          )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'lh'               ,lh              )
+       call mpas_pool_get_array(diag_physics, 'cda'              ,cda             )
+       call mpas_pool_get_array(mesh        , 'areaCell'         ,area_cell       )
+       call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
+
+       
+       call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
+       call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
+       call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
+       call mpas_pool_get_array(diag_physics, 'wqls_sec'         ,wqls_sec       )
+       call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
+       call mpas_pool_get_array(diag_physics, 'brunt'            ,brunt          )
+       call mpas_pool_get_array(diag_physics, 'shoc_ql2'         ,shoc_ql2       )
+       call mpas_pool_get_array(diag_physics, 'tke_dissip'       ,tke_dissip     )
+       call mpas_pool_get_array(diag_physics, 'tke_prod_b'       ,tke_prod_b     )
+       call mpas_pool_get_array(diag_physics, 'tke_prod_sh'      ,tke_prod_sh    )
+       call mpas_pool_get_array(diag_physics, 'rino'             ,rino           )
+       call mpas_pool_get_array(diag_physics, 'thl_sec'          ,thl_sec        )
+       call mpas_pool_get_array(diag_physics, 'qw_sec'           ,qw_sec         )
+       call mpas_pool_get_array(diag_physics, 'qwthl_sec'        ,qwthl_sec      )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec'         ,wthl_sec       )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec'          ,wqw_sec        )
+       call mpas_pool_get_array(diag_physics, 'wtke_sec'         ,wtke_sec       )
+       call mpas_pool_get_array(diag_physics, 'uw_sec'           ,uw_sec         )
+       call mpas_pool_get_array(diag_physics, 'vw_sec'           ,vw_sec         )
+       call mpas_pool_get_array(diag_physics, 'w3'               ,w3             )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_a'         ,mf_dry_a       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_a'       ,mf_moist_a     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_w'         ,mf_dry_w       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_w'       ,mf_moist_w     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_qt'        ,mf_dry_qt      )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_qt'      ,mf_moist_qt    )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_thl'       ,mf_dry_thl     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_thl'     ,mf_moist_thl   )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_u'         ,mf_dry_u       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_u'       ,mf_moist_u     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_v'         ,mf_dry_v       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_v'       ,mf_moist_v     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_qc'      ,mf_moist_qc    )
+       call mpas_pool_get_array(diag_physics, 'mf_ae'            ,mf_ae          )
+       call mpas_pool_get_array(diag_physics, 'mf_aw'            ,mf_aw          )
+       call mpas_pool_get_array(diag_physics, 'mf_awthv'         ,mf_awthv       )
+       call mpas_pool_get_array(diag_physics, 'mf_awthl'         ,mf_awthl       )
+       call mpas_pool_get_array(diag_physics, 'mf_awqt'          ,mf_awqt        )
+       call mpas_pool_get_array(diag_physics, 'mf_awql'          ,mf_awql        )
+       call mpas_pool_get_array(diag_physics, 'mf_awqi'          ,mf_awqi        )
+       call mpas_pool_get_array(diag_physics, 'mf_awu'           ,mf_awu         )
+       call mpas_pool_get_array(diag_physics, 'mf_awv'           ,mf_awv         )
+       call mpas_pool_get_array(diag_physics, 'mf_thlflx'        ,mf_thlflx      )
+       call mpas_pool_get_array(diag_physics, 'mf_qtflx'         ,mf_qtflx       )
+       call mpas_pool_get_array(diag_physics, 'cfl_mf'           ,cfl_mf         )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec_ed'      ,wthl_sec_ed    )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
+       call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
+       call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
+
+       do j = jts,jte
+       do i = its,ite
+        mf_dry_freq_p(i,j)      = mf_dry_freq(i)
+        mf_moist_freq_p(i,j)    = mf_moist_freq(i)
+        plumeheight_p(i,j)      = plumeheight(i)
+        plume_dry_height_p(i,j) = plume_dry_height(i)
+        ztop_b_p(i,j)           = ztop_B(i)
+        uw_sfc_p(i,j)           = uw_sfc(i)
+        vw_sfc_p(i,j)           = vw_sfc(i)
+        cda_p(i,j)              = cda(i)
+
+        lh_p(i,j)               = lh(i)
+        ht_p(i,j)               = zgrid(1,i)
+
+        area_p(i,j)             = area_cell(i)
+
+        pblh_wthl_p(i,j)        = 0._RKIND
+        pblh_tke_p(i,j)         = 0._RKIND
+       enddo
+       enddo
+    
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+        wthv_sec_p(i,k,j)        = wthv_sec(k,i)
+        shoc_mix_p(i,k,j)        = shoc_mix(k,i)
+        w_sec_p(i,k,j)           = w_sec(k,i)
+        wqls_sec_p(i,k,j)        = wqls_sec(k,i)
+        isotropy_p(i,k,j)        = isotropy(k,i)
+        brunt_p(i,k,j)           = brunt(k,i)
+        shoc_ql2_p(i,k,j)        = shoc_ql2(k,i)
+        tke_dissip_p(i,k,j)      = tke_dissip(k,i)
+        tke_prod_b_p(i,k,j)      = tke_prod_b(k,i)
+        tke_prod_sh_p(i,k,j)     = tke_prod_sh(k,i)
+        rino_p(i,k,j)            = rino(k,i)
+        thl_sec_p(i,k,j)         = thl_sec(k,i)
+        qw_sec_p(i,k,j)          = qw_sec(k,i)
+        qwthl_sec_p(i,k,j)       = qwthl_sec(k,i)
+        wthl_sec_p(i,k,j)        = wthl_sec(k,i)
+        wqw_sec_p(i,k,j)         = wqw_sec(k,i)
+        wtke_sec_p(i,k,j)        = wtke_sec(k,i)
+        uw_sec_p(i,k,j)          = uw_sec(k,i)
+        vw_sec_p(i,k,j)          = vw_sec(k,i)
+        w3_p(i,k,j)              = w3(k,i)
+        mf_dry_a_p(i,k,j)        = mf_dry_a(k,i)
+        mf_moist_a_p(i,k,j)      = mf_moist_a(k,i)
+        mf_dry_w_p(i,k,j)        = mf_dry_w(k,i)
+        mf_moist_w_p(i,k,j)      = mf_moist_w(k,i)
+        mf_dry_qt_p(i,k,j)       = mf_dry_qt(k,i)
+        mf_moist_qt_p(i,k,j)     = mf_moist_qt(k,i)
+        mf_dry_thl_p(i,k,j)      = mf_dry_thl(k,i)
+        mf_moist_thl_p(i,k,j)    = mf_moist_thl(k,i)
+        mf_dry_u_p(i,k,j)        = mf_dry_u(k,i)
+        mf_moist_u_p(i,k,j)      = mf_moist_u(k,i)
+        mf_dry_v_p(i,k,j)        = mf_dry_v(k,i)
+        mf_moist_v_p(i,k,j)      = mf_moist_v(k,i)
+        mf_moist_qc_p(i,k,j)     = mf_moist_qc(k,i)
+        mf_ae_p(i,k,j)           = mf_ae(k,i)
+        mf_aw_p(i,k,j)           = mf_aw(k,i)
+        mf_awthv_p(i,k,j)        = mf_awthv(k,i)
+        mf_awthl_p(i,k,j)        = mf_awthl(k,i)
+        mf_awqt_p(i,k,j)         = mf_awqt(k,i)
+        mf_awql_p(i,k,j)         = mf_awql(k,i)
+        mf_awqi_p(i,k,j)         = mf_awqi(k,i)
+        mf_awu_p(i,k,j)          = mf_awu(k,i)
+        mf_awv_p(i,k,j)          = mf_awv(k,i)
+        mf_thlflx_p(i,k,j)       = mf_thlflx(k,i)
+        mf_qtflx_p(i,k,j)        = mf_qtflx(k,i)
+        cfl_mf_p(i,k,j)          = cfl_mf(k,i)
+        wthl_sec_ed_p(i,k,j)     = wthl_sec_ed(k,i)
+        wthl_sec_mf_p(i,k,j)     = wthl_sec_mf(k,i)
+        wqw_sec_ed_p(i,k,j)      = wqw_sec_ed(k,i)
+        wqw_sec_mf_p(i,k,j)      = wqw_sec_mf(k,i)
+        cldfrabl_p(i,k,j)        = cldfrac_bl(k,i)
+        dse_p(i,k,j)             = dse(k,i)
+
+        rtkeblten_p(i,k,j)       = 0._RKIND
+       enddo
+       enddo
+       enddo
     case default
 
  end select pbl_select
@@ -546,7 +846,7 @@
  real(kind=RKIND),dimension(:),pointer  :: hpbl
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
  real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,rqsblten
- real(kind=RKIND),dimension(:,:),pointer:: rniblten
+ real(kind=RKIND),dimension(:,:),pointer:: rniblten,rtkeblten
 
 !local pointers for YSU scheme:
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
@@ -559,6 +859,22 @@
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
  real(kind=RKIND),dimension(:,:),pointer:: sub_thl,sub_qv,det_thl,det_qv
 
+ !local pointers for SHOCMF scheme:
+ real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
+ real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh,uw_sfc,vw_sfc
+ real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
+ real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
+ real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
+ real(kind=RKIND),dimension(:,:),pointer:: qw_sec,qwthl_sec,wthl_sec,wqw_sec,wtke_sec
+ real(kind=RKIND),dimension(:,:),pointer:: uw_sec,vw_sec,w3,mf_dry_a,mf_moist_a
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_w,mf_moist_w,mf_dry_qt,mf_moist_qt
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_thl,mf_moist_thl,mf_dry_u,mf_moist_u
+ real(kind=RKIND),dimension(:,:),pointer:: mf_dry_v,mf_moist_v,mf_moist_qc,mf_ae,mf_aw
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awthv,mf_awthl,mf_awqt,mf_awql,mf_awqi,mf_awu
+ real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
+ real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
+ real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,dse
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -688,6 +1004,140 @@
        enddo
        enddo
 
+    case("bl_shocmf")
+       call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq   )
+       call mpas_pool_get_array(diag_physics, 'plumeheight'      ,plumeheight     )
+       call mpas_pool_get_array(diag_physics, 'plume_dry_height' ,plume_dry_height)
+       call mpas_pool_get_array(diag_physics, 'ztop_B'           ,ztop_B          )
+       call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
+       call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
+
+       call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
+       call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
+       call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
+       call mpas_pool_get_array(diag_physics, 'wqls_sec'          ,wqls_sec      )
+       call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
+       call mpas_pool_get_array(diag_physics, 'brunt'            ,brunt          )
+       call mpas_pool_get_array(diag_physics, 'shoc_ql2'         ,shoc_ql2       )
+       call mpas_pool_get_array(diag_physics, 'tke_dissip'       ,tke_dissip     )
+       call mpas_pool_get_array(diag_physics, 'tke_prod_b'       ,tke_prod_b     )
+       call mpas_pool_get_array(diag_physics, 'tke_prod_sh'      ,tke_prod_sh    )
+       call mpas_pool_get_array(diag_physics, 'rino'             ,rino           )
+       call mpas_pool_get_array(diag_physics, 'thl_sec'          ,thl_sec        )
+       call mpas_pool_get_array(diag_physics, 'qw_sec'           ,qw_sec         )
+       call mpas_pool_get_array(diag_physics, 'qwthl_sec'        ,qwthl_sec      )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec'         ,wthl_sec       )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec'          ,wqw_sec        )
+       call mpas_pool_get_array(diag_physics, 'wtke_sec'         ,wtke_sec       )
+       call mpas_pool_get_array(diag_physics, 'uw_sec'           ,uw_sec         )
+       call mpas_pool_get_array(diag_physics, 'vw_sec'           ,vw_sec         )
+       call mpas_pool_get_array(diag_physics, 'w3'               ,w3             )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_a'         ,mf_dry_a       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_a'       ,mf_moist_a     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_w'         ,mf_dry_w       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_w'       ,mf_moist_w     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_qt'        ,mf_dry_qt      )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_qt'      ,mf_moist_qt    )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_thl'       ,mf_dry_thl     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_thl'     ,mf_moist_thl   )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_u'         ,mf_dry_u       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_u'       ,mf_moist_u     )
+       call mpas_pool_get_array(diag_physics, 'mf_dry_v'         ,mf_dry_v       )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_v'       ,mf_moist_v     )
+       call mpas_pool_get_array(diag_physics, 'mf_moist_qc'      ,mf_moist_qc    )
+       call mpas_pool_get_array(diag_physics, 'mf_ae'            ,mf_ae          )
+       call mpas_pool_get_array(diag_physics, 'mf_aw'            ,mf_aw          )
+       call mpas_pool_get_array(diag_physics, 'mf_awthv'         ,mf_awthv       )
+       call mpas_pool_get_array(diag_physics, 'mf_awthl'         ,mf_awthl       )
+       call mpas_pool_get_array(diag_physics, 'mf_awqt'          ,mf_awqt        )
+       call mpas_pool_get_array(diag_physics, 'mf_awql'          ,mf_awql        )
+       call mpas_pool_get_array(diag_physics, 'mf_awqi'          ,mf_awqi        )
+       call mpas_pool_get_array(diag_physics, 'mf_awu'           ,mf_awu         )
+       call mpas_pool_get_array(diag_physics, 'mf_awv'           ,mf_awv         )
+       call mpas_pool_get_array(diag_physics, 'mf_thlflx'        ,mf_thlflx      )
+       call mpas_pool_get_array(diag_physics, 'mf_qtflx'         ,mf_qtflx       )
+       call mpas_pool_get_array(diag_physics, 'cfl_mf'           ,cfl_mf         )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec_ed'      ,wthl_sec_ed    )
+       call mpas_pool_get_array(diag_physics, 'wthl_sec_mf'      ,wthl_sec_mf    )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
+       call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
+       call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
+       call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
+
+       call mpas_pool_get_array(tend_physics, 'rtkeblten'        ,rtkeblten      )
+
+        
+       do j = jts,jte
+       do i = its,ite
+          mf_dry_freq(i)     = mf_dry_freq_p(i,j)
+          mf_moist_freq(i)   = mf_moist_freq_p(i,j)
+          plumeheight(i)     = plumeheight_p(i,j)
+          plume_dry_height(i)= plume_dry_height_p(i,j)
+          ztop_B(i)          = ztop_b_p(i,j)
+          uw_sfc(i)          = uw_sfc_p(i,j)
+          vw_sfc(i)          = vw_sfc_p(i,j)
+       enddo
+       enddo
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          wthv_sec(k,i)        = wthv_sec_p(i,k,j)
+          shoc_mix(k,i)        = shoc_mix_p(i,k,j)
+          w_sec(k,i)           = w_sec_p(i,k,j)
+          wqls_sec(k,i)        = wqls_sec_p(i,k,j)
+          isotropy(k,i)        = isotropy_p(i,k,j)
+          brunt(k,i)           = brunt_p(i,k,j)
+          shoc_ql2(k,i)        = shoc_ql2_p(i,k,j)
+          tke_dissip(k,i)      = tke_dissip_p(i,k,j)
+          tke_prod_b(k,i)      = tke_prod_b_p(i,k,j)
+          tke_prod_sh(k,i)     = tke_prod_sh_p(i,k,j)
+          rino(k,i)            = rino_p(i,k,j)
+          thl_sec(k,i)         = thl_sec_p(i,k,j)
+          qw_sec(k,i)          = qw_sec_p(i,k,j)
+          qwthl_sec(k,i)       = qwthl_sec_p(i,k,j)
+          wthl_sec(k,i)        = wthl_sec_p(i,k,j)
+          wqw_sec(k,i)         = wqw_sec_p(i,k,j)
+          wtke_sec(k,i)        = wtke_sec_p(i,k,j)
+          uw_sec(k,i)          = uw_sec_p(i,k,j)
+          vw_sec(k,i)          = vw_sec_p(i,k,j)
+          w3(k,i)              = w3_p(i,k,j)
+          mf_dry_a(k,i)        = mf_dry_a_p(i,k,j)
+          mf_moist_a(k,i)      = mf_moist_a_p(i,k,j)
+          mf_dry_w(k,i)        = mf_dry_w_p(i,k,j)
+          mf_moist_w(k,i)      = mf_moist_w_p(i,k,j)
+          mf_dry_qt(k,i)       = mf_dry_qt_p(i,k,j)
+          mf_moist_qt(k,i)     = mf_moist_qt_p(i,k,j)
+          mf_dry_thl(k,i)      = mf_dry_thl_p(i,k,j)
+          mf_moist_thl(k,i)    = mf_moist_thl_p(i,k,j)
+          mf_dry_u(k,i)        = mf_dry_u_p(i,k,j)
+          mf_moist_u(k,i)      = mf_moist_u_p(i,k,j)
+          mf_dry_v(k,i)        = mf_dry_v_p(i,k,j)
+          mf_moist_v(k,i)      = mf_moist_v_p(i,k,j)
+          mf_moist_qc(k,i)     = mf_moist_qc_p(i,k,j)
+          mf_ae(k,i)           = mf_ae_p(i,k,j)
+          mf_aw(k,i)           = mf_aw_p(i,k,j)
+          mf_awthv(k,i)        = mf_awthv_p(i,k,j)
+          mf_awthl(k,i)        = mf_awthl_p(i,k,j)
+          mf_awqt(k,i)         = mf_awqt_p(i,k,j)
+          mf_awql(k,i)         = mf_awql_p(i,k,j)
+          mf_awqi(k,i)         = mf_awqi_p(i,k,j)
+          mf_awu(k,i)          = mf_awu_p(i,k,j)
+          mf_awv(k,i)          = mf_awv_p(i,k,j)
+          mf_thlflx(k,i)       = mf_thlflx_p(i,k,j)
+          mf_qtflx(k,i)        = mf_qtflx_p(i,k,j)
+          cfl_mf(k,i)          = cfl_mf_p(i,k,j)
+          wthl_sec_ed(k,i)     = wthl_sec_ed_p(i,k,j)
+          wthl_sec_mf(k,i)     = wthl_sec_mf_p(i,k,j)
+          wqw_sec_ed(k,i)      = wqw_sec_ed_p(i,k,j)
+          wqw_sec_mf(k,i)      = wqw_sec_mf_p(i,k,j)
+          cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
+          dse(k,i)             = dse_p(i,k,j)
+          rtkeblten(k,i)       = rtkeblten_p(i,k,j)
+       enddo
+       enddo
+       enddo
     case default
 
  end select pbl_select
@@ -695,11 +1145,12 @@
  end subroutine pbl_to_MPAS
  
 !=================================================================================================================
- subroutine init_pbl(configs)
+ subroutine init_pbl(configs,diag)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(in):: diag
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: pbl_scheme
@@ -718,6 +1169,11 @@
                          xlf,xls,xlv,errmsg,errflg)
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
 
+    case("bl_shocmf")
+      call mpas_log_write('--- enter subroutine shoc_init:')
+      call bl_shocmf_init(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,gravity,R_d,R_v,cp,ep_1,xlv, &
+                          xlf,karman,diag)
+      call mpas_log_write('--- end subroutine shoc_init:')
     case default
 
  end select pbl_select
@@ -927,8 +1383,48 @@
                   errmsg = errmsg , errflg = errflg                                                    &
                           )
        call mpas_timer_stop('bl_mynn')
-!      call mpas_log_write('--- exit subroutine mynn_bl_driver:')
-!      call mpas_log_write(' ')
+    case("bl_shocmf")
+      call mpas_timer_start('bl_shocmf')
+      call bl_shocmf_driver( &
+            itimestep     = itimestep    , dt_pbl         = dt_pbl                                            , &
+            area_p        = area_p       , cda_p          = cda_p         , lh_p            = lh_p            , &
+            hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
+            theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
+            zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
+            uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
+            pi_p          = pi_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p      , &
+            qw_p          = qw_p         , u_p            = u_p           , v_p             = v_p             , &
+            wthv_sec_p    = wthv_sec_p   , kzh_p          = kzh_p         , kzm_p           = kzm_p           , &
+            qc_p          = qc_p         , cldfrabl_p     = cldfrabl_p    , hpbl_p          = hpbl_p          , &
+            pblh_wthl_p   = pblh_wthl_p  , pblh_tke_p     = pblh_tke_p    , rino_p          = rino_p          , &
+            shoc_mix_p    = shoc_mix_p   , isotropy_p     = isotropy_p    , tke_dissip_p    = tke_dissip_p    , &
+            tke_prod_b_p  = tke_prod_b_p , tke_prod_sh_p  = tke_prod_sh_p , w_sec_p         = w_sec_p         , &
+            thl_sec_p     = thl_sec_p    , qw_sec_p       = qw_sec_p      , qwthl_sec_p     = qwthl_sec_p     , &
+            wthl_sec_p    = wthl_sec_p   , wqw_sec_p      = wqw_sec_p     , wtke_sec_p      = wtke_sec_p      , &
+            uw_sec_p      = uw_sec_p     , vw_sec_p       = vw_sec_p      , w3_p            = w3_p            , &
+            wqls_sec_p    = wqls_sec_p   , brunt_p        = brunt_p       , shoc_ql2_p      = shoc_ql2_p      , &
+            mf_dry_a_p    = mf_dry_a_p   , mf_moist_a_p   = mf_moist_a_p  , mf_dry_w_p      = mf_dry_w_p      , &
+            mf_moist_w_p  = mf_moist_w_p , mf_dry_qt_p    = mf_dry_qt_p   , mf_moist_qt_p   = mf_moist_qt_p   , &
+            mf_dry_thl_p  = mf_dry_thl_p , mf_moist_thl_p = mf_moist_thl_p, mf_dry_u_p      = mf_dry_u_p      , &
+            mf_moist_u_p  = mf_moist_u_p , mf_dry_v_p     = mf_dry_v_p    , mf_moist_v_p    = mf_moist_v_p    , &
+            mf_moist_qc_p = mf_moist_qc_p, mf_thlflx_p    = mf_thlflx_p   , mf_qtflx_p      = mf_qtflx_p      , &
+            mf_ae_p       = mf_ae_p      , mf_aw_p        = mf_aw_p       , mf_awthv_p      = mf_awthv_p      , &
+            mf_awthl_p    = mf_awthl_p   , mf_awqt_p      = mf_awqt_p     , mf_awql_p       = mf_awql_p       , &
+            mf_awqi_p     = mf_awqi_p    , mf_awu_p       = mf_awu_p      , mf_awv_p        = mf_awv_p        , &
+            cfl_mf_p      = cfl_mf_p     , mf_dry_freq_p  = mf_dry_freq_p , mf_moist_freq_p = mf_moist_freq_p , &
+            plumeheight_p = plumeheight_p, plume_dry_height_p = plume_dry_height_p                            , &
+            ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p   , &
+            wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl_p          = kpbl_p          , &
+            rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
+            qs_p          = qs_p         , qi_p           = qi_p          , qg_p            = qg_p            , &
+            qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &
+            rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
+            rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
+            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                               &
+      )
+            
+      call mpas_timer_stop('bl_shocmf')
 
     case default
 

@@ -628,7 +628,7 @@
 
 !=================================================================================================================
  subroutine driver_convection(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,diag,dminfo,its,ite &
-                             ,exchange_halo_group,block)
+                             ,exchange_halo_group,block,state,time_lev)
 !=================================================================================================================
 
 !input arguments:
@@ -636,12 +636,14 @@
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: sfc_input
  type(mpas_pool_type),intent(in):: diag
+ type(mpas_pool_type),intent(in):: state
  type(dm_info),intent(in):: dminfo
  type(block_type), intent(in) :: block
  procedure (halo_exchange_routine) :: exchange_halo_group
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
+ integer,intent(in):: time_lev
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -688,7 +690,7 @@
 
 !initialize instantaneous precipitation, and copy convective tendencies from the dynamics to
 !the physics grid:
- call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite)
+ call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite,state,time_lev)
 
 !... convert the convection time-step to minutes:
  cudt = dt_cu/60.
@@ -903,7 +905,7 @@
  end subroutine driver_convection
 
 !=================================================================================================================
- subroutine convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite)
+ subroutine convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite,state,time_lev)
 !=================================================================================================================
 
 !input arguments:
@@ -913,12 +915,15 @@
  type(mpas_pool_type),intent(in):: diag_physics
  type(mpas_pool_type),intent(in):: tend_physics
  type(mpas_pool_type),intent(in):: diag
+ type(mpas_pool_type),intent(in):: state
 
  integer,intent(in):: its,ite
  real(kind=RKIND),intent(in):: dt_dyn
+ integer,intent(in):: time_lev
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme,config_pbl_scheme
+ integer,pointer:: index_tke_shmf
  integer,dimension(:),pointer:: kpbl,k22_shallow,kbcon_shallow,ktop_shallow,ktop_deep
  real(kind=RKIND),dimension(:),pointer  :: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv,wlpool,lightn_dens,sigma_deep
@@ -934,6 +939,8 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rthdynten,rthratenlw,rthratensw
  real(kind=RKIND),dimension(:,:),pointer:: rqvblten,rqvdynten,rucuten,rvcuten
  real(kind=RKIND),dimension(:,:),pointer:: rcnvcfcuten, rbuoyxcuten
+ real(kind=RKIND),dimension(:,:),pointer:: tke_shmf
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !local variables:
  integer:: i,j,k
@@ -1063,6 +1070,20 @@
                   enddo
                enddo
                enddo
+         end if
+         if (trim(config_pbl_scheme) == "bl_shocmf") then
+            call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
+            call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+            tke_shmf => scalars(index_tke_shmf,:,:)
+            do j = jts,jte
+            do i = its,ite               
+               do k = kts,kte
+                  tkepbl_p(i,k,j) = max(0.,tke_shmf(k,i))
+                  elpbl_p(i,k,j)  = 0.0                  
+               enddo
+            enddo
+            enddo
+            !print*,'tke',maxval(tkepbl_p),minval(tkepbl_p),maxval(kpbl_p),minval(kpbl_p)
          end if
 
     case ("cu_grell_freitas")

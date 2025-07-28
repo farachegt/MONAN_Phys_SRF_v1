@@ -38,7 +38,7 @@
  character(len=StrKIND),pointer:: config_pbl_scheme
  logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in,cu_gf_monan_in
- logical,pointer:: bl_mynn_in,bl_ysu_in
+ logical,pointer:: bl_mynn_in,bl_ysu_in,bl_shocmf_in
 
  integer :: ierr
 
@@ -146,9 +146,12 @@
 
  nullify(bl_ysu_in)
  call mpas_pool_get_package(packages,'bl_ysu_inActive',bl_ysu_in)
+ nullify(bl_shocmf_in)
+ call mpas_pool_get_package(packages,'bl_shocmf_inActive',bl_shocmf_in)
 
  if(.not.associated(bl_mynn_in) .or. &
-    .not.associated(bl_ysu_in)) then
+    .not.associated(bl_ysu_in)  .or. &
+    .not.associated(bl_shocmf_in)) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
     call mpas_log_write('* Error while setting up packages for planetary layer  options in atmosphere core.',  messageType=MPAS_LOG_ERR)
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
@@ -158,15 +161,19 @@
 
  bl_mynn_in = .false.
  bl_ysu_in  = .false.
+ bl_shocmf_in = .false.
 
  if(config_pbl_scheme=='bl_mynn') then
     bl_mynn_in = .true.
  elseif(config_pbl_scheme == 'bl_ysu') then
     bl_ysu_in = .true.
+ elseif(config_pbl_scheme == 'bl_shocmf') then
+    bl_shocmf_in = .true.
  endif
 
  call mpas_log_write('    bl_mynn_in              = $l', logicArgs=(/bl_mynn_in/))
  call mpas_log_write('    bl_ysu_in               = $l', logicArgs=(/bl_ysu_in/))
+ call mpas_log_write('    bl_shocmf_in            = $l', logicArgs=(/bl_shocmf_in/))
  call mpas_log_write('')
 
  end function atmphys_setup_packages

@@ -441,7 +441,8 @@
     rthblten_p,       &!tendency of potential temperature due to PBL processes.
     rqvblten_p,       &!tendency of water vapor mixing ratio due to PBL processes.
     rqcblten_p,       &!tendency of cloud water mixing ratio due to PBL processes.
-    rqiblten_p         !tendency of cloud ice mixing ratio due to PBL processes.
+    rqiblten_p,       &!tendency of cloud ice mixing ratio due to PBL processes.
+    rtkeblten_p        !tendency of tke due to PBL processes (for now only shocmf).
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
@@ -491,6 +492,72 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
+!... SHOCMF PBL scheme (module_bl_shocmf.F):
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    mf_dry_freq_p,      &!frequency of dry plume activation                                                    [-]
+    mf_moist_freq_p,    &!frequency of moist plume activation                                                  [-]
+    plumeheight_p,      &!plume height according to the one plume test                                         [m]
+    plume_dry_height_p, &!dry plume height according to the one plume test                                     [m]
+    ztop_b_p,           &!mixed layer height according to min(wthv_sec)                                        [m]
+    pblh_wthl_p,        &!JPL PBL as the first level where wthl = wthl_surf*0.01                               [m]
+    pblh_tke_p,         &!JPL PBL as the first level where tke = tke_surf*0.01                                 [m]
+    uw_sfc_p,           &!Surface momentum flux (u direction)                                              [m2/s2]
+    vw_sfc_p             !Surface momentum flux (v direction)                                              [m2/s2]
+ 
+ real(kind=RKIND), dimension(:,:,:),allocatable:: &
+    shoc_ql2_p,       &!cloud liquid variance.                                                           [kg2/kg2]
+    wthv_sec_p,       &!buoyancy flux.                                                                     [K m/s]
+    shoc_mix_p,       &!SHOC length scale.                                                                     [m]
+    w_sec_p,          &!vertical velocity variance.                                                        [m2/s2]
+    wqls_sec_p,       &!liquid water flux.                                                             [kg/kg m/s]
+    isotropy_p,       &!timescale.                                                                             [s]
+    brunt_p,          &!brunt frequency.                                                                     [1/s]
+    tke_dissip_p,     &!tke budget: dissipation term.                                                      [m2/s3]
+    tke_prod_b_p,     &!tke budget: buoyancy production term.                                              [m2/s3]
+    tke_prod_sh_p,    &!tke budget: shear production term.                                                 [m2/s3]
+    rino_p,           &!bulk richardson number                                                                 [m]
+    thl_sec_p,        &!temperature variance. - nVertLevelsP1                                                 [K2]
+    qw_sec_p,         &!moisture variance. - nVertLevelsP1                                               [kg2/kg2]
+    qwthl_sec_p,      &!temperature-moisture correlation. - nVertLevelsP1                                [K kg/kg]
+    wthl_sec_p,       &!heatflux - nVertLevelsP1                                                            [W/m2]
+    wqw_sec_p,        &!moisture flux - nVertLevelsP1                                                       [W/m2]
+    wtke_sec_p,       &!vertical flux of turbulence - nVertLevelsP1                                        [m3/s3]
+    uw_sec_p,         &!momntum flux (u-w component) - nVertLevelsP1                                       [m2/s2]
+    vw_sec_p,         &!momntum flux (v-w component) - nVertLevelsP1                                       [m2/s2]
+    w3_p,             &!third moment vertical velocity - nVertLevelsP1                                     [m3/s3]
+    mf_dry_a_p,       &!dry updraft area fraction (edmf) - nVertLevelsP1                                       [-]
+    mf_moist_a_p,     &!moist updraft area fraction (edmf) - nVertLevelsP1                                     [-]
+    mf_dry_w_p,       &!dry updraft vertical velocity (edmf) - nVertLevelsP1                                 [m/s]
+    mf_moist_w_p,     &!moist updraft vertical velocity (edmf) - nVertLevelsP1                               [m/s]
+    mf_dry_qt_p,      &!dry updraft total water mixing ratio (edmf) - nVertLevelsP1                        [kg/kg]
+    mf_moist_qt_p,    &!moist updraft total water mixing ratio (edmf) - nVertLevelsP1                      [kg/kg]
+    mf_dry_thl_p,     &!dry updraft liquid-ice potential temperature (edmf) - nVertLevelsP1                    [K]
+    mf_moist_thl_p,   &!moist updraft liquid-ice potential temperature (edmf) - nVertLevelsP1                  [K]
+    mf_dry_u_p,       &!dry updraft u-wind component (edmf) - nVertLevelsP1                                  [m/s]
+    mf_moist_u_p,     &!moist updraft u-wind component (edmf) - nVertLevelsP1                                [m/s]
+    mf_dry_v_p,       &!dry updraft v-wind component (edmf) - nVertLevelsP1                                  [m/s]
+    mf_moist_v_p,     &!moist updraft v-wind component (edmf) - nVertLevelsP1                                [m/s]
+    mf_moist_qc_p,    &!moist updraft cloud water mixing ratio (edmf) - nVertLevelsP1                      [kg/kg]
+    mf_ae_p,          &!environmental area fraction (edmf) - nVertLevelsP1                                     [-]
+    mf_aw_p,          &!sum of a_i*w_i (edmf) - nVertLevelsP1                                                [m/s]
+    mf_awthv_p,       &!sum of a_i*w_i*thv_i (edmf) - nVertLevelsP1                                        [K m/s]
+    mf_awthl_p,       &!sum of a_i*w_i*thl_i (edmf) - nVertLevelsP1                                        [K m/s]
+    mf_awqt_p,        &!sum of a_i*w_i*qt_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
+    mf_awql_p,        &!sum of a_i*w_i*ql_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
+    mf_awqi_p,        &!sum of a_i*w_i*qi_i (edmf) - nVertLevelsP1                                     [kg/kg m/s]
+    mf_awu_p,         &!sum of a_i*w_i*u_i (edmf) - nVertLevelsP1                                          [m2/s2]
+    mf_awv_p,         &!sum of a_i*w_i*v_i (edmf) - nVertLevelsP1                                          [m2/s2]
+    mf_thlflx_p,      &!kinematic thl flux by edmf (edmf) - nVertLevelsP1                                  [K m/s]
+    mf_qtflx_p,       &!kinematic qt flux by edmf (edmf) - nVertLevelsP1                               [kg/kg m/s]
+    cfl_mf_p,         &!max-flux cfl number (edmf) - nVertLevelsP1                                           [m/s]
+    wthl_sec_ed_p,    &!vertical heat flux (EDMF) - nVertLevelsP1                                          [K m/s]
+    wthl_sec_mf_p,    &!vertical heat flux (EDMF) - nVertLevelsP1                                          [K m/s]
+    wqw_sec_ed_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
+    wqw_sec_mf_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
+    theta_m_p,        &!virtual potential temperature                                                          [K]
+    qw_p,             &!total water mixing ratio                                                           [kg/kg]
+    tke_shmf_p,       &!tke from shocmf scheme                                                             [m2/s3]
+    dse_p              !dry static energy                                                                   [J/kg]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
