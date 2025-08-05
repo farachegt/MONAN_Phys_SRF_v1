@@ -2613,7 +2613,7 @@
 
                 <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="turbulent kinetic energy from PBL"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_shocmf_in"/>
 
                 <var name="dqke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE change"
@@ -2682,14 +2682,6 @@
 
                <var name="shoc_mix" type="real" dimensions="nVertLevels nCells Time" units="m"
                     description="SHOC length scale"
-                    packages="bl_shocmf_in"/>
-
-               <var name="tk" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
-                    description="Eddy viscosity for momentum"
-                    packages="bl_shocmf_in"/>
-
-               <var name="tkh" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
-                    description="Eddy viscosity for heat"
                     packages="bl_shocmf_in"/>
 
                <var name="w_sec" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"

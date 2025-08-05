@@ -431,6 +431,12 @@ subroutine shoc_main ( &
   ! pressure levels on interface grid [Pa] used in mf_integrate()
   real(rtype) :: pres_zi(shcol,nlevi)
 
+  if (.not. do_edmf .and. .not. do_mf_diag) then
+    print*, 'SHOCMF: MASS FLUX DISABLED'
+  else if (do_edmf .and. do_mf_diag) then
+    print*, 'SHOCMF: MASS FLUX ENABLED'
+  endif
+
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
   ! effort to conserve energy since liquid water potential temperature (which SHOC
