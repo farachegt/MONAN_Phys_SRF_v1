@@ -198,8 +198,10 @@
       if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
       if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
-      if(.not.allocated(cda_p)               ) allocate(cda_p(ims:ime,jms:jme)               )
+      if(.not.allocated(flhc_p)              ) allocate(flhc_p(ims:ime,jms:jme)              )
+      if(.not.allocated(cd_p)                ) allocate(cd_p(ims:ime,jms:jme)              )
 
+      if(.not.allocated(tkepbl_p)           ) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(w_sec_p)            ) allocate(w_sec_p(ims:ime,kms:kme,jms:jme)            )
@@ -375,8 +377,10 @@
         if(allocated(ht_p)                ) deallocate(ht_p                )
         if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
         if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
-        if(allocated(cda_p)               ) deallocate(cda_p               )
+        if(allocated(flhc_p)              ) deallocate(flhc_p              )
+        if(allocated(cd_p)                ) deallocate(cd_p                )
 
+        if(allocated(tkepbl_p)           ) deallocate(tkepbl_p           )
         if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
         if(allocated(shoc_mix_p)         ) deallocate(shoc_mix_p         )
         if(allocated(w_sec_p)            ) deallocate(w_sec_p            )
@@ -476,7 +480,7 @@
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
  real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh
- real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,cda
+ real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,cda,flhc,cd
  real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
@@ -664,11 +668,13 @@
        call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
        call mpas_pool_get_array(diag_physics, 'lh'               ,lh              )
        call mpas_pool_get_array(diag_physics, 'cda'              ,cda             )
+       call mpas_pool_get_array(diag_physics, 'flhc'              ,flhc             )
+       call mpas_pool_get_array(diag_physics, 'cd'              ,cd             )
        call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
        call mpas_pool_get_array(mesh        , 'meshDensity'      ,meshDensity     )
        call mpas_pool_get_config(configs    , 'config_len_disp'  ,len_disp        )
 
-       
+       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
@@ -730,7 +736,8 @@
         ztop_b_p(i,j)           = ztop_B(i)
         uw_sfc_p(i,j)           = uw_sfc(i)
         vw_sfc_p(i,j)           = vw_sfc(i)
-        cda_p(i,j)              = cda(i)
+        flhc_p(i,j)             = flhc(i)
+        cd_p(i,j)               = cd(i)
 
         lh_p(i,j)               = lh(i)
         ht_p(i,j)               = zgrid(1,i)
@@ -745,6 +752,7 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
+        tkepbl_p(i,k,j)          = tke_pbl(k,i)
         wthv_sec_p(i,k,j)        = wthv_sec(k,i)
         shoc_mix_p(i,k,j)        = shoc_mix(k,i)
         w_sec_p(i,k,j)           = w_sec(k,i)
@@ -1017,10 +1025,11 @@
        call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
        call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
 
+       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
-       call mpas_pool_get_array(diag_physics, 'wqls_sec'          ,wqls_sec      )
+       call mpas_pool_get_array(diag_physics, 'wqls_sec'         ,wqls_sec       )
        call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
        call mpas_pool_get_array(diag_physics, 'brunt'            ,brunt          )
        call mpas_pool_get_array(diag_physics, 'shoc_ql2'         ,shoc_ql2       )
@@ -1087,6 +1096,7 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
+          tke_pbl(k,i)         = tkepbl_p(i,k,j)
           wthv_sec(k,i)        = wthv_sec_p(i,k,j)
           shoc_mix(k,i)        = shoc_mix_p(i,k,j)
           w_sec(k,i)           = w_sec_p(i,k,j)
@@ -1387,12 +1397,14 @@
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,              &
                   errmsg = errmsg , errflg = errflg                                                    &
                           )
+
+       tkepbl_p = qke_p*0.5
        call mpas_timer_stop('bl_mynn')
     case("bl_shocmf")
       call mpas_timer_start('bl_shocmf')
       call bl_shocmf_driver( &
             itimestep     = itimestep    , dt_pbl         = dt_pbl                                            , &
-            dx_p          = dx_p         , cda_p          = cda_p         , lh_p            = lh_p            , &
+            dx_p          = dx_p         , cda_p          = flhc_p         , lh_p            = lh_p            , &
             hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
             theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
             zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
@@ -1426,9 +1438,10 @@
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                               &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo, ustar_p=ust_p, wspd_p=wspd_p                               &
       )
-            
+      
+      tkepbl_p = tke_shmf_p
       call mpas_timer_stop('bl_shocmf')
         
     case default

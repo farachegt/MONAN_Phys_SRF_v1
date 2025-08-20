@@ -12,14 +12,14 @@ module module_bl_shocmf
 
  contains
 
- subroutine calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, u_p, v_p, rho_p, uw_sfc_p, vw_sfc_p)
+ subroutine calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, ust_p, u_p, v_p, wspd_p, rho_p, uw_sfc_p, vw_sfc_p)
     ! Calculate the surface momentum flux
     ! Reference: Stull's Book - An Introduction to Boundary Layer Meteorology, chapter 7.4.1.
     integer, intent(in) :: ims, ime, jms, jme
-    real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, u_p, v_p, rho_p
+    real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, ust_p, u_p, v_p, wspd_p, rho_p
     real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
     
-    real(kind=RKIND), dimension(ime, jme) :: mag_velocity
+    real(kind=RKIND), dimension(ime, jme) :: mag_velocity, fmom
 
     integer :: i, j
 
@@ -27,18 +27,32 @@ module module_bl_shocmf
 
     ! do i=ims,ime
     ! do j=jms,jme
-    !     uw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*u_p(i,j)*rho_p(i,j)
-    !     vw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*v_p(i,j)*rho_p(i,j)
+    !     uw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*u_p(i,j)!*rho_p(i,j)
+    !     vw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*v_p(i,j)!*rho_p(i,j)
     ! enddo
     ! enddo
 
-    ! Manzi indicou que esta formulação é a correta
+    ! Kubota 20082025
     do i=ims,ime
     do j=jms,jme
-        uw_sfc_p(i,j) = -cda_p(i,j)*u_p(i,j)*u_p(i,j)*rho_p(i,j)
-        vw_sfc_p(i,j) = -cda_p(i,j)*v_p(i,j)*v_p(i,j)*rho_p(i,j)
+        ! Testei cda_p = cd_p e cda_p = flhc_p
+        ! uw_sfc_p(i,j) = -cda_p(i,j)*u_p(i,j)
+        ! vw_sfc_p(i,j) = -cda_p(i,j)*v_p(i,j)
+        
+        ! Email do kubota
+        fmom(i,j) =  rho_p(i,j)*((ust_p(i,j)*ust_p(i,j))/max(wspd_p(i,j),0.001))
+        uw_sfc_p(i,j) = -fmom(i,j)*u_p(i,j)
+        vw_sfc_p(i,j) = -fmom(i,j)*v_p(i,j)
     enddo
     enddo
+
+    ! Manzi indicou que esta formulação é a correta
+    ! do i=ims,ime
+    ! do j=jms,jme
+    !     uw_sfc_p(i,j) = -cda_p(i,j)*u_p(i,j)*u_p(i,j)*rho_p(i,j)
+    !     vw_sfc_p(i,j) = -cda_p(i,j)*v_p(i,j)*v_p(i,j)*rho_p(i,j)
+    ! enddo
+    ! enddo
  end subroutine calculate_surface_momentum_fluxes
 
 
@@ -140,7 +154,7 @@ module module_bl_shocmf
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
-        theta_v(i,k,j) = theta(i,k,j)*(1.0_RKIND + 0.608_RKIND*qv(i,k,j) - qc(i,k,j))
+        theta_v(i,k,j) = theta(i,k,j)*(1.0_RKIND + 0.608_RKIND*(qv(i,k,j) - qc(i,k,j)))
     enddo
     enddo
     enddo
@@ -458,7 +472,7 @@ module module_bl_shocmf
     qv_p, qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
     rqiblten_p, rtkeblten_p, &
     ims, ime, jms, jme, kms, kme, &
-    its, ite, jts, jte, kts, kte, dminfo  &
+    its, ite, jts, jte, kts, kte, dminfo, ustar_p, wspd_p  &
  )
     ! Driver for the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -473,7 +487,7 @@ module module_bl_shocmf
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
                                                       mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, & 
-                                                      plume_dry_height_p, ztop_b_p
+                                                      plume_dry_height_p, ztop_b_p, ustar_p, wspd_p
     integer, dimension(:,:), intent(inout) :: kpbl_p
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
         tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
@@ -491,7 +505,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
     real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p, w_zt
     real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p, rho_interface_p, thv_p
-    real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dy_p, hfx_converted_p, lh_converted_p
+    real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dy_p, hfx_converted_p, lh_converted_p, phis_p
 
     integer :: num_qtracers, nadv, i, j, k
     real(kind=RKIND) :: shoc_timestep
@@ -510,7 +524,8 @@ module module_bl_shocmf
     qvm_p = qv_p
     qcm_p = qc_p
     tkem_p = tke_shmf_p
-    theta_mm_p = theta_m_p
+    !theta_mm_p = theta_m_p
+    theta_mm_p = theta_p
 
     allocate(inv_exner_p(ims:ime, kms:kme, jms:jme))
     do i=ims,ime
@@ -539,9 +554,15 @@ module module_bl_shocmf
     allocate(height_interface_p(ims:ime, kms:kme, jms:jme), height_mid_p(ims:ime, kms:kme, jms:jme))
     call calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
 
-    call calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t_p, height_mid_p, gravity, ht_p, cp, dse_p)
+    allocate(phis_p(ims:ime, jms:jme))
+    do i=ims,ime
+    do j=jms,jme
+        phis_p(i, j) = gravity*ht_p(i,j)
+    enddo
+    enddo
+    call calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t_p, height_mid_p, gravity, phis_p, cp, dse_p)
 
-    call calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, u_p(:,1,:), v_p(:,1,:), rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
+    call calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, ustar_p, u_p(:,1,:), v_p(:,1,:), wspd_p, rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
 
     allocate(w_zt(ims:ime, kms:kme, jms:jme))
     call linear_interp(height_interface_p,height_mid_p,w_p,w_zt,kme,kme-1,ime,-1000.0_RKIND)
@@ -588,6 +609,8 @@ module module_bl_shocmf
         print *, ""
         print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
         print *, ""
+        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+        print *, ""
         print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
         print *, ""
         print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
@@ -614,9 +637,9 @@ module module_bl_shocmf
     endif
 
     num_qtracers = 0
-    allocate(wtracer_sfc(ims:ime, jms:jme))
+    allocate(wtracer_sfc(ims:ime, max(0, num_qtracers)))
     wtracer_sfc = 0.0_RKIND
-    allocate(qtracers(ims:ime, kms:kme, jms:jme))
+    allocate(qtracers(ims:ime, kms:kme, max(0,num_qtracers)))
     qtracers = 0.0_RKIND
 
     call flip_vertical_coordinates(&
@@ -662,6 +685,8 @@ module module_bl_shocmf
         print *, ""
         print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
         print *, ""
+        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+        print *, ""
         print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
         print *, ""
         print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
@@ -681,11 +706,11 @@ module module_bl_shocmf
         pres_p(:ime,:kme-1,1), pres2_p(:ime,:kme,1), &                               ! Input
         presdiff_p(:ime,:kme-1,1), hfx_converted_p(:ime,1), &                        ! Input
         lh_converted_p(:ime,1), uw_sfc_p(:ime,1), vw_sfc_p(:ime,1), &                ! Input
-        wtracer_sfc(:ime,1), num_qtracers, w_zt(:ime,:kme-1,1), &                    ! Input
-        inv_exner_p(:ime,:kme-1,1),ht_p(:ime,1), &                                   ! Input
+        wtracer_sfc(:ime,:num_qtracers), num_qtracers, w_zt(:ime,:kme-1,1), &        ! Input
+        inv_exner_p(:ime,:kme-1,1),phis_p(:ime,1), &                                 ! Input
         dse_p(:ime,:kme-1,1), tke_shmf_p(:ime,:kme-1,1), &                           ! Input/Output
         thetal_p(:ime,:kme-1,1), qw_p(:ime,:kme-1,1), &                              ! Input/Output
-        u_p(:ime,:kme-1,1), v_p(:ime,:kme-1,1), qtracers(:,:kme-1,:), &              ! Input/Output
+        u_p(:ime,:kme-1,1), v_p(:ime,:kme-1,1), qtracers(:,:kme-1,:num_qtracers), &  ! Input/Output
         wthv_sec_p(:ime,:kme-1,1), kzh_p(:ime,:kme-1,1),kzm_p(:ime,:kme-1,1), &      ! Input/Output
         qc_p(:ime,:kme-1,1),cldfrabl_p(:ime,:kme-1,1), &                             ! Input/Output
         hpbl_p(:ime,1),pblh_wthl_p(:ime,1),pblh_tke_p(:ime,1), &                     ! Output
@@ -697,7 +722,7 @@ module module_bl_shocmf
         qwthl_sec_p(:ime,:kme,1), &                                                  ! Output (diagnostic)
         wthl_sec_p(:ime,:kme,1), wqw_sec_p(:ime,:kme,1), wtke_sec_p(:ime,:kme,1), &  ! Output (diagnostic)
         uw_sec_p(:ime,:kme,1), vw_sec_p(:ime,:kme,1), w3_p(:ime,:kme,1), &           ! Output (diagnostic)
-        wqls_sec_p(:ime,:kme-1,1),brunt_p(:ime,:kme,1),shoc_ql2_p(:ime,:kme,1), &    ! Output (diagnostic)
+        wqls_sec_p(:ime,:kme-1,1),brunt_p(:ime,:kme-1,1),shoc_ql2_p(:ime,:kme-1,1), &! Output (diagnostic)
         mf_dry_a_p(:ime,:kme,1), mf_moist_a_p(:ime,:kme,1), &                        ! Output (EDMF diagnostic)
         mf_dry_w_p(:ime,:kme,1), mf_moist_w_p(:ime,:kme,1), &                        ! Output (EDMF diagnostic)
         mf_dry_qt_p(:ime,:kme,1), mf_moist_qt_p(:ime,:kme,1), &                      ! Output (EDMF diagnostic)
@@ -739,7 +764,7 @@ module module_bl_shocmf
 
     call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_p, inv_exner_p, theta_p)
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
-    call calculate_thetam(ims, ime, jms, jme, kms, kme, theta_p, qv_p, R_v, R_d, theta_m_p)
+    !call calculate_thetam(ims, ime, jms, jme, kms, kme, theta_p, qv_p, R_v, R_d, theta_m_p)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
     if (dminfo % my_proc_id == 5) then
@@ -769,6 +794,8 @@ module module_bl_shocmf
         print *, ""
         print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
         print *, ""
+        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+        print *, ""
         print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
         print *, ""
         print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
@@ -786,7 +813,8 @@ module module_bl_shocmf
     do j=jms,jme
         rublten_p(i,k,j) = (u_p(i,k,j) - um_p(i,k,j))/dt_pbl
         rvblten_p(i,k,j) = (v_p(i,k,j) - vm_p(i,k,j))/dt_pbl
-        rthblten_p(i,k,j) = (theta_m_p(i,k,j) - theta_mm_p(i,k,j))/dt_pbl
+        !rthblten_p(i,k,j) = (theta_m_p(i,k,j) - theta_mm_p(i,k,j))/dt_pbl
+        rthblten_p(i,k,j) = (theta_p(i,k,j) - theta_mm_p(i,k,j))/dt_pbl
         rqvblten_p(i,k,j) = (qv_p(i,k,j) - qvm_p(i,k,j))/dt_pbl
         rqcblten_p(i,k,j) = (qc_p(i,k,j) - qcm_p(i,k,j))/dt_pbl
         rtkeblten_p(i,k,j) = (tke_shmf_p(i,k,j) - tkem_p(i,k,j))/dt_pbl
