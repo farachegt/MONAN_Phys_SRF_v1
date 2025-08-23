@@ -12,47 +12,24 @@ module module_bl_shocmf
 
  contains
 
- subroutine calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, ust_p, u_p, v_p, wspd_p, rho_p, uw_sfc_p, vw_sfc_p)
+ subroutine calculate_surface_momentum_fluxes(ims, ime, jms, jme, ust_p, u_p, v_p, wspd_p, rho_p, uw_sfc_p, vw_sfc_p)
     ! Calculate the surface momentum flux
     ! Reference: Stull's Book - An Introduction to Boundary Layer Meteorology, chapter 7.4.1.
     integer, intent(in) :: ims, ime, jms, jme
-    real(kind=RKIND), dimension(:,:), intent(in) :: cda_p, ust_p, u_p, v_p, wspd_p, rho_p
+    real(kind=RKIND), dimension(:,:), intent(in) :: ust_p, u_p, v_p, wspd_p, rho_p
     real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
     
-    real(kind=RKIND), dimension(ime, jme) :: mag_velocity, fmom
+    real(kind=RKIND), dimension(ime, jme) :: fmom
 
     integer :: i, j
 
-    mag_velocity = sqrt(u_p**2 + v_p**2)
-
-    ! do i=ims,ime
-    ! do j=jms,jme
-    !     uw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*u_p(i,j)!*rho_p(i,j)
-    !     vw_sfc_p(i,j) = -cda_p(i,j)*mag_velocity(i,j)*v_p(i,j)!*rho_p(i,j)
-    ! enddo
-    ! enddo
-
-    ! Kubota 20082025
     do i=ims,ime
     do j=jms,jme
-        ! Testei cda_p = cd_p e cda_p = flhc_p
-        ! uw_sfc_p(i,j) = -cda_p(i,j)*u_p(i,j)
-        ! vw_sfc_p(i,j) = -cda_p(i,j)*v_p(i,j)
-        
-        ! Email do kubota
         fmom(i,j) =  rho_p(i,j)*((ust_p(i,j)*ust_p(i,j))/max(wspd_p(i,j),0.001))
-        uw_sfc_p(i,j) = -fmom(i,j)*u_p(i,j)
-        vw_sfc_p(i,j) = -fmom(i,j)*v_p(i,j)
+        uw_sfc_p(i,j) = -fmom(i,j)*u_p(i,j)/rho_p(i,j)
+        vw_sfc_p(i,j) = -fmom(i,j)*v_p(i,j)/rho_p(i,j)
     enddo
     enddo
-
-    ! Manzi indicou que esta formulação é a correta
-    ! do i=ims,ime
-    ! do j=jms,jme
-    !     uw_sfc_p(i,j) = -cda_p(i,j)*u_p(i,j)*u_p(i,j)*rho_p(i,j)
-    !     vw_sfc_p(i,j) = -cda_p(i,j)*v_p(i,j)*v_p(i,j)*rho_p(i,j)
-    ! enddo
-    ! enddo
  end subroutine calculate_surface_momentum_fluxes
 
 
@@ -458,7 +435,7 @@ module module_bl_shocmf
  end subroutine bl_shocmf_init
 
  subroutine bl_shocmf_driver( &
-    itimestep, dt_pbl, dx_p, cda_p, lh_p, hfx_p, ht_p, theta_m_p, theta_p, &
+    itimestep, dt_pbl, dx_p, lh_p, hfx_p, ht_p, theta_p, &
     z_p, zmid_p, pres_p, pres2_p, uw_sfc_p, vw_sfc_p, w_p, pi_p, dse_p, tke_shmf_p, qw_p, &
     u_p, v_p, wthv_sec_p, kzh_p, kzm_p, qc_p, cldfrabl_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
     rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, &
@@ -468,11 +445,10 @@ module module_bl_shocmf
     mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, &
     mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
-    ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, kpbl_p, rho_p, t_p, &
-    qv_p, qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rqcblten_p, &
-    rqiblten_p, rtkeblten_p, &
-    ims, ime, jms, jme, kms, kme, &
-    its, ite, jts, jte, kts, kte, dminfo, ustar_p, wspd_p  &
+    ustar_p, wspd_p, ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, &
+    kpbl_p, rho_p, t_p, qv_p, qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, &
+    rqvblten_p, rqcblten_p, rqiblten_p, rtkeblten_p, &
+    ims, ime, jms, jme, kms, kme, its, ite, jts, jte, kts, kte, dminfo &
  )
     ! Driver for the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -483,7 +459,7 @@ module module_bl_shocmf
                            jts, jte, kts, kte
     type(dm_info), intent(in) :: dminfo
     real(kind=RKIND), intent(in) :: dt_pbl
-    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, cda_p, lh_p, hfx_p, ht_p
+    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
                                                       mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, & 
@@ -498,12 +474,12 @@ module module_bl_shocmf
         mf_qtflx_p, mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, &
         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, &
-        cldfrabl_p, theta_p, t_p, theta_m_p, z_p, zmid_p, pres_p, pres2_p, w_p, pi_p, qv_p, &
+        cldfrabl_p, theta_p, t_p, z_p, zmid_p, pres_p, pres2_p, w_p, pi_p, qv_p, &
         qs_p, qi_p, qg_p, qr_p, rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
         rqcblten_p, rqiblten_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
-    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, theta_mm_p, qvm_p, qcm_p, qim_p, qsm_p, tkem_p, w_zt
+    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p, w_zt
     real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p, rho_interface_p, thv_p
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dy_p, hfx_converted_p, lh_converted_p, phis_p
 
@@ -513,7 +489,7 @@ module module_bl_shocmf
     allocate(                                  &
         um_p(ims:ime, kms:kme, jms:jme)      , &
         vm_p(ims:ime, kms:kme, jms:jme)      , &
-        theta_mm_p(ims:ime, kms:kme, jms:jme), &
+        thetam_p(ims:ime, kms:kme, jms:jme), &
         qvm_p(ims:ime, kms:kme, jms:jme)     , &
         qcm_p(ims:ime, kms:kme, jms:jme)     , &
         tkem_p(ims:ime, kms:kme, jms:jme)      &
@@ -524,8 +500,7 @@ module module_bl_shocmf
     qvm_p = qv_p
     qcm_p = qc_p
     tkem_p = tke_shmf_p
-    !theta_mm_p = theta_m_p
-    theta_mm_p = theta_p
+    thetam_p = theta_p
 
     allocate(inv_exner_p(ims:ime, kms:kme, jms:jme))
     do i=ims,ime
@@ -562,7 +537,7 @@ module module_bl_shocmf
     enddo
     call calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t_p, height_mid_p, gravity, phis_p, cp, dse_p)
 
-    call calculate_surface_momentum_fluxes(ims, ime, jms, jme, cda_p, ustar_p, u_p(:,1,:), v_p(:,1,:), wspd_p, rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
+    call calculate_surface_momentum_fluxes(ims, ime, jms, jme, ustar_p, u_p(:,1,:), v_p(:,1,:), wspd_p, rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
 
     allocate(w_zt(ims:ime, kms:kme, jms:jme))
     call linear_interp(height_interface_p,height_mid_p,w_p,w_zt,kme,kme-1,ime,-1000.0_RKIND)
@@ -606,8 +581,6 @@ module module_bl_shocmf
         print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
         print *, ""
         print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
-        print *, ""
-        print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
         print *, ""
         print *, "thetav(1, :, 1): ", thv_p(1,:,1)
         print *, ""
@@ -682,8 +655,6 @@ module module_bl_shocmf
         print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
         print *, ""
         print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
-        print *, ""
-        print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
         print *, ""
         print *, "thetav(1, :, 1): ", thv_p(1,:,1)
         print *, ""
@@ -764,7 +735,6 @@ module module_bl_shocmf
 
     call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_p, inv_exner_p, theta_p)
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
-    !call calculate_thetam(ims, ime, jms, jme, kms, kme, theta_p, qv_p, R_v, R_d, theta_m_p)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
     if (dminfo % my_proc_id == 5) then
@@ -792,8 +762,6 @@ module module_bl_shocmf
         print *, ""
         print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
         print *, ""
-        print *, "theta_m_p(1, :, 1): ", theta_m_p(1,:,1)
-        print *, ""
         print *, "thetav(1, :, 1): ", thv_p(1,:,1)
         print *, ""
         print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
@@ -813,8 +781,7 @@ module module_bl_shocmf
     do j=jms,jme
         rublten_p(i,k,j) = (u_p(i,k,j) - um_p(i,k,j))/dt_pbl
         rvblten_p(i,k,j) = (v_p(i,k,j) - vm_p(i,k,j))/dt_pbl
-        !rthblten_p(i,k,j) = (theta_m_p(i,k,j) - theta_mm_p(i,k,j))/dt_pbl
-        rthblten_p(i,k,j) = (theta_p(i,k,j) - theta_mm_p(i,k,j))/dt_pbl
+        rthblten_p(i,k,j) = (theta_p(i,k,j) - thetam_p(i,k,j))/dt_pbl
         rqvblten_p(i,k,j) = (qv_p(i,k,j) - qvm_p(i,k,j))/dt_pbl
         rqcblten_p(i,k,j) = (qc_p(i,k,j) - qcm_p(i,k,j))/dt_pbl
         rtkeblten_p(i,k,j) = (tke_shmf_p(i,k,j) - tkem_p(i,k,j))/dt_pbl
@@ -825,7 +792,7 @@ module module_bl_shocmf
     rqiblten_p = 0.0_RKIND  ! TODO (GTF): qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
 
     deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc, w_zt)
-    deallocate(um_p, vm_p, theta_mm_p, qvm_p, qcm_p, tkem_p)
+    deallocate(um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dy_p)
     deallocate(height_interface_p, height_mid_p)
