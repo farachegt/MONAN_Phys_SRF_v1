@@ -119,7 +119,6 @@
        if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
     
     case("bl_shocmf")
-        if(.not.allocated(theta_m_p) ) allocate(theta_m_p (ims:ime,kms:kme,jms:jme))
         if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
 
     case default
@@ -196,7 +195,6 @@
        if(allocated(ni_p)) deallocate(ni_p)
 
     case("bl_shocmf")
-        if(allocated(theta_m_p)) deallocate(theta_m_p)
         if(allocated(tke_shmf_p)) deallocate(tke_shmf_p)
 
     case default
@@ -368,7 +366,6 @@
         do k = kts,kte
         do i = its,ite
             tke_shmf_p(i,k,j) = max(0.,tke_shmf(k,i))
-            theta_m_p(i,k,j) = theta_m(k,i)
         enddo
         enddo
         enddo

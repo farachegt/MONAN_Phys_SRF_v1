@@ -865,6 +865,7 @@ subroutine compute_shoc_vapor( &
   do k = 1, nlev
     do i = 1, shcol
       qv(i,k) = qw(i,k) - ql(i,k)
+      if (qv(i,k) .lt. 0._rtype) stop 'SHOCMF: NEGATIVE VAPOR'
     enddo
   enddo
 
@@ -2328,7 +2329,7 @@ end subroutine omega_terms_diag_third_shoc_moment
 
 subroutine x_y_terms_diag_third_shoc_moment(&
            i,k,buoy_sgs2, f0, f1, f2,&  ! Input
-	   x0, y0, x1, y1)          ! Output
+           x0, y0, x1, y1)          ! Output
 
   implicit none
 
@@ -2344,7 +2345,7 @@ subroutine x_y_terms_diag_third_shoc_moment(&
 ! local variables
   real(rtype) :: a0, a1, a2, a3
 
-  real(rtype) :: one_minus_a3_buoysgs
+  real(rtype) :: one_minus_a3_buoysgs,den_x
 
   a0=(0.52_rtype*(1._rtype/bfb_square(c_diag_3rd_mom)))/(c_diag_3rd_mom-2._rtype)
   a1=0.87_rtype/bfb_square(c_diag_3rd_mom)
@@ -2352,14 +2353,18 @@ subroutine x_y_terms_diag_third_shoc_moment(&
   a3=0.6_rtype/(c_diag_3rd_mom*(c_diag_3rd_mom-2._rtype))
 
   one_minus_a3_buoysgs = 1._rtype - a3 * buoy_sgs2
-  x0 = (a2 * buoy_sgs2 * (one_minus_a3_buoysgs)) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
-  !if (abs(denom_y0) .lt. 0.01_rtype) then
-    ! denom_y0 = sign(0.01_rtype, denom_y0)
-  !endif
+  if (abs(one_minus_a3_buoysgs) <  1.e-9_rtype) then
+      one_minus_a3_buoysgs = sign(1.e-9_rtype,one_minus_a3_buoysgs)
+  endif
+
+  den_x =  (1._rtype - (a1 + a3) * buoy_sgs2)
+  if(abs(den_x) < 1.e-9_rtype) then 
+      den_x = sign(1.e-9_rtype,den_x)
+  endif
+
+  x0 = (a2 * buoy_sgs2 * (one_minus_a3_buoysgs)) / den_x
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / one_minus_a3_buoysgs
-  x1 = (a0 * f0 + a1 * f1 + a2 * (one_minus_a3_buoysgs) * f2) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
+  x1 = (a0 * f0 + a1 * f1 + a2 * (one_minus_a3_buoysgs) * f2) / den_x
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
        (one_minus_a3_buoysgs)
 
@@ -2397,9 +2402,15 @@ pure function w3_diag_third_shoc_moment(aa0, aa1, x0, x1, f5) result(w3)
   real(rtype), intent(in) :: aa0, aa1, x0, x1, f5
 
   !return type
-  real(rtype) :: w3
+  real(rtype) :: w3, denon_w3
 
-  w3 = (aa1-1.2_rtype*x1-1.5_rtype*f5)/(c_diag_3rd_mom-1.2_rtype*x0+aa0)
+  ! denon_w3 varies between 1e2 to 1e-2
+  denon_w3 = c_diag_3rd_mom-1.2_rtype*x0+aa0
+  if (abs(denon_w3) <  1.e-9_rtype) then
+    denon_w3 = sign(1.e-9_rtype,denon_w3)
+  endif
+
+  w3 = (aa1-1.2_rtype*x1-1.5_rtype*f5)/denon_w3
 
   return
 end function w3_diag_third_shoc_moment
@@ -2576,7 +2587,7 @@ subroutine shoc_assumed_pdf(&
 
   ! Initialize cloud variables to zero
   shoc_cldfrac(:,:)=0._rtype
-  shoc_ql(:,1)=0._rtype
+  shoc_ql(:,:)=0._rtype
   shoc_ql2(:,:) = 0._rtype
 
   ! Interpolate many variables from interface grid to themo grid
@@ -2824,7 +2835,7 @@ subroutine shoc_assumed_pdf_thl_parameters(&
   real(rtype), intent(out) :: sqrtthl2_2
 
   ! local vars
-  real(rtype) :: corrtest1, tsign, Skew_thl
+  real(rtype) :: corrtest1, tsign, Skew_thl, den_thl2_1, den_thl2_2
 
   ! parameters
   real(rtype), parameter :: thl_tol = 1.e-2_rtype
@@ -2858,13 +2869,24 @@ subroutine shoc_assumed_pdf_thl_parameters(&
       Skew_thl = 0.0_rtype
     endif
 
+    ! Smaller absolute value of den_thl2_1 and den_thl2_2 \approx 1.e2 to 1.e-3
+    den_thl2_1 = 3._rtype*a*(thl1_2-thl1_1)
+    if (abs(den_thl2_1) <  1.e-9_rtype) then
+      den_thl2_1 = sign(1.e-9_rtype,den_thl2_1)
+    endif
+
     thl2_1=min(100._rtype,max(0._rtype,(3._rtype*thl1_2*(1._rtype-a*bfb_square(thl1_1)-(1._rtype-a)*bfb_square(thl1_2)) &
             -(Skew_thl-a*bfb_cube(thl1_1)-(1._rtype-a)*bfb_cube(thl1_2)))/ &
-            (3._rtype*a*(thl1_2-thl1_1))))*thlsec
+            den_thl2_1))*thlsec
+
+    den_thl2_2 = 3._rtype*(1._rtype-a)*(thl1_2-thl1_1)
+    if (abs(den_thl2_2) <  1.e-9_rtype) then
+      den_thl2_2 = sign(1.e-9_rtype,den_thl2_2)
+    endif
 
     thl2_2=min(100._rtype,max(0._rtype,(-3._rtype*thl1_1*(1._rtype-a*bfb_square(thl1_1)-(1._rtype-a)*bfb_square(thl1_2)) &
       +(Skew_thl-a*bfb_cube(thl1_1)-(1._rtype-a)*bfb_cube(thl1_2)))/ &
-      (3._rtype*(1._rtype-a)*(thl1_2-thl1_1))))*thlsec
+      den_thl2_2))*thlsec
 
 
     thl1_1=thl1_1*sqrtthl+thl_first
@@ -3136,6 +3158,13 @@ subroutine shoc_assumed_pdf_compute_s(&
       C=1.0_rtype
       qn=s
     endif
+  endif
+
+  ! Prevent possibility of empty clouds or rare occurence of
+  !  cloud liquid less than zero
+  if (qn .le. 0._rtype) then
+    C=0._rtype
+    qn=0._rtype
   endif
 
 end subroutine shoc_assumed_pdf_compute_s
@@ -3522,7 +3551,7 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
   !Parameters
   real(rtype), parameter :: lambda_low   = 0.001_rtype
   real(rtype), parameter :: lambda_high  = 0.04_rtype
-  real(rtype), parameter :: lambda_slope = 0.65_rtype
+  real(rtype), parameter :: lambda_slope = 2.65_rtype ! (GTF) 0.65_rtype in original version of the code 
   real(rtype), parameter :: brunt_low    = 0.02_rtype
   real(rtype), parameter :: maxiso       = 20000.0_rtype ! Return to isotropic timescale [s]
 
@@ -4797,6 +4826,7 @@ subroutine pblintd_surf_temp(&
     do i=1,shcol
        if (check(i)) pblh(i) = z(i,nlevi-npbl)
        check(i)  = (kbfs(i) > 0._rtype)
+       tlv(i)    = thv(i,nlev)
        if (check(i)) then
           phiminv      = (1._rtype - binm*pblh(i)/obklen(i))**onet
           rino(i,nlev) = 0.0_rtype

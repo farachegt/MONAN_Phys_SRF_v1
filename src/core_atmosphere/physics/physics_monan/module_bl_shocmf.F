@@ -33,13 +33,13 @@ module module_bl_shocmf
  end subroutine calculate_surface_momentum_fluxes
 
 
- subroutine calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t, z, gravity_in, ht_p, cp_in, dse)
+ subroutine calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t, z, gravity_in, phis, cp_in, dse)
     ! Calculate the dry static energy considering the terrain height.
     ! This is the calculation waited by the SHOCMF module. 
     ! Reference: https://glossary.ametsoc.org/wiki/Dry_static_energy
     integer, intent(in) :: ims, ime, kms, kme, jms, jme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: t, z
-    real(kind=RKIND), dimension(:,:), intent(in) :: ht_p
+    real(kind=RKIND), dimension(:,:), intent(in) :: phis
     real(kind=RKIND), intent(in) :: gravity_in, cp_in
     real(kind=RKIND), dimension(:,:,:), intent(out) :: dse
 
@@ -48,7 +48,7 @@ module module_bl_shocmf
     do i=ims,ime
     do k=kms,kme-1
     do j=jms,jme
-        dse(i,k,j) = cp_in*t(i,k,j) + gravity_in*z(i,k,j) + ht_p(i,j)
+        dse(i,k,j) = cp_in*t(i,k,j) + gravity_in*z(i,k,j) + phis(i,j)
     enddo
     enddo
     enddo
@@ -131,61 +131,41 @@ module module_bl_shocmf
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
-        theta_v(i,k,j) = theta(i,k,j)*(1.0_RKIND + 0.608_RKIND*(qv(i,k,j) - qc(i,k,j)))
+        theta_v(i,k,j) = theta(i,k,j)*(1.0_RKIND + 0.608_RKIND*qv(i,k,j) - qc(i,k,j))
     enddo
     enddo
     enddo
  end subroutine calculate_thetav
 
 
- subroutine calculate_thetam(ims, ime, jms, jme, kms, kme, theta, qv, R_v_in, R_d_in, theta_m)
-    ! Calculate moist potential temperature from potential temperature.
-    ! Equation got from Skamarock et al (2012)
-    ! DOI: https://doi.org/10.1175/MWR-D-11-00215.1
-    integer, intent(in) :: ims, ime, jms, jme, kms, kme
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: theta, qv
-    real(kind=RKIND), intent(in) :: R_v_in, R_d_in
-    real(kind=RKIND), dimension(:,:,:), intent(out) :: theta_m
-
-    integer :: i, j, k
-    do j = jms,jme
-    do k = kms,kme-1
-    do i = ims,ime
-        theta_m(i,k,j) = theta(i,k,j)*(1.0_RKIND + (R_v_in/R_d_in)*qv(i,k,j))
-    enddo
-    enddo
-    enddo
- end subroutine calculate_thetam
-
-
- subroutine calculate_qv(ims, ime, jms, jme, kms, kme, qw, qc, qs, qi, qg, qr, qv)
+ subroutine calculate_qv(ims, ime, jms, jme, kms, kme, qw, qc, qv)
     ! Calculate the water vapor mixing ratio
     integer, intent(in) :: ims, ime, jms, jme, kms, kme
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc, qs, qi, qg, qr
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: qw, qc
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qv
     
     integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
-        qv(i,k,j) = qw(i,k,j) - qc(i,k,j) !- qs - qi - qg - qr
+        qv(i,k,j) = qw(i,k,j) - qc(i,k,j)
     enddo
     enddo
     enddo
  end subroutine calculate_qv
 
 
- subroutine calculate_qw(ims, ime, jms, jme, kms, kme, qc, qv, qs, qi, qg, qr, qw)
+ subroutine calculate_qw(ims, ime, jms, jme, kms, kme, qc, qv, qw)
     ! Calculate total water mixing ratio
     integer, intent(in) :: ims, ime, jms, jme, kms, kme
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv, qs, qi, qg, qr
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: qc, qv
     real(kind=RKIND), dimension(:,:,:), intent(out) :: qw
 
     integer :: i, j, k
     do j = jms,jme
     do k = kms,kme-1
     do i = ims,ime
-        qw(i,k,j) = qc(i,k,j) + qv(i,k,j) !+ qs + qi + qg + qr
+        qw(i,k,j) = qc(i,k,j) + qv(i,k,j)
     enddo
     enddo
     enddo
@@ -303,12 +283,12 @@ module module_bl_shocmf
  end subroutine flip_vertical_coordinates
 
   
- subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, hfx_converted_p, lh_converted_p)
+ subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xls_in, hfx_converted_p, lh_converted_p)
     ! Convert the surface heat fluxes from W/m^2 to both K*m/s and kg/kg m/s
     ! hfx_p is the sensible heat flux
     ! lh_p is the latent heat flux
     integer, intent(in) :: ims, ime, jms, jme
-    real(kind=RKIND), intent(in) :: cp_in, xlv_in
+    real(kind=RKIND), intent(in) :: cp_in, xls_in
     real(kind=RKIND), dimension(:,:), intent(in) :: hfx_p, lh_p
     real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p
     real(kind=RKIND), dimension(:,:), intent(inout) :: hfx_converted_p, lh_converted_p
@@ -321,7 +301,8 @@ module module_bl_shocmf
         hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,1,j)) ! [K m/s] = [W/m^2]/([J kg-1 K-1]*[kg m^{-3}])
         ! hfx_converted_p(i,j) = hfx_converted_p(i,j)*inv_exner_p(i,1,j) ! Got from E3SM shoc_intr.F90 code
         ! Converting lh_p from W/m^2 to kg/kg m/s
-        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
+        lh_converted_p(i,j) = lh_p(i,j)/(xls*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
+        ! xls instead of xlv - shoc_energy_total_fixer method in shoc
         ! lh_p/xlv = qfx_p
     enddo
     enddo
@@ -378,7 +359,10 @@ module module_bl_shocmf
     do j=jms,jme
     do k=kms,kme
         height_interface_p(i,k,j) = z_p(i,k,j)    - z_p(i,1,j)
-        height_mid_p(i,k,j)       = zmid_p(i,k,j) - z_p(i,1,j)
+
+        if (k .ne. kme) then
+            height_mid_p(i,k,j)   = zmid_p(i,k,j) - z_p(i,1,j)
+        end if
     enddo
     enddo
     enddo
@@ -446,7 +430,7 @@ module module_bl_shocmf
     mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
     mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
     ustar_p, wspd_p, ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, &
-    kpbl_p, rho_p, t_p, qv_p, qs_p, qi_p, qg_p, qr_p, rublten_p, rvblten_p, rthblten_p, &
+    kpbl_p, rho_p, t_p, qv_p, rublten_p, rvblten_p, rthblten_p, &
     rqvblten_p, rqcblten_p, rqiblten_p, rtkeblten_p, &
     ims, ime, jms, jme, kms, kme, its, ite, jts, jte, kts, kte, dminfo &
  )
@@ -475,7 +459,7 @@ module module_bl_shocmf
         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, &
         cldfrabl_p, theta_p, t_p, z_p, zmid_p, pres_p, pres2_p, w_p, pi_p, qv_p, &
-        qs_p, qi_p, qg_p, qr_p, rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
+        rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
         rqcblten_p, rqiblten_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
@@ -524,7 +508,7 @@ module module_bl_shocmf
     allocate(presdiff_p(ims:ime, kms:kme, jms:jme))
     call calculate_presdiff(ims, ime, kms, kme, jms, jme, pres2_p, presdiff_p)
 
-    call calculate_qw(ims, ime, jms, jme, kms, kme, qc_p, qv_p, qs_p, qi_p, qg_p, qr_p, qw_p)
+    call calculate_qw(ims, ime, jms, jme, kms, kme, qc_p, qv_p, qw_p)
 
     allocate(height_interface_p(ims:ime, kms:kme, jms:jme), height_mid_p(ims:ime, kms:kme, jms:jme))
     call calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
@@ -532,7 +516,7 @@ module module_bl_shocmf
     allocate(phis_p(ims:ime, jms:jme))
     do i=ims,ime
     do j=jms,jme
-        phis_p(i, j) = gravity*ht_p(i,j)
+        phis_p(i,j) = gravity*ht_p(i,j)
     enddo
     enddo
     call calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t_p, height_mid_p, gravity, phis_p, cp, dse_p)
@@ -545,7 +529,7 @@ module module_bl_shocmf
     allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme), rho_interface_p(ims:ime, kms:kme, jms:jme))
     ! Get density on the interface grid
     call linear_interp(height_mid_p,height_interface_p,rho_p,rho_interface_p,kme-1,kme,ime,0.0_RKIND)
-    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xlv, hfx_converted_p, lh_converted_p)
+    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xls, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
@@ -734,7 +718,7 @@ module module_bl_shocmf
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
     call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_p, inv_exner_p, theta_p)
-    call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qs_p, qi_p, qg_p, qr_p, qv_p)
+    call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qv_p)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
     if (dminfo % my_proc_id == 5) then
@@ -779,11 +763,11 @@ module module_bl_shocmf
     do i=ims,ime
     do k=kms,kme-1
     do j=jms,jme
-        rublten_p(i,k,j) = (u_p(i,k,j) - um_p(i,k,j))/dt_pbl
-        rvblten_p(i,k,j) = (v_p(i,k,j) - vm_p(i,k,j))/dt_pbl
-        rthblten_p(i,k,j) = (theta_p(i,k,j) - thetam_p(i,k,j))/dt_pbl
-        rqvblten_p(i,k,j) = (qv_p(i,k,j) - qvm_p(i,k,j))/dt_pbl
-        rqcblten_p(i,k,j) = (qc_p(i,k,j) - qcm_p(i,k,j))/dt_pbl
+        rublten_p(i,k,j)   = (u_p(i,k,j) - um_p(i,k,j))/dt_pbl
+        rvblten_p(i,k,j)   = (v_p(i,k,j) - vm_p(i,k,j))/dt_pbl
+        rthblten_p(i,k,j)  = (theta_p(i,k,j) - thetam_p(i,k,j))/dt_pbl
+        rqvblten_p(i,k,j)  = (qv_p(i,k,j) - qvm_p(i,k,j))/dt_pbl
+        rqcblten_p(i,k,j)  = (qc_p(i,k,j) - qcm_p(i,k,j))/dt_pbl
         rtkeblten_p(i,k,j) = (tke_shmf_p(i,k,j) - tkem_p(i,k,j))/dt_pbl
     enddo
     enddo
@@ -792,7 +776,7 @@ module module_bl_shocmf
     rqiblten_p = 0.0_RKIND  ! TODO (GTF): qi_p and qs_p are not calculated by shocmf. Only qc_p and qw_p
 
     deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc, w_zt)
-    deallocate(um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p)
+    deallocate(um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p, phis_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dy_p)
     deallocate(height_interface_p, height_mid_p)

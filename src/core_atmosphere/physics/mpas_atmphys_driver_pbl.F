@@ -490,6 +490,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,zgrid,dse
+ real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -564,6 +565,8 @@
        do k = kts,kte
        do i = its,ite
           exch_p(i,k,j) = 0._RKIND
+          kzh_p(i,k,j)  = 0._RKIND
+          kzm_p(i,k,j)  = 0._RKIND
        enddo
        enddo
        enddo
@@ -644,6 +647,9 @@
           rniblten_p(i,k,j) = 0._RKIND
 
           pattern_spp_pbl(i,k,j) = 0._RKIND
+
+          kzh_p(i,k,j)      = 0._RKIND
+          kzm_p(i,k,j)      = 0._RKIND
        enddo
        enddo
        do i = its,ite
@@ -666,6 +672,9 @@
        call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
        call mpas_pool_get_array(mesh        , 'meshDensity'      ,meshDensity     )
        call mpas_pool_get_config(configs    , 'config_len_disp'  ,len_disp        )
+       call mpas_pool_get_array(diag_physics, 'kzh'              ,kzh             )
+       call mpas_pool_get_array(diag_physics, 'kzm'              ,kzm             )
+       
 
        call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
@@ -797,6 +806,9 @@
         dse_p(i,k,j)             = dse(k,i)
 
         rtkeblten_p(i,k,j)       = 0._RKIND
+
+        kzh_p(i,k,j)             = kzh(k,i)
+        kzm_p(i,k,j)             = kzm(k,i)
        enddo
        enddo
        enddo
@@ -815,8 +827,6 @@
     rqcblten_p(i,k,j) = 0._RKIND
     rqiblten_p(i,k,j) = 0._RKIND
 
-    kzh_p(i,k,j) = 0._RKIND
-    kzm_p(i,k,j) = 0._RKIND
     kzq_p(i,k,j) = 0._RKIND
  enddo
  enddo
@@ -1424,8 +1434,7 @@
             ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p   , &
             wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl_p          = kpbl_p          , &
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
-            qs_p          = qs_p         , qi_p           = qi_p          , qg_p            = qg_p            , &
-            qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &
+            rublten_p     = rublten_p    , rvblten_p      = rvblten_p       , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
