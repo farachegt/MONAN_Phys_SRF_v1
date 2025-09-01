@@ -134,6 +134,70 @@ integer :: npbl
 contains
 !==============================================================
 
+real function MurphyKoop_svp(t, i_type)
+    implicit none
+
+    !-------------------------------------------------------------------
+    ! Compute saturation vapor pressure (returned in units of pa)
+    ! Inputs:
+    ! "t", units [K]
+    !  i_type refers to saturation with respect to liquid (0) or ice (1)
+    ! Author: Balwinder Singh (algorithm from CAM routine)
+    !--------------------------------------------------------------------
+
+    !Murphy & Koop (2005)
+    real(rtype), intent(in) :: t
+    integer, intent(in)     :: i_type
+
+    !local vars
+    character(len=1000) :: err_msg
+    real(rtype)         :: logt, tmp
+    real(rtype)         :: T_zerodegc = 273.15 ! K
+
+    !parameters for ice saturation eqn
+    real(rtype), parameter :: ic(4)  =(/9.550426_rtype, 5723.265_rtype, 3.53068_rtype, &
+         0.00728332_rtype/)
+
+    !parameters for liq saturation eqn
+    real(rtype), parameter :: lq(10) = (/54.842763_rtype, 6763.22_rtype, 4.210_rtype, &
+         0.000367_rtype, 0.0415_rtype, 218.8_rtype, 53.878_rtype, 1331.22_rtype,       &
+         9.44523_rtype, 0.014025_rtype /)
+
+    !------------------
+    !Check if temprature is within legitimate range
+    if (t < 0._rtype) then
+       stop 'Error: Temperature is below 0 K in MurphyKoop_svp.'
+    elseif (t > 373) then
+       stop 'Error: Temperature is above 373 K in MurphyKoop_svp.'
+    elseif (t /= t) then
+       stop 'Error: Temperature is NaN in MurphyKoop_svp.'
+    end if
+
+    logt = bfb_log(t)
+
+    if (i_type .eq. 1 .and. t .lt. T_zerodegc) then
+
+       !(good down to 110 K)
+       MurphyKoop_svp = bfb_exp(ic(1) - (ic(2) / t) + (ic(3) * logt) - (ic(4) * t))
+
+    elseif (i_type .eq. 0 .or. t .ge. T_zerodegc) then
+
+       ! (good for 123 < T < 332 K)
+       !For some reason, we cannot add line breaks if we use "bfb_exp", storing experssion in "tmp"
+       tmp = lq(1) - (lq(2) / t) - (lq(3) * logt) + (lq(4) * t) + &
+            (bfb_tanh(lq(5) * (t - lq(6))) * (lq(7) - (lq(8) / t) - &
+            (lq(9) * logt) + lq(10) * t))
+       MurphyKoop_svp = bfb_exp(tmp)
+    else
+
+       write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
+            i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
+       stop err_msg
+    endif
+
+    return
+  end function MurphyKoop_svp
+
 subroutine shoc_init( &
          nlev, gravit, rair, rh2o, cpair, &
          zvir, latvap, latice, karman, &
@@ -865,7 +929,7 @@ subroutine compute_shoc_vapor( &
   do k = 1, nlev
     do i = 1, shcol
       qv(i,k) = qw(i,k) - ql(i,k)
-      if (qv(i,k) .lt. 0._rtype) stop 'SHOCMF: NEGATIVE VAPOR'
+      !if (qv(i,k) .lt. 0._rtype) stop 'SHOCMF: NEGATIVE VAPOR'
     enddo
   enddo
 
@@ -3056,7 +3120,6 @@ subroutine shoc_assumed_pdf_compute_qs(&
   Tl1_1,Tl1_2,pval,&   ! Input
   qs1,beta1,qs2,beta2) ! Ouput
 
-  use mynn_shared, only: esat_blend
   implicit none
 
   ! intent-in
@@ -3071,7 +3134,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
   real(rtype), intent(out) ::   beta2
 
   ! local vars
-  !integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
+  integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
   real(rtype) :: esval1_1
   real(rtype) :: esval1_2
   real(rtype) :: lstarn1
@@ -3080,9 +3143,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
   esval1_1=0._rtype
   esval1_2=0._rtype
 
-  ! TODO (GTF): Uncomment this line when module is imported
-  !esval1_1=MurphyKoop_svp(Tl1_1, liquid)
-  esval1_1 = esat_blend(Tl1_1, svpt0, tice)
+  esval1_1=MurphyKoop_svp(Tl1_1, liquid)
   lstarn1=lcond
 
   qs1=0.622_rtype*esval1_1/max(esval1_1,pval-esval1_1)
@@ -3095,9 +3156,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
     qs2=qs1
     beta2=beta1
   else
-    ! TODO (GTF): Uncomment this line when module is imported
-    !esval1_2=MurphyKoop_svp(Tl1_2, liquid)
-    esval1_2 = esat_blend(Tl1_2, svpt0, tice)
+    esval1_2=MurphyKoop_svp(Tl1_2, liquid)
     qs2=0.622_rtype*esval1_2/max(esval1_2,pval-esval1_2)
     beta2=(rgas/rv)*(lstarn2/(rgas*Tl1_2))*(lstarn2/(cp*Tl1_2))
   endif
