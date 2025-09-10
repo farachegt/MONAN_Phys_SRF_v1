@@ -572,7 +572,7 @@ module module_cu_gf_monan
       !print*,'================================================================'
 
       !--- these arrays must be reset every timestep.
-      ierr4d         = 0      
+         ierr4d         = 0      
          jmin4d         = kts
          klcl4d         = kts
          k224d          = kts
@@ -1724,7 +1724,7 @@ module module_cu_gf_monan
         ,vvel1d, x_add_buoy,lambau_dn,lambau_dp,q_wetbulb,t_wetbulb,col_sat_adv            &
         ,Q_adv,alpha_adv,aa1_radpbl,p_cwv_ave,cape, depth_neg_buoy,frh_bcon                &
         ,check_sig,random,rh_entr_factor,rntot,delqev,delq2,qevap,rn,qcond,rainevap,vshear2&
-        ,entr_rescaled,overshoot_rescaled
+        ,entr_rescaled,overshoot_rescaled,precip_rescaled
 
       real, dimension (kts:kte) ::xh_env_eff
 
@@ -1793,7 +1793,7 @@ module module_cu_gf_monan
                    ,aa1_bl,aa1_fa,aa0_bl,q_adv,aa1_radpbl,alpha_adv,cin1          &
                    ,xk_x,edt,edto,tau_bl,q_wetbulb,t_wetbulb,tau_ecmwf,xf_dicycle &
                    ,x_add_buoy,xf_coldpool,wlpool_bcon,ke_gustfront,random,mbdt   &
-                   ,ave_from_surface)
+                   ,ave_from_surface,precip_rescaled)
 
       call reset_2d(its,ite,kts,kte,zo,z,xz,hcdo,cupclw,qrcdo,hcot,xf_ens,pr_ens  &
                    ,evap_bcb,uc,vc,hc,hco, zuo,zdo,zenv)
@@ -1873,9 +1873,9 @@ module module_cu_gf_monan
                             , min_entr_rate, entr_rate)
       end if
       !
-      if( use_shear_ctrl_entr > 0 .and. trim(cumulus) == 'deep') &
-         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,itf,ktf,its,ite, kts,kte &
-                             ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec)
+      if( use_shear_ctrl_entr >= 0 .and. trim(cumulus) == 'deep') &
+         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,itf,ktf,its,ite, kts,kte            &
+                             ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec,precip_rescaled )
       !
       !-- get the pickup of ensemble ave prec, following Neelin et al 2009.
       if( use_cwv_ctrl_entr == 1 .and. trim(cumulus) == 'deep') &
@@ -2313,7 +2313,7 @@ module module_cu_gf_monan
                          ,xf_dicycle,outu,outv,dellu,dellv,dtime,po_cup,kbcon          &
                          ,dellabuoy,outbuoy,dellampqi,outmpqi,dellampql,outmpql        &
                          ,dellampcf,outmpcf,nmp,xf_coldpool,wlpool_bcon                &
-                         ,subten_T,subten_Q,subten_U,subten_V,piexner                  )
+                         ,subten_T,subten_Q,subten_U,subten_V,piexner,precip_rescaled  )
       !
       !--- get the net precipitation flux (after downdraft evaporation)
       !
@@ -2442,11 +2442,11 @@ module module_cu_gf_monan
       if( trim(cumulus) == 'deep') then
         !var2d1(:) = aa1(:)
         !var2d2(:) = aa1_bl(:)
-        !var2d2(:) = vshear2(:)
-         var2d1(:) = x_add_buoy(:)
+         var2d1(:) = vshear2(:)
+        !var2d1(:) = x_add_buoy(:)
          if( adv_trigger == 0 .and. convection_tracer == 1) then 
             do i=its,itf
-                var2d2(i) = maxval( buoy_exc(kts:ktop(i),i) )
+               ! var2d2(i) = maxval( buoy_exc(kts:ktop(i),i) )
                !var2d1(i) = p_cwv_ave(i)
             enddo
          endif 
@@ -4533,7 +4533,7 @@ module module_cu_gf_monan
                             ,xf_dicycle,outu,outv,dellu,dellv,dtime,po_cup,kbcon             &
                             ,dellabuoy,outbuoy, dellampqi,outmpqi,dellampql,outmpql          &
                             ,dellampcf,outmpcf ,nmp,xf_coldpool,wlpool_bcon                  &
-                            ,subten_T,subten_Q,subten_U,subten_V,piexner                     )
+                            ,subten_T,subten_Q,subten_U,subten_V,piexner,precip_rescaled     )
       implicit none
       !
       integer   ,intent (in   )            :: ichoice,itf,ktf,its,ite, kts,kte
@@ -4560,7 +4560,7 @@ module module_cu_gf_monan
       real,    dimension (:,:,:),intent (out  ) :: outmpqi,outmpql,outmpcf
       
       real,    dimension (:,:)  ,intent (in   ) :: zu,po_cup,pwo,pwdo,piexner
-      real,    dimension (:)    ,intent (in   ) :: sig,wlpool_bcon,edto
+      real,    dimension (:)    ,intent (in   ) :: sig,wlpool_bcon,edto,precip_rescaled
     
       real,    dimension (:,:)  ,intent (in   ) :: xff_mid
       real,    dimension (:)    ,intent (out  ) :: pre,xmb
@@ -4670,6 +4670,9 @@ module module_cu_gf_monan
          !- mass flux of updradt at cloud base
          xmb(i) = xmb_ave(i)
 
+         !- reescale mass flux based on wind shear
+         xmb(i) = xmb(i)*precip_rescaled(i)
+
          !- add kinetic energy at the gust front of the cold pools
          xmb(i) = xmb(i) + xf_coldpool(i)
 
@@ -4687,7 +4690,6 @@ module module_cu_gf_monan
            i = get_data_value(vec_ok,vtp_index)
            !- scale dependence
            xmb(i)=sig(i)*xmb(i)
-
            if(xmb(i) == 0. ) then 
               ierr(i)=14 ; is_removed = remove(vec_ok, i)
            endif 
@@ -10405,10 +10407,10 @@ module module_cu_gf_monan
          do k=1,ktop
             km1=max(1,k-1)
             kp1=min(n,k+1)
-            trmax(k)=       max(soln_lo(km1),soln_lo(k),soln_lo(kp1),        &
-               tracr  (km1),tracr  (k),tracr  (kp1))        ! upper bound
-            trmin(k)=max(0.,min(soln_lo(km1),soln_lo(k),soln_lo(kp1),        &
-               tracr  (km1),tracr  (k),tracr  (kp1)))       ! lower bound
+            trmax(k)= max(soln_lo(km1),soln_lo(k),soln_lo(kp1),        &
+                      tracr(km1),tracr  (k),tracr  (kp1))        ! upper bound
+            trmin(k)= max(0.,min(soln_lo(km1),soln_lo(k),soln_lo(kp1),        &
+                      tracr(km1),tracr  (k),tracr  (kp1)))       ! lower bound
          end do
 
          do k=1,ktop
@@ -10742,7 +10744,7 @@ module module_cu_gf_monan
                       ,aa1_bl,aa1_fa,aa0_bl,q_adv,aa1_radpbl,alpha_adv,cin1&
                       ,xk_x,edt,edto,tau_bl,q_wetbulb,t_wetbulb,tau_ecmwf,xf_dicycle&
                       ,x_add_buoy,xf_coldpool,wlpool_bcon,ke_gustfront,random,mbdt  &
-                      ,ave_from_surface)
+                      ,ave_from_surface,precip_rescaled)
          implicit none       
          logical, intent (inout)                     :: ave_from_surface
          integer, intent (in)                        :: its,ite
@@ -10774,7 +10776,8 @@ module module_cu_gf_monan
             wlpool_bcon ,&
             ke_gustfront,&
             random      ,&
-            mbdt
+            mbdt        ,&
+            precip_rescaled
             !---
             ierrc  (:) = "ierrtxt"
             
@@ -10804,6 +10807,7 @@ module module_cu_gf_monan
             wlpool_bcon(:) = 0.0
             ke_gustfront(:)= 0.0
             random      (:)= 0.0
+            precip_rescaled (:) = 1.0
             !
             !--- mbdt ~ xmb * timescale
             mbdt(:)= 0.1
@@ -10856,7 +10860,7 @@ module module_cu_gf_monan
       end subroutine reset_2d
 !---------------------------------------------------------------------------------------------!
       subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,itf,ktf,its,ite, kts,kte &
-                                ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec)
+                                ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec,precip_rescaled)
       implicit none
       character *(*)  ,intent (in) :: cumulus
       integer         ,intent (in) :: itf,ktf,its,ite, kts,kte
@@ -10867,7 +10871,7 @@ module module_cu_gf_monan
       real,    dimension (:,:),intent (in   ) :: us,vs,zo,po,qo
 
       integer, dimension (:)  ,intent (inout) :: ierr
-      real,    dimension (:)  ,intent (inout) :: entr_rate
+      real,    dimension (:)  ,intent (inout) :: entr_rate,precip_rescaled
       real,    dimension (:)  ,intent (out  ) :: vshear,var2d2
 
       !- local var
@@ -10879,12 +10883,19 @@ module module_cu_gf_monan
       real,    parameter :: xexp  = 2.
       real,    parameter :: alpha = 0.12
       real,    parameter :: beta  = 0.32
-      real,    parameter :: H0    = 11.0      
+      real,    parameter :: H0    = 11.0
+      real,    parameter :: Pmin = 17.0
+      real,    parameter :: Pmax = 27.0   
+      ! Parameters to control the sharpness of the transition
+      real,    parameter :: center    = 20.0
+      real,    parameter :: width2    = 2.0
+      real,    parameter :: sharpness = 50.0
+
       integer :: i,k650
       real    :: u650, u975, v650, v975, H
       real,    dimension (its:itf) :: scale_factor
       
-      scale_factor = 1.0
+      !scale_factor = 1.0
       do i=its,itf 
            k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
            !-- v1 
@@ -10901,24 +10912,26 @@ module module_cu_gf_monan
       enddo
             
       if( use_shear_ctrl_entr == 1 ) then
-        do i=its,itf
-           scale_factor(i)  = 1.5/(1.5+atan(2.*(vshear(i) - turnw)/width))
-           scale_factor(i)  = scale_factor(i)**xexp
-        enddo
+         do i=its,itf
+          !scale_factor(i)  = 1.5/(1.5+atan(2.*(vshear(i) - turnw)/width))
+          !scale_factor(i)  = scale_factor(i)**xexp
+           scale_factor(i)  = 1.0 - 0.5 * (1.0 + tanh(sharpness * (vshear(i) - center) / width2))
+           var2d2(i)        = scale_factor(i)
+           scale_factor(i)  = min(1., max(scale_factor(i),0.01))
+           entr_rate(i)     = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+         enddo
       endif
 
       if( use_shear_ctrl_entr == 2 ) then
-        do i=its,itf
-           H = ( qo(klcl(i),i) + zqexec(i) + x_add_buoy(i)/c_alvl )*1.e+3 ! g/kg
-           scale_factor(i) = (1.0 - exp(-alpha * vshear(i))) * (1.0 - exp(-beta * (H - H0)))
-        enddo
+         do i=its,itf
+            H = ( qo(klcl(i),i) + zqexec(i) + x_add_buoy(i)/c_alvl )*1.e+3 ! g/kg
+            scale_factor(i) = Pmin + (Pmax - Pmin) * (1.0 - exp(-alpha * vshear(i))) &
+                                                   * (1.0 - exp(-beta * (H - H0)))
+            scale_factor(i) = scale_factor(i)/Pmin
+            var2d2(i)       = scale_factor(i)
+            precip_rescaled(i) =  min(1.5, max(scale_factor(i),1.))
+         enddo
       endif
-
-      do i=its,itf
-           var2d2(i)       = scale_factor(i)
-           scale_factor(i) = min(1., max(scale_factor(i),0.01))
-           entr_rate(i)    = max(scale_factor(i)*entr_rate(i), min_entr_rate)
-      enddo
       end subroutine get_entr_vshear
 !---------------------------------------------------------------------------------------------!
      subroutine adv_trigger_check(cumulus,ave_layer,ierr,ierrc,itf,ktf,its,ite,kts,kte,dtime,us,vs & 
