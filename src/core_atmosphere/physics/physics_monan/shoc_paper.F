@@ -258,6 +258,8 @@ subroutine shoc_init( &
   npbl = max(npbl,1)
    
   print *, "npbl = ", npbl
+  print *, 'SHOC PAPER'
+
   return
 
 end subroutine shoc_init

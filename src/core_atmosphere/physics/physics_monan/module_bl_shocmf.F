@@ -283,12 +283,12 @@ module module_bl_shocmf
  end subroutine flip_vertical_coordinates
 
   
- subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xls_in, hfx_converted_p, lh_converted_p)
+ subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, hfx_converted_p, lh_converted_p)
     ! Convert the surface heat fluxes from W/m^2 to both K*m/s and kg/kg m/s
     ! hfx_p is the sensible heat flux
     ! lh_p is the latent heat flux
     integer, intent(in) :: ims, ime, jms, jme
-    real(kind=RKIND), intent(in) :: cp_in, xls_in
+    real(kind=RKIND), intent(in) :: cp_in, xlv_in
     real(kind=RKIND), dimension(:,:), intent(in) :: hfx_p, lh_p
     real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p
     real(kind=RKIND), dimension(:,:), intent(inout) :: hfx_converted_p, lh_converted_p
@@ -301,7 +301,7 @@ module module_bl_shocmf
         hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,1,j)) ! [K m/s] = [W/m^2]/([J kg-1 K-1]*[kg m^{-3}])
         ! hfx_converted_p(i,j) = hfx_converted_p(i,j)*inv_exner_p(i,1,j) ! Got from E3SM shoc_intr.F90 code
         ! Converting lh_p from W/m^2 to kg/kg m/s
-        lh_converted_p(i,j) = lh_p(i,j)/(xls*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
+        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
         ! xls instead of xlv - shoc_energy_total_fixer method in shoc
         ! lh_p/xlv = qfx_p
     enddo
@@ -524,12 +524,12 @@ module module_bl_shocmf
     call calculate_surface_momentum_fluxes(ims, ime, jms, jme, ustar_p, u_p(:,1,:), v_p(:,1,:), wspd_p, rho_p(:,1,:), uw_sfc_p, vw_sfc_p)
 
     allocate(w_zt(ims:ime, kms:kme, jms:jme))
-    call linear_interp(height_interface_p,height_mid_p,w_p,w_zt,kme,kme-1,ime,-1000.0_RKIND)
+    call linear_interp(height_interface_p,height_mid_p,w_p,w_zt,kme,kme-1,ime,-200.0_RKIND)
 
     allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme), rho_interface_p(ims:ime, kms:kme, jms:jme))
     ! Get density on the interface grid
     call linear_interp(height_mid_p,height_interface_p,rho_p,rho_interface_p,kme-1,kme,ime,0.0_RKIND)
-    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xls, hfx_converted_p, lh_converted_p)
+    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xlv, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
