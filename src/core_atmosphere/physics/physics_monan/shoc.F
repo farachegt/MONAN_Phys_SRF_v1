@@ -7,37 +7,22 @@
 ! email: bogenschutz1@llnl.gov
 !--------------------------------------------------------------
 
-! TODO (GTF): Remember to delete this include and use a proper package
 ! Include bit-for-bit math macros.
 #include "bfb_math.inc"
 
 module shoc
-  
   use mpas_atmphys_constants, only: svpt0
   use mpas_kind_types, only: rtype=>RKIND
-!  use shr_kind_mod,  only: r8=>shr_kind_r8 
-!  use physics_utils,     only: rtype, rtype8, itype, btype
-!  use scream_abortutils, only: endscreamrun
-!  use spmd_utils,        only: masterproc
-  use edmf,              only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
-                               do_edmf, do_condensation, do_mf_diag, &
-                               do_wthv_mf, mf_nup
-
-! Bit-for-bit math functions.
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use physics_share_f2c, only: cxx_pow, cxx_sqrt, cxx_cbrt, cxx_gamma, cxx_log, &
-!                                cxx_log10, cxx_exp, cxx_erf
-! #endif
 
 implicit none
 save ! for module variables
 
-public  :: shoc_init, shoc_main, length_fac, mintke
+public  :: shoc_init, shoc_main
 
 logical :: use_cxx = .false.
 
 real(rtype), parameter, public :: largeneg = -99999999.99_rtype
-real(rtype), parameter, public :: pi = 3.14159265_rtype ! Pi
+real(rtype), parameter, public :: pi = 3.14159265358979323_rtype
 
 !=========================================================
 ! Physical constants used in SHOC
@@ -54,36 +39,33 @@ real(rtype) :: lcond ! latent heat of vaporization [J/kg]
 real(rtype) :: lice  ! latent heat of fusion [J/kg]
 real(rtype) :: eps   ! rh2o/rair - 1 [-]
 real(rtype) :: vk    ! von karmann constant [-]
-real(rtype) :: tice  ! (GTF) temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
-
-!=========================================================
-! Private module parameters
-!=========================================================
-
-! These are adjustable tunable parameters for SHOC
-!  for certain variables and turbulent moments.
-!  All are unitless
-
-! temperature variance
-real(rtype), parameter :: thl2tune=1.0_rtype
-! moisture variance
-real(rtype), parameter :: qw2tune=1.0_rtype
-! temp moisture covariance
-real(rtype), parameter :: qwthl2tune=1.0_rtype
-! vertical velocity variance
-real(rtype), parameter :: w2tune=1.0_rtype
-! third moment of vertical velocity
-real(rtype), parameter :: w3clip=1.2_rtype
-! mixing length scaling parameter
-!real(rtype), parameter :: length_fac=1.0_rtype 
-! coefficient for diag third moment parameters
-real(rtype), parameter :: c_diag_3rd_mom = 7.0_rtype
+!real(rtype) :: p0    ! Reference pressure, Pa
 
 !=========================================================
 ! Tunable parameters used in SHOC
 !=========================================================
 
+! Set default values, if not overwritten by namelist.
+!  All are unitless (unless units are stated)
+real(rtype) :: thl2tune = 1.0_rtype ! Temperature variance tuning factor
+real(rtype) :: qw2tune = 1.0_rtype ! Moisture variance tuning factor
+real(rtype) :: qwthl2tune = 1.0_rtype ! Temperature moisture covariance
+real(rtype) :: w2tune = 1.0_rtype ! Vertical velocity variance
 real(rtype) :: length_fac = 0.5_rtype ! Length scale factor
+real(rtype) :: c_diag_3rd_mom = 7.0_rtype ! w3 factor
+real(rtype) :: lambda_low = 0.001_rtype ! lowest value for stability correction
+real(rtype) :: lambda_high = 0.04_rtype ! highest value for stability correction
+real(rtype) :: lambda_slope = 2.65_rtype ! stability correction slope
+real(rtype) :: lambda_thresh = 0.02_rtype ! value to apply stability correction
+real(rtype) :: Ckh = 0.1_rtype ! Eddy diffusivity coefficient for heat
+real(rtype) :: Ckm = 0.1_rtype ! Eddy diffusivity coefficient for momentum
+real(rtype) :: Ckh_s = 0.1_rtype ! Stable PBL diffusivity for heat
+real(rtype) :: Ckm_s = 0.1_rtype ! Stable PBL diffusivity for momentum
+real(rtype) :: tice = 240.0   ! (GTF) temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
+
+!=========================================================
+! Private module parameters
+!=========================================================
 
 ! =========
 ! Below are options to activate certain features in SHOC
@@ -105,6 +87,8 @@ real(rtype), parameter :: troppres = 80000._rtype
 real(rtype), parameter :: ustar_min = 0.01_rtype
 ! PBL max depth in pressure units
 real(rtype), parameter :: pblmaxp = 4.e4_rtype
+! third moment of vertical velocity clipping factor
+real(rtype), parameter :: w3clip=1.2_rtype
 
 ! ========
 ! Set upper limits for certain SHOC quantities
@@ -122,8 +106,8 @@ real(rtype), parameter :: mintke = 0.0004_rtype
 
 !===================
 ! const parameter for Diagnosis of PBL depth
-real(rtype), parameter :: tinyw = 1.e-36_rtype     ! lower bound for wind magnitude
-real(rtype), parameter :: fac  = 100._rtype       ! ustar parameter in height diagnosis
+real(rtype), parameter :: tinyw = 1.e-36_rtype    ! lower bound for wind magnitude
+real(rtype), parameter :: fac   = 100._rtype      ! ustar parameter in height diagnosis
 real(rtype), parameter :: ricr  =  0.3_rtype      ! Critical richardson number
 
 ! Maximum number of levels in pbl from surface
@@ -134,13 +118,83 @@ integer :: npbl
 contains
 !==============================================================
 
+
+real function MurphyKoop_svp(t, i_type)
+    implicit none
+
+    !-------------------------------------------------------------------
+    ! Compute saturation vapor pressure (returned in units of pa)
+    ! Inputs:
+    ! "t", units [K]
+    !  i_type refers to saturation with respect to liquid (0) or ice (1)
+    ! Author: Balwinder Singh (algorithm from CAM routine)
+    !--------------------------------------------------------------------
+
+    !Murphy & Koop (2005)
+    real(rtype), intent(in) :: t
+    integer, intent(in)     :: i_type
+
+    !local vars
+    character(len=1000) :: err_msg
+    real(rtype)         :: logt, tmp
+    real(rtype)         :: T_zerodegc = 273.15 ! K
+
+    !parameters for ice saturation eqn
+    real(rtype), parameter :: ic(4)  =(/9.550426_rtype, 5723.265_rtype, 3.53068_rtype, &
+         0.00728332_rtype/)
+
+    !parameters for liq saturation eqn
+    real(rtype), parameter :: lq(10) = (/54.842763_rtype, 6763.22_rtype, 4.210_rtype, &
+         0.000367_rtype, 0.0415_rtype, 218.8_rtype, 53.878_rtype, 1331.22_rtype,       &
+         9.44523_rtype, 0.014025_rtype /)
+
+    !------------------
+    !Check if temprature is within legitimate range
+    if (t < 0._rtype) then
+       stop 'Error: Temperature is below 0 K in MurphyKoop_svp.'
+    elseif (t > 373) then
+       stop 'Error: Temperature is above 373 K in MurphyKoop_svp.'
+    elseif (t /= t) then
+       stop 'Error: Temperature is NaN in MurphyKoop_svp.'
+    end if
+
+    logt = bfb_log(t)
+
+    if (i_type .eq. 1 .and. t .lt. T_zerodegc) then
+
+       !(good down to 110 K)
+       MurphyKoop_svp = bfb_exp(ic(1) - (ic(2) / t) + (ic(3) * logt) - (ic(4) * t))
+
+    elseif (i_type .eq. 0 .or. t .ge. T_zerodegc) then
+
+       ! (good for 123 < T < 332 K)
+       !For some reason, we cannot add line breaks if we use "bfb_exp", storing experssion in "tmp"
+       tmp = lq(1) - (lq(2) / t) - (lq(3) * logt) + (lq(4) * t) + &
+            (bfb_tanh(lq(5) * (t - lq(6))) * (lq(7) - (lq(8) / t) - &
+            (lq(9) * logt) + lq(10) * t))
+       MurphyKoop_svp = bfb_exp(tmp)
+    else
+
+       write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
+            i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
+       stop err_msg
+    endif
+
+    return
+  end function MurphyKoop_svp
+
+
 subroutine shoc_init( &
          nlev, gravit, rair, rh2o, cpair, &
          zvir, latvap, latice, karman, &
          pref_mid, nbot_shoc, ntop_shoc, &
-         length_fac_in )
+         thl2tune_in, qw2tune_in, qwthl2tune_in, &
+         w2tune_in, length_fac_in, c_diag_3rd_mom_in, &
+         lambda_low_in, lambda_high_in, lambda_slope_in, &
+         lambda_thresh_in, Ckh_in, Ckm_in, Ckh_s_in, Ckm_s_in)
 
   implicit none
+
   ! Purpose:  Initialize constants for SHOC
   ! These should be set to the same values used in
   ! whatever host model SHOC is implemented in
@@ -155,6 +209,7 @@ subroutine shoc_init( &
   real(rtype), intent(in)  :: latvap ! latent heat of vaporization
   real(rtype), intent(in)  :: latice ! latent heat of fusion
   real(rtype), intent(in)  :: karman ! Von Karman's constant
+  !real(rtype), intent(in)  :: p0_shoc! Reference pressure, Pa
 
   real(rtype), intent(in) :: pref_mid(nlev) ! reference pressures at midpoints
 
@@ -162,7 +217,20 @@ subroutine shoc_init( &
   integer, intent(in)   :: ntop_shoc ! Top level to which SHOC is applied
 
   ! Tunable parameter factors, all unitless
+  real(rtype), intent(in), optional :: thl2tune_in ! temperature variance tuning factor
+  real(rtype), intent(in), optional :: qw2tune_in ! moisture variance
+  real(rtype), intent(in), optional :: qwthl2tune_in ! temperature moisture covariance
+  real(rtype), intent(in), optional :: w2tune_in ! vertical velocity variance
   real(rtype), intent(in), optional :: length_fac_in ! length scale
+  real(rtype), intent(in), optional :: c_diag_3rd_mom_in ! third moment vertical velocity
+  real(rtype), intent(in), optional :: lambda_low_in ! stability correction, lowest value
+  real(rtype), intent(in), optional :: lambda_high_in ! stability correciton, highest value
+  real(rtype), intent(in), optional :: lambda_slope_in ! stability correction, slope term
+  real(rtype), intent(in), optional :: lambda_thresh_in ! value to apply stability correction
+  real(rtype), intent(in), optional :: Ckh_in ! eddy diffusivity coefficient for heat
+  real(rtype), intent(in), optional :: Ckm_in ! eddy diffusivity coefficient for momentum
+  real(rtype), intent(in), optional :: Ckh_s_in ! Stable PBL diffusivity for heat
+  real(rtype), intent(in), optional :: Ckm_s_in ! Stable PBL diffusivity for momentum
 
   integer :: k
 
@@ -174,27 +242,39 @@ subroutine shoc_init( &
   lcond = latvap ! [J/kg]
   lice = latice  ! [J/kg]
   vk = karman    ! [-]
-  
-  tice = 240.0   ! [K] (GTF) -33 (C), 
+  !p0 = p0_shoc   ! [Pa]
 
   ! Tunable parameters, all unitless
   !  override default values if value is present
+  if (present(thl2tune_in)) thl2tune = thl2tune_in
+  if (present(qw2tune_in)) qw2tune = qw2tune_in
+  if (present(qwthl2tune_in)) qwthl2tune = qwthl2tune_in
+  if (present(w2tune_in)) w2tune=w2tune_in
   if (present(length_fac_in)) length_fac=length_fac_in
+  if (present(qwthl2tune_in)) c_diag_3rd_mom=c_diag_3rd_mom_in
+  if (present(lambda_low_in)) lambda_low=lambda_low_in
+  if (present(lambda_high_in)) lambda_high=lambda_high_in
+  if (present(lambda_slope_in)) lambda_slope=lambda_slope_in
+  if (present(lambda_thresh_in)) lambda_thresh=lambda_thresh_in
+  if (present(Ckh_in)) Ckh=Ckh_in
+  if (present(Ckm_in)) Ckm=Ckm_in
+  if (present(Ckh_s_in)) Ckh_s=Ckh_s_in
+  if (present(Ckm_s_in)) Ckm_s=Ckm_s_in
 
    ! Limit pbl height to regions below 400 mb
    ! npbl = max number of levels (from bottom) in pbl
 
-  ! TODO (GTF): Prepare this code to parallelized case (different npbl for each processor).
-  npbl = 0
-  do k=nbot_shoc,ntop_shoc
-    if (pref_mid(k) >= pblmaxp) then
-       npbl = npbl + 1
-    end if
-  end do
-  npbl = max(npbl,1)
-   
-  print *, "npbl = ", npbl
-  return
+   npbl = 0
+   do k=nbot_shoc,ntop_shoc,-1
+      if (pref_mid(k) >= pblmaxp) then
+         npbl = npbl + 1
+      end if
+   end do
+   npbl = max(npbl,1)
+
+   print *, 'SHOC E3SM'
+
+   return
 
 end subroutine shoc_init
 
@@ -203,26 +283,25 @@ end subroutine shoc_init
 ! Host models should call the following routine to call SHOC
 
 subroutine shoc_main ( &
-     itimestep, &                         ! Input
+     itimestep, &
      shcol, nlev, nlevi, dtime, nadv, &   ! Input
      host_dx, host_dy,thv, &              ! Input
-     zt_grid,zi_grid,pres,presi, &        ! Input
-     pdel, &                              ! Input
+     zt_grid,zi_grid,pres,presi,pdel,&    ! Input
      wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, & ! Input
      wtracer_sfc,num_qtracers,w_field, &  ! Input
-     exner,phis, &                        ! Input
+     inv_exner,phis, &                        ! Input
      host_dse, tke, thetal, qw, &         ! Input/Output
      u_wind, v_wind,qtracers,&            ! Input/Output
      wthv_sec,tkh,tk,&                    ! Input/Output
      shoc_ql,shoc_cldfrac,&               ! Input/Output
      pblh,pblh_wthl,pblh_tke,&            ! Output
-     rino, &                              ! Output
+     rino, &
      shoc_mix, isotropy,&                 ! Output (diagnostic)
-     a_diss, a_prod_bu, a_prod_sh,&       ! Output (diagnostic)
+     a_diss, a_prod_bu, a_prod_sh,&  
      w_sec, thl_sec, qw_sec, qwthl_sec,&  ! Output (diagnostic)
      wthl_sec, wqw_sec, wtke_sec,&        ! Output (diagnostic)
      uw_sec, vw_sec, w3,&                 ! Output (diagnostic)
-     wqls_sec, brunt, shoc_ql2,&          ! Output (diagnostic)
+     wqls_sec, brunt, shoc_ql2, &          ! Output (diagnostic)
      mf_dry_a,   mf_moist_a,&             ! Output (EDMF diagnostic)
      mf_dry_w,   mf_moist_w,&             ! Output (EDMF diagnostic)
      mf_dry_qt,  mf_moist_qt,&            ! Output (EDMF diagnostic)
@@ -237,12 +316,55 @@ subroutine shoc_main ( &
      mf_awu, mf_awv, cfl_mf, &            ! Output (EDMF diagnostic)
      mf_dry_freq, mf_moist_freq, &        ! Output (EDMF diagnostic)
      plumeheight, plume_dry_height, ztop_B, &          ! Output (EDMF diagnostic)
-     wthl_sec_ed, wthl_sec_mf, wqw_sec_ed, wqw_sec_mf) ! Output - EDMF)               
+     wthl_sec_ed, wthl_sec_mf, wqw_sec_ed, wqw_sec_mf &
+#ifdef SCREAM_CONFIG_IS_CMAKE
+     , elapsed_s &
+#endif
+     )
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_main_f
+#endif
+
   implicit none
 
-! INPUT VARIABLES
-  ! time step number
+  ! DUMMY VARIABLES IN ORDER TO TEST BOTH SHOC VERSIONS
   integer, intent(in) :: itimestep
+  real(rtype), intent(out) :: pblh_wthl(shcol)
+  real(rtype), intent(out) :: pblh_tke(shcol)
+  real(rtype), intent(out) :: rino(shcol, nlev)
+  real(rtype), intent(out) :: a_diss(shcol,nlev)
+  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
+  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
+  real(rtype), intent(inout), dimension(shcol,nlevi) :: &
+    mf_dry_a,   mf_moist_a,   & ! dry and moist plume area, respectively [-]
+    mf_dry_w,   mf_moist_w,   & ! dry and moist plume mean vertical velocity, respectively [m/s]
+    mf_dry_qt,  mf_moist_qt,  & ! dry and moist plume mean qt, respectively [kg/kg]
+    mf_dry_thl, mf_moist_thl, & ! dry and moist plume mean thl, respectively [K]
+    mf_dry_u,   mf_moist_u,   & ! dry and moist plume mean u, respectively [m/s]
+    mf_dry_v,   mf_moist_v,   & ! dry and moist plume mean v, respectively [m/s]
+                mf_moist_qc,  & ! moist plume mean qc [kg/kg]
+    mf_thlflx,  mf_qtflx,     & ! total MF turbulent flux of theta_l [K m/s], q_t [(kg/kg) m/s]
+    mf_ae,    & ! environmental area; by default ae=1 (set constant for now) [-]
+    mf_aw,    & ! sum(a_i * w_i) [m/s]
+    mf_awthv, & ! sum(a_i * w_i * thv_i) [K m/s]
+    mf_awthl, & ! sum(a_i * w_i * thl_i) [K m/s]
+    mf_awqt,  & ! sum(a_i * w_i * qt_i)  [(kg/kg) m/s]
+    mf_awql,  & ! sum(a_i * w_i * ql_i) [(kg/kg) m/s]
+    mf_awqi,  & ! sum(a_i * w_i * qi_i) [(kg/kg) m/s]
+    mf_awu,   & ! sum(a_i * w_i * u_i) [m^2/s^2]
+    mf_awv,   & ! sum(a_i * w_i * v_i) [m^2/s^2]
+    cfl_mf
+
+  real(rtype), intent(inout) :: mf_dry_freq(shcol), mf_moist_freq(shcol)
+  real(rtype), intent(inout) :: plumeheight(shcol), plume_dry_height(shcol), ztop_B(shcol)
+  real(rtype), intent(out) :: wthl_sec_ed(shcol,nlevi)
+  real(rtype), intent(out) :: wthl_sec_mf(shcol,nlevi)
+  real(rtype), intent(out) :: wqw_sec_ed(shcol,nlevi)
+  real(rtype), intent(out) :: wqw_sec_mf(shcol,nlevi)
+
+
+! INPUT VARIABLES
   ! number of SHOC columns in the array
   integer, intent(in) :: shcol
   ! number of levels [-]
@@ -284,8 +406,8 @@ subroutine shoc_main ( &
   real(rtype), intent(in) :: vw_sfc(shcol)
   ! Surface flux for tracers [varies]
   real(rtype), intent(in) :: wtracer_sfc(shcol,num_qtracers)
-  ! Exner function [-]
-  real(rtype), intent(in) :: exner(shcol,nlev)
+  ! Inverse of the exner function [-]
+  real(rtype), intent(in) :: inv_exner(shcol,nlev)
   ! Host model surface geopotential height
   real(rtype), intent(in) :: phis(shcol)
 
@@ -317,44 +439,12 @@ subroutine shoc_main ( &
   ! cloud liquid mixing ratio [kg/kg]
   real(rtype), intent(inout) :: shoc_ql(shcol,nlev)
 
-  ! EDMF VARIABLES 
-  ! mf_* are diagnostic variables
-  ! s_* are integrated plume fluxes for calculating MF contribution to total tendencies
-  real(rtype), intent(inout), dimension(shcol,nlevi) :: &
-      mf_dry_a,   mf_moist_a,   & ! dry and moist plume area, respectively [-]
-      mf_dry_w,   mf_moist_w,   & ! dry and moist plume mean vertical velocity, respectively [m/s]
-      mf_dry_qt,  mf_moist_qt,  & ! dry and moist plume mean qt, respectively [kg/kg]
-      mf_dry_thl, mf_moist_thl, & ! dry and moist plume mean thl, respectively [K]
-      mf_dry_u,   mf_moist_u,   & ! dry and moist plume mean u, respectively [m/s]
-      mf_dry_v,   mf_moist_v,   & ! dry and moist plume mean v, respectively [m/s]
-                  mf_moist_qc,  & ! moist plume mean qc [kg/kg]
-      mf_thlflx,  mf_qtflx,     & ! total MF turbulent flux of theta_l [K m/s], q_t [(kg/kg) m/s]
-      mf_ae,    & ! environmental area; by default ae=1 (set constant for now) [-]
-      mf_aw,    & ! sum(a_i * w_i) [m/s]
-      mf_awthv, & ! sum(a_i * w_i * thv_i) [K m/s]
-      mf_awthl, & ! sum(a_i * w_i * thl_i) [K m/s]
-      mf_awqt,  & ! sum(a_i * w_i * qt_i)  [(kg/kg) m/s]
-      mf_awql,  & ! sum(a_i * w_i * ql_i) [(kg/kg) m/s]
-      mf_awqi,  & ! sum(a_i * w_i * qi_i) [(kg/kg) m/s]
-      mf_awu,   & ! sum(a_i * w_i * u_i) [m^2/s^2]
-      mf_awv,   & ! sum(a_i * w_i * v_i) [m^2/s^2]
-      cfl_mf
-
-  ! 2D statistics of plume activation frequency, one for dry and one for moist plumes
-  real(rtype), intent(inout) :: mf_dry_freq(shcol), mf_moist_freq(shcol)
-  real(rtype), intent(inout) :: plumeheight(shcol), plume_dry_height(shcol), ztop_B(shcol)
-   
   ! OUTPUT VARIABLES
 
   ! planetary boundary layer depth [m]
   real(rtype), intent(out) :: pblh(shcol)
-  real(rtype), intent(out) :: pblh_wthl(shcol)
-  real(rtype), intent(out) :: pblh_tke(shcol)
-    
   ! cloud liquid mixing ratio variance [kg^2/kg^2]
   real(rtype), intent(out) :: shoc_ql2(shcol, nlev)
-  ! Bulk Ri
-  real(rtype), intent(out) :: rino(shcol, nlev)
 
   ! also output variables, but part of the SHOC diagnostics
   !  to be output to history file by host model (if desired)
@@ -371,12 +461,8 @@ subroutine shoc_main ( &
   real(rtype), intent(out) :: qwthl_sec(shcol,nlevi)
   ! vertical heat flux [K m/s]
   real(rtype), intent(out) :: wthl_sec(shcol,nlevi)
-  real(rtype), intent(out) :: wthl_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wthl_sec_mf(shcol,nlevi)
-  ! vertical moisture flux [kg/kg m/s]
+  ! vertical moisture flux [K m/s]
   real(rtype), intent(out) :: wqw_sec(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_mf(shcol,nlevi)
   ! vertical tke flux [m3/s3]
   real(rtype), intent(out) :: wtke_sec(shcol,nlevi)
   ! vertical zonal momentum flux [m2/s2]
@@ -391,22 +477,24 @@ subroutine shoc_main ( &
   real(rtype), intent(out) :: brunt(shcol,nlev)
   ! return to isotropic timescale [s]
   real(rtype), intent(out) :: isotropy(shcol,nlev)
-  real(rtype), intent(out) :: a_diss(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
-  
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  real(rtype), optional, intent(out) :: elapsed_s ! duration of main loop in seconds
+#endif
+
+
   !============================================================================
 ! LOCAL VARIABLES
-  
+
   ! time counter
   integer :: t
+
   ! air density on thermo grid [kg/m3]
   real(rtype) :: rho_zt(shcol,nlev)
-  ! air density on interface grid [kg/m3]
-  real(rtype) :: rho_zi_mf(shcol,nlevi)
-  
   ! SHOC water vapor [kg/kg]
   real(rtype) :: shoc_qv(shcol,nlev)
+  ! SHOC temperature [K]
+  real(rtype) :: shoc_tabs(shcol,nlev)
 
   ! Grid difference centereted on thermo grid [m]
   real(rtype) :: dz_zt(shcol,nlev)
@@ -426,10 +514,35 @@ subroutine shoc_main ( &
               se_a(shcol),ke_a(shcol),&
               wv_a(shcol),wl_a(shcol)
 
-  real(rtype) :: thv_zi(shcol,nlevi)
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  integer :: clock_count1, clock_count_rate, clock_count_max, clock_count2, clock_count_diff
+#endif
 
-  ! pressure levels on interface grid [Pa] used in mf_integrate()
-  real(rtype) :: pres_zi(shcol,nlevi)
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call shoc_main_f(shcol, nlev, nlevi, dtime, nadv, npbl,& ! Input
+                     host_dx, host_dy,thv, &                 ! Input
+                     zt_grid,zi_grid,pres,presi,pdel,&       ! Input
+                     wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &    ! Input
+                     wtracer_sfc,num_qtracers,w_field, &     ! Input
+                     inv_exner,phis, &                           ! Input
+                     host_dse, tke, thetal, qw, &            ! Input/Output
+                     u_wind, v_wind,qtracers,&               ! Input/Output
+                     wthv_sec,tkh,tk,&                       ! Input/Output
+                     shoc_ql,shoc_cldfrac,&                  ! Input/Output
+                     pblh,&                                  ! Output
+                     shoc_mix, isotropy,&                    ! Output (diagnostic)
+                     w_sec, thl_sec, qw_sec, qwthl_sec,&     ! Output (diagnostic)
+                     wthl_sec, wqw_sec, wtke_sec,&           ! Output (diagnostic)
+                     uw_sec, vw_sec, w3,&                    ! Output (diagnostic)
+                     wqls_sec, brunt, shoc_ql2)              ! Output (diagnostic)
+     return
+  endif
+#endif
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    call system_clock(clock_count1, clock_count_rate, clock_count_max)
+#endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
@@ -441,7 +554,7 @@ subroutine shoc_main ( &
      se_b,ke_b,wv_b,wl_b)                   ! Input/Output
 
   do t=1,nadv
-     
+
     ! Check TKE to make sure values lie within acceptable
     !  bounds after host model performs horizontal advection
     call check_tke(shcol,nlev,&                 ! Input
@@ -463,6 +576,11 @@ subroutine shoc_main ( &
        shcol,nlev,qw,shoc_ql,&              ! Input
        shoc_qv)                             ! Output
 
+    ! Diagnose absolute temperature
+    call compute_shoc_temperature(&
+       shcol,nlev,thetal,shoc_ql,inv_exner,& ! Input
+       shoc_tabs)                            ! Output
+
     call shoc_diag_obklen(&
        shcol,uw_sfc,vw_sfc,&                          ! Input
        wthl_sfc,wqw_sfc,thetal(:shcol,nlev),&         ! Input
@@ -474,104 +592,36 @@ subroutine shoc_main ( &
        zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
        shoc_qv,u_wind,v_wind,&              ! Input
        ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-       pblh,rino)                                ! Output    
-       
-    ! PBL height for integrate_mf subroutine
-    call edmf_pblh(&
-       shcol,nlev,nlevi,&      ! Input
-       zt_grid,zi_grid,&       ! Input
-       wthl_sec,tke,&          ! Input
-       pblh_wthl,pblh_tke)     ! Output   
-    
-    ! If using EDMF plumes, diagnose plume properties here
-    call linear_interp(zt_grid,zi_grid,thv,thv_zi,nlev,nlevi,shcol,0._rtype)
-    call linear_interp(zt_grid,zi_grid,rho_zt,rho_zi_mf,nlev,nlevi,shcol,0._rtype)
-    
-    if (do_edmf) then
-       call integrate_mf(&
-               itimestep,&                               ! Input
-               shcol, nlev, nlevi, dtime,&               ! Input
-               rho_zt, rho_zi_mf,&                       ! Input
-               zt_grid, zi_grid, dz_zt, presi,thv_zi,&   ! Input
-               u_wind, v_wind, thetal, thv, qw,&         ! Input
-               ustar, wthl_sfc, wqw_sfc, shoc_ql, &      ! Input
-               pblh, pblh_wthl, wthv_sec, &              ! Input
-               mf_dry_a,   mf_moist_a, &                 ! Output - updraft diagnostics
-               mf_dry_w,   mf_moist_w, &                 ! Output - updraft diagnostics
-               mf_dry_qt,  mf_moist_qt, &                ! Output - updraft diagnostics
-               mf_dry_thl, mf_moist_thl, &               ! Output - updraft diagnostics
-               mf_dry_u,   mf_moist_u,  &                ! Output - updraft diagnostics
-               mf_dry_v,   mf_moist_v, &                 ! Output - updraft diagnostics
-                           mf_moist_qc, &                ! Output - updraft diagnostics
-               mf_ae,      mf_aw, &                      ! Output - for diffusion solver
-               mf_awthv, &                               ! Output for total wthv
-               mf_awthl,   mf_awqt, &                    ! Output - for diffusion solver
-               mf_awql,    mf_awqi, &                    ! Output - for diffusion solver/PDF closure but not coupled yet
-               mf_awu,     mf_awv,  &                    ! Output - for diffusion solver/PDF closure but not coupled yet
-               mf_dry_freq,mf_moist_freq, plumeheight, & ! Output
-               plume_dry_height, ztop_B, cfl_mf)         ! Output - 2D statistics of plume activation frequency
-    else
-       mf_dry_a = 0._rtype
-       mf_dry_w = 0._rtype
-       mf_dry_qt = 0._rtype
-       mf_dry_thl = 0._rtype
-       mf_dry_u = 0._rtype
-       mf_dry_v = 0._rtype
+       pblh)                                ! Output
 
-       mf_moist_a = 0._rtype
-       mf_moist_w = 0._rtype
-       mf_moist_qt = 0._rtype
-       mf_moist_thl = 0._rtype
-       mf_moist_u = 0._rtype
-       mf_moist_v = 0._rtype
-       mf_moist_qc = 0._rtype
-
-       mf_ae = 1._rtype
-       mf_aw = 0._rtype
-       mf_awthv = 0._rtype
-       mf_awthl = 0._rtype
-       mf_awqt = 0._rtype
-       mf_awql = 0._rtype
-       mf_awqi = 0._rtype
-       mf_awu = 0._rtype
-       mf_awv = 0._rtype
-       mf_dry_freq = 0._rtype
-       mf_moist_freq = 0._rtype
-    endif
-    ! TODO (GTF): Keep it hardcoded mf_ae value?
-    ! Test it
-    mf_ae = 1._rtype
-    
     ! Update the turbulent length scale
     call shoc_length(&
-        shcol,nlev,nlevi,&                ! Input
-        host_dx,host_dy,pblh,&            ! Input
-        tke,zt_grid,zi_grid,dz_zt,dz_zi,& ! Input
-        thetal,wthv_sec,thv,&             ! Input
-        brunt,shoc_mix)                   ! Output
-        
+       shcol,nlev,nlevi,&                ! Input
+       host_dx,host_dy,&                 ! Input
+       zt_grid,zi_grid,dz_zt,&           ! Input
+       tke,thv,&                         ! Input
+       brunt,shoc_mix)                   ! Output
+
     ! Advance the SGS TKE equation
     call shoc_tke(&
-        shcol,nlev,nlevi,dtime,&                ! Input
-        wthv_sec,shoc_mix,&                     ! Input
-        dz_zi,dz_zt,pres,&                      ! Input
-        u_wind,v_wind,brunt,obklen,&            ! Input
-        zt_grid,zi_grid,pblh,&                  ! Input
-        tke,tk,tkh,&                            ! Input/Output
-        isotropy, a_diss, a_prod_bu, a_prod_sh) ! Output
-        
+       shcol,nlev,nlevi,dtime,&             ! Input
+       wthv_sec,shoc_mix,&                  ! Input
+       dz_zi,dz_zt,pres,shoc_tabs,&         ! Input
+       u_wind,v_wind,brunt,&                ! Input
+       zt_grid,zi_grid,pblh,&               ! Input
+       tke,tk,tkh,&                         ! Input/Output
+       isotropy)                            ! Output
+
     ! Update SHOC prognostic variables here
     !   via implicit diffusion solver
-    call update_prognostics_implicit(&        ! Input
-       shcol,nlev,nlevi,num_qtracers,&        ! Input
-       dtime,dz_zt,dz_zi,rho_zt,&             ! Input
-       zt_grid,zi_grid,tk,tkh,&               ! Input
-       uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,&       ! Input
-       wtracer_sfc,&                          ! Input
-       do_mf_diag,mf_ae,mf_aw,mf_awu,mf_awv,& ! EDMF Input
-       mf_awthl,mf_awqt,&                     ! EDMF Input
-       thetal,qw,qtracers,tke,&               ! Input/Output
-       u_wind,v_wind)                         ! Input/Output
+    call update_prognostics_implicit(&      ! Input
+       shcol,nlev,nlevi,num_qtracers,&      ! Input
+       dtime,dz_zt,dz_zi,rho_zt,&           ! Input
+       zt_grid,zi_grid,tk,tkh,&             ! Input
+       uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,&     ! Input
+       wtracer_sfc,&                        ! Input
+       thetal,qw,qtracers,tke,&             ! Input/Output
+       u_wind,v_wind)                       ! Input/Output
 
     ! Diagnose the second order moments
     call diag_second_shoc_moments(&
@@ -580,14 +630,10 @@ subroutine shoc_main ( &
        isotropy,tkh,tk,&                      ! Input
        dz_zi,zt_grid,zi_grid,shoc_mix, &      ! Input
        wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &   ! Input
-       do_mf_diag, mf_ae,  mf_aw, &           ! EDMF Input
-       mf_awthl,    mf_awqt, &                ! EDMF Input
        thl_sec, qw_sec,wthl_sec,wqw_sec,&     ! Output
        qwthl_sec, uw_sec, vw_sec, wtke_sec, & ! Output
-       w_sec,&                                ! Output
-       mf_thlflx, mf_qtflx, &
-       wthl_sec_ed,wthl_sec_mf, wqw_sec_ed, wqw_sec_mf)  ! Output - EDMF)  
-       
+       w_sec)                                 ! Output
+
     ! Diagnose the third moment of vertical velocity,
     !  needed for the PDF closure
     call diag_third_shoc_moments(&
@@ -599,19 +645,7 @@ subroutine shoc_main ( &
        w3)                                  ! Output
 
     ! Call the PDF to close on SGS cloud and turbulence
-    if (do_edmf) then
-       call shoc_assumed_pdf(&
-       shcol,nlev,nlevi,&                   ! Input
-       thetal,qw,w_field,thl_sec,qw_sec,&   ! Input
-       !wthl_sec,w_sec,&                    ! Input
-       wthl_sec_ed,w_sec,&                  ! Input
-       !wqw_sec,qwthl_sec,w3,pres,&         ! Input
-       wqw_sec_ed,qwthl_sec,w3,pres,&       ! Input
-       zt_grid,zi_grid,&                    ! Input
-       shoc_cldfrac,shoc_ql,&               ! Output
-       wqls_sec,wthv_sec,shoc_ql2)          ! Output
-    else
-       call shoc_assumed_pdf(&
+    call shoc_assumed_pdf(&
        shcol,nlev,nlevi,&                   ! Input
        thetal,qw,w_field,thl_sec,qw_sec,&   ! Input
        wthl_sec,w_sec,&                     ! Input
@@ -619,7 +653,6 @@ subroutine shoc_main ( &
        zt_grid,zi_grid,&                    ! Input
        shoc_cldfrac,shoc_ql,&               ! Output
        wqls_sec,wthv_sec,shoc_ql2)          ! Output
-    endif
 
     ! Check TKE to make sure values lie within acceptable
     !  bounds after vertical advection, etc.
@@ -633,7 +666,7 @@ subroutine shoc_main ( &
   !  temperature
   call update_host_dse(&
      shcol,nlev,thetal,&                   ! Input
-     shoc_ql,exner,zt_grid,phis,&          ! Input
+     shoc_ql,inv_exner,zt_grid,phis,&          ! Input
      host_dse)                             ! Output
 
   call shoc_energy_integrals(&             ! Input
@@ -673,82 +706,19 @@ subroutine shoc_main ( &
      zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
      shoc_qv,u_wind,v_wind,&              ! Input
      ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-     pblh,rino)                                ! Output
+     pblh)                                ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  call system_clock(clock_count2, clock_count_rate, clock_count_max)
+  clock_count_diff = clock_count2 - clock_count1
+  if (present(elapsed_s)) then
+    elapsed_s = real(clock_count_diff) / real(clock_count_rate)
+  endif
+#endif
+
   return
 
 end subroutine shoc_main
-
-!==============================================================
-! Calculates the PBL height: TKE and wthl method (criterium: TKE and wthl vanishes)
-
-subroutine edmf_pblh(&
-       shcol,nlev,nlevi, &     ! Input
-       zt_grid,zi_grid,  &     ! Input
-       wthl_sec,tke,     &     ! Input
-       pblh_wthl, pblh_tke)    ! Output
-
-  implicit none
-
-! INPUT VARIABLES
-  ! number of columns [-]
-  integer, intent(in) :: shcol
-  ! number of mid-point levels [-]
-  integer, intent(in) :: nlev
-  ! number of interface levels [-]
-  integer, intent(in) :: nlevi
-  ! mid-point grid heights [m]
-  real(rtype), intent(in) :: zt_grid(shcol,nlev)
-  ! mid-point grid heights [m]
-  real(rtype), intent(in) :: zi_grid(shcol,nlevi)
-  ! vertical heat flux [K m/s]
-  real(rtype), intent(in) :: wthl_sec(shcol,nlevi)
-  ! TKE [m2/s2]
-  real(rtype), intent(in) :: tke(shcol,nlev)
-
-  
-  ! Output = PBL height using wthl
-  real(rtype), intent(out) :: pblh_wthl(shcol)
-  ! Output = PBL height using TKE
-  real(rtype), intent(out) :: pblh_tke(shcol)
-  
-  ! local variables
-  integer :: i, k, imax
-  real(rtype) :: tke_threshold
-  logical :: check
-
-
-  ! PBL height: wthl method
-  do i=1,shcol
-    pblh_wthl(i) = 0._rtype
-    check  = .true.
-    ! TODO (GTF): This 'check' variable is unecessary. It is possible to use break
-    do k = 45,nlev  ! from top to bottom
-        if (check .and. abs(abs(wthl_sec(i,k)) - abs(wthl_sec(i,k+1))) > 0.001_rtype) then
-         pblh_wthl(i) = zi_grid(i,k)
-         check = .false.
-       endif
-    enddo
-  enddo
-         
-  ! PBL height: TKE method
-  do i=1,shcol
-    if (tke(i,nlev) .NE. 0._rtype ) then
-      tke_threshold = mintke*1.1_rtype
-      check  = .true.
-      ! TODO (GTF): This 'check' variable is unecessary. It is possible to use break
-      do k = nlev,3,-1    
-          if (zt_grid(i,k) < 100._rtype) cycle
-          if (check .and. tke(i,k) < tke_threshold .and. tke(i,k-1) < tke_threshold) then
-            pblh_tke(i) = zt_grid(i,k)
-            check = .false.
-          endif
-      enddo  
-    else
-      pblh_tke(i) = 0._rtype
-    endif
-  enddo
-  
-end subroutine edmf_pblh
 
 !==============================================================
 ! Define grid variables needed for the parameterization
@@ -762,6 +732,10 @@ subroutine shoc_grid( &
   !  arrays of each column, to be used for finite differencing
   !  throughout the SHOC parameterization, also define air
   !  density in SHOC
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_grid_f
+#endif
 
   implicit none
 
@@ -789,6 +763,16 @@ subroutine shoc_grid( &
 
   ! local variables
   integer :: i, k
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call shoc_grid_f(shcol,nlev,nlevi,&
+                     zt_grid,zi_grid,pdel,&
+                     dz_zt,dz_zi,rho_zt)
+     return
+  endif
+#endif
+
   do k=1,nlev
     do i=1,shcol
       ! define thickness of the thermodynamic gridpoints
@@ -801,10 +785,9 @@ subroutine shoc_grid( &
         dz_zi(i,k) = zt_grid(i,k-1) - zt_grid(i,k)
       endif
 
-      ! TODO (GTF): We could pass through parameter 'rho' from MPAS instead of defining it here.
       ! Define the air density on the thermo grid
       rho_zt(i,k) = (1._rtype/ggr)*(pdel(i,k)/dz_zt(i,k))
-      
+
     enddo ! end i loop (column loop)
   enddo ! end k loop (vertical loop)
 
@@ -826,9 +809,9 @@ subroutine compute_shoc_vapor( &
   !   based on SHOC's prognostic total water mixing ratio
   !   and diagnostic cloud water mixing ratio.
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_shoc_vapor_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_shoc_vapor_f
+#endif
 
   implicit none
 
@@ -849,12 +832,12 @@ subroutine compute_shoc_vapor( &
 ! LOCAL VARIABLES
   integer :: i, k
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_shoc_vapor_f(shcol,nlev,qw,ql,qv)
-!      return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_shoc_vapor_f(shcol,nlev,qw,ql,qv)
+     return
+  endif
+#endif
 
   do k = 1, nlev
     do i = 1, shcol
@@ -867,6 +850,59 @@ subroutine compute_shoc_vapor( &
 end subroutine compute_shoc_vapor
 
 !==============================================================
+! Compute temperature from SHOC prognostic/diagnostic variables
+
+subroutine compute_shoc_temperature( &
+          shcol,nlev,thetal,ql,inv_exner,& ! Input
+          tabs)                            ! Output
+
+  ! Purpose of this subroutine is to compute temperature
+  !   based on SHOC's prognostic liquid water potential
+  !   temperature.
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_shoc_temperature_f
+#endif
+
+  implicit none
+
+! INPUT VARIABLES
+  ! number of columns [-]
+  integer, intent(in) :: shcol
+  ! number of mid-point levels [-]
+  integer, intent(in) :: nlev
+  ! liquid water potential temperature [K]
+  real(rtype), intent(in) :: thetal(shcol,nlev)
+  ! cloud water mixing ratio [kg/kg]
+  real(rtype), intent(in) :: ql(shcol,nlev)
+  ! inverse exner function [-]
+  real(rtype), intent(in) :: inv_exner(shcol,nlev)
+
+! OUTPUT VARIABLES
+  ! absolute temperature [K]
+  real(rtype), intent(out) :: tabs(shcol,nlev)
+
+! LOCAL VARIABLES
+  integer :: i, k
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call compute_shoc_temperature_f(shcol,nlev,thetal,ql,inv_exner,tabs)
+     return
+  endif
+#endif
+
+  do k = 1, nlev
+    do i = 1, shcol
+      tabs(i,k) = thetal(i,k)/inv_exner(i,k)+(lcond/cp)*ql(i,k)
+    enddo
+  enddo
+
+  return
+
+end subroutine compute_shoc_temperature
+
+!==============================================================
 ! Update T, q, tracers, tke, u, and v based on implicit diffusion
 ! Here we use a backward Euler scheme.
 
@@ -876,10 +912,12 @@ subroutine update_prognostics_implicit( &
          zt_grid,zi_grid,tk,tkh,&         ! Input
          uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,& ! Input
          wtracer_sfc,&                    ! Input
-         do_mf,mf_ae,mf_aw,mf_awu,mf_awv,&! EDMF Input
-         mf_awthl,mf_awqt,&               ! EDMF Input
          thetal,qw,tracer,tke,&           ! Input/Output
          u_wind,v_wind)                   ! Input/Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: update_prognostics_implicit_f
+#endif
 
   implicit none
 
@@ -920,22 +958,6 @@ subroutine update_prognostics_implicit( &
   ! heights at interfaces [m]
   real(rtype), intent(in) :: zi_grid(shcol,nlevi)
 
-  ! EDMF inputs
-  ! If .true., diagnose MF plumes and include in vertical diffusion solver
-  logical, intent(in) ::  do_mf
-  ! Fractional area of of nonconvective environment
-  real(rtype), intent(in) :: mf_ae(shcol,nlevi)
-  ! MF plume sum(a_i*w_i)
-  real(rtype), intent(in) :: mf_aw(shcol,nlevi)
-  ! Total MF plume u turbulent flux
-  real(rtype), intent(in) :: mf_awu(shcol,nlevi)
-  ! Total MF plume v turbulent flux
-  real(rtype), intent(in) :: mf_awv(shcol,nlevi)
-  ! Total MF plume theta_l turbulent flux
-  real(rtype), intent(in) :: mf_awthl(shcol,nlevi)
-  ! Total MF plume q_t turbulent flux
-  real(rtype), intent(in) :: mf_awqt(shcol,nlevi)
-
 ! IN/OUT VARIABLES
   ! liquid water potential temperature [K]
   real(rtype), intent(inout) :: thetal(shcol,nlev)
@@ -961,12 +983,23 @@ subroutine update_prognostics_implicit( &
   real(rtype) :: flux_dummy(shcol)
   real(rtype) :: ksrf(shcol), wtke_sfc(shcol)
 
-  real(rtype) :: ca(shcol,nlev) ! superdiagonal for solver
-  real(rtype) :: cc(shcol,nlev) ! subdiagonal for solver
-  real(rtype) :: denom(shcol,nlev) ! denominator in solver
-  real(rtype) :: ze(shcol,nlev)
+  real(rtype) :: du(shcol,nlev) ! Superdiagonal for solver
+  real(rtype) :: dl(shcol,nlev) ! Factorized subdiagonal for solver
+  real(rtype) :: d(shcol,nlev)  ! Factorized diagonal for solver
 
-  real(rtype) :: tmpi3(shcol,nlevi) ! for EDMF in diffusion solver
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call update_prognostics_implicit_f(&
+           shcol,nlev,nlevi,num_tracer,&    ! Input
+           dtime,dz_zt,dz_zi,rho_zt,&       ! Input
+           zt_grid,zi_grid,tk,tkh,&         ! Input
+           uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,& ! Input
+           wtracer_sfc,&                    ! Input
+           thetal,qw,tracer,tke,&           ! Input/Output
+           u_wind,v_wind)                   ! Input/Output
+     return
+  endif
+#endif
 
   ! linearly interpolate tkh, tk, and air density onto the interface grids
   call linear_interp(zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,shcol,0._rtype)
@@ -977,10 +1010,6 @@ subroutine update_prognostics_implicit( &
   ! Define the tmpi variable, which is really dt*(g*rho)**2/dp
   !  at interfaces. Substitue dp = g*rho*dz in the above equation
   call compute_tmpi(nlevi, shcol, dtime, rho_zi, dz_zi, tmpi)
-  
-  ! For MF component
-  tmpi3(:,1) = 0._rtype
-  call compute_tmpi3(nlevi, shcol, dtime, rho_zi, tmpi3)
 
   ! compute 1/dp term, needed in diffusion solver
   call dp_inverse(nlev, shcol, rho_zt, dz_zt, rdp_zt)
@@ -999,35 +1028,32 @@ subroutine update_prognostics_implicit( &
 
   ! Call decomp for momentum variables
   call vd_shoc_decomp(shcol,nlev,nlevi,tk_zi,tmpi,rdp_zt,dtime,&
-     ksrf,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
+     ksrf,du,dl,d)
 
   ! march u_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awu,tmpi3,rdp_zt,u_wind)
+  call vd_shoc_solve(shcol,nlev,du,dl,d,u_wind)
 
   ! march v_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_awv,tmpi3,rdp_zt,v_wind)
+  call vd_shoc_solve(shcol,nlev,du,dl,d,v_wind)
 
- ! Call decomp for thermo variables
+  ! Call decomp for thermo variables
   flux_dummy(:) = 0._rtype ! fluxes applied explicitly, so zero fluxes out
                            ! for implicit solver decomposition
   call vd_shoc_decomp(shcol,nlev,nlevi,tkh_zi,tmpi,rdp_zt,dtime,&
-     flux_dummy,do_mf,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
+     flux_dummy,du,dl,d)
 
   ! march temperature one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awthl,tmpi3,rdp_zt,thetal)
+  call vd_shoc_solve(shcol,nlev,du,dl,d,thetal)
 
   ! march total water one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,do_mf,mf_awqt,tmpi3,rdp_zt,qw)
+  call vd_shoc_solve(shcol,nlev,du,dl,d,qw)
 
-  ! Call decomp one more time for TKE and tracers so they don't "see" MF plumes
-  call vd_shoc_decomp(shcol,nlev,nlevi,tkh_zi,tmpi,rdp_zt,dtime,&
-          flux_dummy,.false.,mf_ae,mf_aw,tmpi3,ca,cc,denom,ze)
   ! march tke one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tke)
+  call vd_shoc_solve(shcol,nlev,du,dl,d,tke)
 
   ! march tracers one step forward using implicit solver
   do p=1,num_tracer
-    call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,.false.,mf_aw,tmpi3,rdp_zt,tracer(:shcol,:nlev,p))
+    call vd_shoc_solve(shcol,nlev,du,dl,d,tracer(:shcol,:nlev,p))
   enddo
 
   return
@@ -1035,6 +1061,10 @@ subroutine update_prognostics_implicit( &
 end subroutine update_prognostics_implicit
 
 subroutine compute_tmpi(nlevi, shcol, dtime, rho_zi, dz_zi, tmpi)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_tmpi_f
+#endif
 
   !intent-ins
   integer,     intent(in) :: nlevi, shcol
@@ -1051,6 +1081,13 @@ subroutine compute_tmpi(nlevi, shcol, dtime, rho_zi, dz_zi, tmpi)
   !local vars
   integer :: i, k
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_tmpi_f(nlevi, shcol, dtime, rho_zi, dz_zi, tmpi)
+     return
+  endif
+#endif
+
   tmpi(:,1) = 0._rtype
   ! eqn: tmpi = dt*(g*rho)**2/dp, where dp = g*rho*dz, therefore tmpi = dt*g*rho/dz
   do k = 2, nlevi
@@ -1062,6 +1099,10 @@ subroutine compute_tmpi(nlevi, shcol, dtime, rho_zi, dz_zi, tmpi)
 end subroutine compute_tmpi
 
 subroutine dp_inverse(nlev, shcol, rho_zt, dz_zt, rdp_zt)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: dp_inverse_f
+#endif
 
   !intent-ins
   integer,     intent(in) :: nlev, shcol
@@ -1076,6 +1117,13 @@ subroutine dp_inverse(nlev, shcol, rho_zt, dz_zt, rdp_zt)
   !local vars
   integer :: i, k
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call dp_inverse_f(nlev, shcol, rho_zt, dz_zt, rdp_zt)
+     return
+  endif
+#endif
+
   do k = 1, nlev
     do i = 1, shcol
       rdp_zt(i,k) = 1._rtype/(ggr*rho_zt(i,k)*dz_zt(i,k))
@@ -1084,7 +1132,7 @@ subroutine dp_inverse(nlev, shcol, rho_zt, dz_zt, rdp_zt)
 
 end subroutine dp_inverse
 
-pure function impli_srf_stress_term(shcol, rho_zi_sfc, uw_sfc, &
+function impli_srf_stress_term(shcol, rho_zi_sfc, uw_sfc, &
      vw_sfc, u_wind_sfc, v_wind_sfc) result (ksrf)
 
   !intent-ins
@@ -1124,15 +1172,15 @@ pure function impli_srf_stress_term(shcol, rho_zi_sfc, uw_sfc, &
      taux         = rho*uw ! stress in N/m2
      tauy         = rho*vw ! stress in N/m2
      ! compute the wind speed
-     ws           = max(sqrt(u_wind_sfc(i)**2._rtype + v_wind_sfc(i)**2._rtype),wsmin)
-     tau          = sqrt( taux**2._rtype + tauy**2._rtype )
+     ws           = max(bfb_sqrt(bfb_square(u_wind_sfc(i)) + bfb_square(v_wind_sfc(i))),wsmin)
+     tau          = bfb_sqrt(bfb_square(taux) + bfb_square(tauy))
      ksrf(i)      = max(tau/ws, ksrfmin)
   enddo
 
   return
 end function impli_srf_stress_term
 
-pure function tke_srf_flux_term(shcol, uw_sfc, vw_sfc) result(wtke_sfc)
+function tke_srf_flux_term(shcol, uw_sfc, vw_sfc) result(wtke_sfc)
 
   !intent-ins
   integer,     intent(in) :: shcol
@@ -1155,8 +1203,8 @@ pure function tke_srf_flux_term(shcol, uw_sfc, vw_sfc) result(wtke_sfc)
   do i = 1, shcol
      uw           = uw_sfc(i)
      vw           = vw_sfc(i)
-     ustar        = max(sqrt(sqrt(uw**2._rtype + vw**2._rtype)),ustarmin)
-     wtke_sfc(i) = ustar**3
+     ustar        = max(bfb_sqrt(bfb_sqrt(bfb_square(uw) + bfb_square(vw))),ustarmin)
+     wtke_sfc(i) = bfb_cube(ustar)
   enddo
 
   return
@@ -1228,12 +1276,13 @@ subroutine diag_second_shoc_moments(&
          isotropy,tkh,tk,&                      ! Input
          dz_zi,zt_grid,zi_grid,shoc_mix, &      ! Input
          wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &   ! Input
-         do_mf, ae, aw, awthl, awqt, &          ! EDMF Input
          thl_sec,qw_sec,wthl_sec,wqw_sec,&      ! Output
          qwthl_sec, uw_sec, vw_sec, wtke_sec, & ! Output
-         w_sec,&                                ! Output
-         mf_thlflx, mf_qtflx, &! )                  ! EDMF Output
-         wthl_sec_ed, wthl_sec_mf, wqw_sec_ed, wqw_sec_mf)                   ! Output - EDMF
+         w_sec)                                 ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: diag_second_shoc_moments_f
+#endif
 
   ! This is the main routine to compute the second
   !   order moments in SHOC.
@@ -1280,17 +1329,6 @@ subroutine diag_second_shoc_moments(&
   real(rtype), intent(in) :: uw_sfc(shcol)
   ! Surface momentum flux (v-direction) [m2/s2]
   real(rtype), intent(in) :: vw_sfc(shcol)
-  
-  ! Begin EDMF-specific inputs
-  logical,     intent(in) :: do_mf
-  ! EDMF environment area [-]
-  real(rtype), intent(in) :: ae(shcol,nlevi)
-  ! EDMF area-weighted plume mean updraft speed [m/s]
-  real(rtype), intent(in) :: aw(shcol,nlevi)
-  ! EDMF area-weighted plume temperature transport [Km/s]
-  real(rtype), intent(in) :: awthl(shcol,nlevi)
-  ! EDMF area_weighted plume moisture transport [kgm/kgs]
-  real(rtype), intent(in) :: awqt(shcol,nlevi)
 
 ! OUTPUT VARIABLES
   ! second order liquid wat. potential temp. [K^2]
@@ -1311,20 +1349,20 @@ subroutine diag_second_shoc_moments(&
   real(rtype), intent(out) :: wtke_sec(shcol,nlevi)
   ! second order vertical velocity [m2/s2]
   real(rtype), intent(out) :: w_sec(shcol,nlev)
-  ! Begin EDMF-specific outputs
-  ! MF temperature turbulent flux [Km/s]
-  real(rtype), intent(out) :: mf_thlflx(shcol,nlevi)
-  ! MF moisture turbulent flux [kgm/kgs]
-  real(rtype), intent(out) :: mf_qtflx(shcol,nlevi)
-  
-  real(rtype), intent(out) :: wthl_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wthl_sec_mf(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_mf(shcol,nlevi)
 
 ! LOCAL VARIABLES
   real(rtype) :: wstar(shcol)
   real(rtype) :: ustar2(shcol)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+     call  diag_second_shoc_moments_f(shcol,nlev,nlevi,  &
+              thetal,qw,u_wind,v_wind,tke, isotropy,tkh,tk, dz_zi,zt_grid,zi_grid,shoc_mix, &
+              wthl_sfc, wqw_sfc, uw_sfc, vw_sfc,thl_sec,qw_sec,wthl_sec,wqw_sec,&
+              qwthl_sec, uw_sec, vw_sec, wtke_sec, w_sec)
+      return
+   endif
+#endif
 
   ! Calculate surface properties needed for lower
   !  boundary conditions
@@ -1336,14 +1374,13 @@ subroutine diag_second_shoc_moments(&
   ! Diagnose the second order moments flux,
   !  for the lower boundary
   call diag_second_moments_lbycond(&
-     shcol,&                                            ! Input
-     wthl_sfc, wqw_sfc, uw_sfc, vw_sfc,&                ! Input
-     ustar2,wstar,&                                     ! Input
-     wthl_sec(:shcol,nlevi),wqw_sec(:shcol,nlevi),&     ! Output
-     uw_sec(:shcol,nlevi), vw_sec(:shcol,nlevi),&       ! Output
-     wtke_sec(:shcol,nlevi), thl_sec(:shcol,nlevi),&    ! Output
-     qw_sec(:shcol,nlevi), qwthl_sec(:shcol,nlevi),&    ! Output
-     wthl_sec_ed(:shcol,nlevi),wqw_sec_ed(:shcol,nlevi))! Output
+     shcol,&                                         ! Input
+     wthl_sfc, wqw_sfc, uw_sfc, vw_sfc,&             ! Input
+     ustar2,wstar,&                                  ! Input
+     wthl_sec(:shcol,nlevi),wqw_sec(:shcol,nlevi),&  ! Output
+     uw_sec(:shcol,nlevi), vw_sec(:shcol,nlevi),&    ! Output
+     wtke_sec(:shcol,nlevi), thl_sec(:shcol,nlevi),& ! Output
+     qw_sec(:shcol,nlevi), qwthl_sec(:shcol,nlevi))  ! Output
 
   ! Diagnose the second order moments,
   !  for points away from boundaries.  this is
@@ -1353,22 +1390,19 @@ subroutine diag_second_shoc_moments(&
      thetal, qw, u_wind, v_wind, tke, &     ! Input
      isotropy, tkh, tk,&                    ! Input
      dz_zi, zt_grid, zi_grid, shoc_mix, &   ! Input
-     do_mf, ae, aw, awthl, awqt, &          ! EDMF Input
      thl_sec, qw_sec,wthl_sec,wqw_sec,&     ! Input/Output
      qwthl_sec, uw_sec, vw_sec, wtke_sec, & ! Input/Output
-     w_sec,&                                ! Output
-     mf_thlflx, mf_qtflx, &                 ! EDMF Output
-     wthl_sec_ed, wthl_sec_mf, wqw_sec_ed, wqw_sec_mf) ! Output - EDMF
+     w_sec)                                 ! Output
 
   ! Diagnose the second order moments,
   !  calculate the upper boundary conditions
   call diag_second_moments_ubycond(&
-     shcol,                              &        ! Input
-     thl_sec(:shcol,1), qw_sec(:shcol,1),&        ! Output
-     wthl_sec(:shcol,1),wqw_sec(:shcol,1),&       ! Output
-     qwthl_sec(:shcol,1), uw_sec(:shcol,1),&      ! Output
-     vw_sec(:shcol,1), wtke_sec(:shcol,1),&       ! Output
-     wthl_sec_ed(:shcol,1), wqw_sec_ed(:shcol,1)) ! Output
+     shcol,                              &  ! Input
+     thl_sec(:shcol,1), qw_sec(:shcol,1),&  ! Output
+     wthl_sec(:shcol,1),wqw_sec(:shcol,1),& ! Output
+     qwthl_sec(:shcol,1), uw_sec(:shcol,1),&! Output
+     vw_sec(:shcol,1), wtke_sec(:shcol,1))  ! Output
+
   return
 end subroutine diag_second_shoc_moments
 
@@ -1385,9 +1419,9 @@ subroutine diag_second_moments_srf(&
   !  properties needed for the the lower
   !  boundary condition for the second order moments needed
   !  for the SHOC parameterization.
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: shoc_diag_second_moments_srf_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_diag_second_moments_srf_f
+#endif
 
   implicit none
 
@@ -1414,13 +1448,13 @@ subroutine diag_second_moments_srf(&
   ! Constants to parameterize surface variances
   real(rtype), parameter :: z_const = 1.0_rtype
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_diag_second_moments_srf_f(shcol,wthl_sfc, uw_sfc, vw_sfc, &            ! Input
-!             ustar2,wstar)                          ! Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_diag_second_moments_srf_f(shcol,wthl_sfc, uw_sfc, vw_sfc, &            ! Input
+            ustar2,wstar)                          ! Output
+      return
+   endif
+#endif
 
   ! apply the surface conditions to diagnose turbulent
   !  moments at the surface
@@ -1447,12 +1481,11 @@ subroutine diag_second_moments_lbycond(&
          wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &         ! Input
          ustar2,wstar, wthl_sec, wqw_sec,&            ! Output
          uw_sec, vw_sec, wtke_sec,&                   ! Output
-         thl_sec, qw_sec, qwthl_sec,&                 ! Output
-         wthl_sec_ed, wqw_sec_ed)                     ! Output
+         thl_sec, qw_sec, qwthl_sec)                  ! Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: diag_second_moments_lbycond_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: diag_second_moments_lbycond_f
+#endif
 
   ! Purpose of this subroutine is to diagnose the lower
   !  boundary condition for the second order moments needed
@@ -1484,10 +1517,8 @@ subroutine diag_second_moments_lbycond(&
 ! OUTPUT VARIABLES
   ! vertical flux of heat [K m/s]
   real(rtype), intent(out) :: wthl_sec(shcol)
-  real(rtype), intent(out) :: wthl_sec_ed(shcol)
   ! vertical flux of total water [kg/kg m/s]
   real(rtype), intent(out) :: wqw_sec(shcol)
-  real(rtype), intent(out) :: wqw_sec_ed(shcol)
   ! vertical flux of zonal wind [m2/s2]
   real(rtype), intent(out) :: uw_sec(shcol)
   ! vertical flux of meridional wind [m2/s2]
@@ -1509,18 +1540,18 @@ subroutine diag_second_moments_lbycond(&
   real(rtype), parameter :: a_const = 1.8_rtype
   real(rtype), parameter :: ufmin = 0.01_rtype
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call diag_second_moments_lbycond_f(     &
-!                 shcol,           &                           ! Input
-!                 wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &         ! Input
-!                 ustar2,wstar,            &                   ! Input
-!                 wthl_sec,wqw_sec,&                           ! Output
-!                 uw_sec, vw_sec, wtke_sec,&                   ! Output
-!                 thl_sec,qw_sec,qwthl_sec)                    ! Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call diag_second_moments_lbycond_f(     &
+                shcol,           &                           ! Input
+                wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, &         ! Input
+                ustar2,wstar,            &                   ! Input
+                wthl_sec,wqw_sec,&                           ! Output
+                uw_sec, vw_sec, wtke_sec,&                   ! Output
+                thl_sec,qw_sec,qwthl_sec)                    ! Output
+      return
+   endif
+#endif
 
   ! apply the surface conditions to diagnose turbulent
   !  moments at the surface
@@ -1543,9 +1574,6 @@ subroutine diag_second_moments_lbycond(&
     vw_sec(i) = vw_sfc(i)
     wtke_sec(i) = bfb_cube(max(bfb_sqrt(ustar2(i)),0.01_rtype))
 
-    wthl_sec_ed(i) = wthl_sfc(i)
-    wqw_sec_ed(i) = wqw_sfc(i)
-    
   enddo ! end i loop (column loop)
   return
 end subroutine diag_second_moments_lbycond
@@ -1555,12 +1583,13 @@ subroutine diag_second_moments(&
          thetal,qw,u_wind,v_wind,tke, &         ! Input
          isotropy,tkh,tk,&                      ! Input
          dz_zi,zt_grid,zi_grid,shoc_mix, &      ! Input
-         do_mf, ae, aw, awthl, awqt, &          ! Input - EDMF
          thl_sec,qw_sec,wthl_sec,wqw_sec,&      ! Input/Output
-         qwthl_sec, uw_sec, vw_sec, wtke_sec, & ! Input/Output
-         w_sec,&                                ! Output
-         mf_thlflx, mf_qtflx, &
-         wthl_sec_ed,wthl_sec_mf, wqw_sec_ed, wqw_sec_mf)                   ! Output - EDMF
+         qwthl_sec,uw_sec,vw_sec,wtke_sec, &    ! Input/Output
+         w_sec)                                 ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: diag_second_moments_f
+#endif
 
   ! Purpose of this subroutine is to diagnose the second
   !  order moments needed for the SHOC parameterization.
@@ -1604,13 +1633,6 @@ subroutine diag_second_moments(&
   ! Mixing length [m]
   real(rtype), intent(in) :: shoc_mix(shcol,nlev)
 
-  !EDMF inputs
-  logical    , intent(in) :: do_mf
-  real(rtype), intent(in) :: ae(shcol,nlevi)
-  real(rtype), intent(in) :: aw(shcol,nlevi)
-  real(rtype), intent(in) :: awthl(shcol,nlevi)
-  real(rtype), intent(in) :: awqt(shcol,nlevi)
-
 ! INPUT/OUTPUT VARIABLES
   ! second order liquid wat. potential temp. [K^2]
   real(rtype), intent(inout) :: thl_sec(shcol,nlevi)
@@ -1620,58 +1642,41 @@ subroutine diag_second_moments(&
   real(rtype), intent(inout) :: qwthl_sec(shcol,nlevi)
   ! vertical flux of heat [K m/s]
   real(rtype), intent(inout) :: wthl_sec(shcol,nlevi)
-  real(rtype), intent(out) :: wthl_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wthl_sec_mf(shcol,nlevi)
   ! vertical flux of total water [kg/kg m/s]
   real(rtype), intent(inout) :: wqw_sec(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_ed(shcol,nlevi)
-  real(rtype), intent(out) :: wqw_sec_mf(shcol,nlevi)
   ! vertical flux of zonal wind [m2/s2]
   real(rtype), intent(inout) :: uw_sec(shcol,nlevi)
   ! vertical flux of meridional wind [m2/s2]
   real(rtype), intent(inout) :: vw_sec(shcol,nlevi)
   ! vertical flux of tke [m3/s3]
   real(rtype), intent(inout) :: wtke_sec(shcol,nlevi)
-  
+
 ! OUTPUT VARIABLES
   ! second order vertical velocity [m2/s2]
   real(rtype), intent(out) :: w_sec(shcol,nlev)
 
-  ! EDMF output
-  ! vertical flux of heat from mass flux plumes [K m/s]
-  real(rtype), intent(out) :: mf_thlflx(shcol,nlevi)
-  ! vertical flux of moisture from mass flux plumes [kg/kg m/s]
-  real(rtype), intent(out) :: mf_qtflx(shcol,nlevi)
-
   ! LOCAL VARIABLES
-  integer :: p, k, i
   real(rtype) :: isotropy_zi(shcol,nlevi)
   real(rtype) :: tkh_zi(shcol,nlevi)
   real(rtype) :: tk_zi(shcol,nlevi)
-  real(rtype) :: thl_zi(shcol,nlevi)
-  real(rtype) :: qw_zi(shcol,nlevi)
-  
-  real(rtype) :: wtke_sec_ed(shcol,nlevi)
-  real(rtype) :: wtke_sec_mf(shcol,nlevi)
-  real(rtype) :: uw_sec_ed(shcol,nlevi)
-  real(rtype) :: uw_sec_mf(shcol,nlevi)
-  real(rtype) :: vw_sec_ed(shcol,nlevi)
-  real(rtype) :: vw_sec_mf(shcol,nlevi)
-  
-  ! Determines if total fluxes (ED+MF) are computed or not
-  logical :: do_total_fluxes
-  !Dummy variable
-  real(rtype) :: aw_dummy(shcol,nlevi)
-  
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+     call diag_second_moments_f(shcol,nlev,nlevi,thetal,qw,u_wind,v_wind,tke, &         ! Input
+                                isotropy,tkh,tk,dz_zi,zt_grid,zi_grid,shoc_mix, &      ! Input
+                                thl_sec,qw_sec,wthl_sec,wqw_sec,qwthl_sec,uw_sec,vw_sec,wtke_sec, &    ! Input/Output
+                                w_sec)
+      return
+   endif
+#endif
+
   ! Interpolate some variables from the midpoint grid to the interface grid
   call linear_interp(zt_grid,zi_grid,isotropy,isotropy_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,tk,tk_zi,nlev,nlevi,shcol,0._rtype)
-  call linear_interp(zt_grid,zi_grid,thetal,thl_zi,nlev,nlevi,shcol,0._rtype)
-  call linear_interp(zt_grid,zi_grid,qw,qw_zi,nlev,nlevi,shcol,0._rtype)
 
   ! Vertical velocity variance is assumed to be propotional
-  !  to the TKE  
+  !  to the TKE
   w_sec = w2tune*(2._rtype/3._rtype)*tke
 
   ! Calculate the temperature variance
@@ -1693,51 +1698,29 @@ subroutine diag_second_moments(&
          qwthl_sec)                               ! Input/Output
 
   ! Calculate vertical flux for heat
-  do_total_fluxes = do_mf
   call calc_shoc_vertflux(&
          shcol,nlev,nlevi,tkh_zi,dz_zi,thetal,&   ! Input
-         zt_grid,zi_grid,ae,aw,awthl,&            ! Input
-         do_total_fluxes,&                        ! Input - Logical variable
-         wthl_sec,wthl_sec_ed,wthl_sec_mf)                                ! Input/Output
-
-  call calc_mf_vertflux(shcol,nlev,nlevi,aw,awthl,thetal,thl_zi,mf_thlflx)
+         wthl_sec)                                ! Input/Output
 
   ! Calculate vertical flux for moisture
-  do_total_fluxes = do_mf
   call calc_shoc_vertflux(&
          shcol,nlev,nlevi,tkh_zi,dz_zi,qw,&       ! Input
-         zt_grid,zi_grid,ae,aw,awqt,&             ! Input
-         do_total_fluxes,&                        ! Input - Logical variable
-         wqw_sec,wqw_sec_ed,wqw_sec_mf)                                 ! Input/Output
-
-  call calc_mf_vertflux(shcol,nlev,nlevi,aw,awqt,qw,qw_zi,mf_qtflx)
+         wqw_sec)                                 ! Input/Output
 
   ! Calculate vertical flux for TKE
-  do_total_fluxes = .false.
-  aw_dummy = 0._rtype
   call calc_shoc_vertflux(&
          shcol,nlev,nlevi,tkh_zi,dz_zi,tke,&      ! Input
-         zt_grid,zi_grid,ae,aw,aw_dummy,&         ! Input
-         do_total_fluxes,&                        ! Input - Logical variable
-         wtke_sec,wtke_sec_ed,wtke_sec_mf)                                ! Input/Output
+         wtke_sec)                                ! Input/Output
 
   ! Calculate vertical flux for momentum (zonal wind)
-  do_total_fluxes = .false.
-  aw_dummy = 0._rtype
   call calc_shoc_vertflux(&
          shcol,nlev,nlevi,tk_zi,dz_zi,u_wind,&    ! Input
-         zt_grid,zi_grid,ae,aw,aw_dummy,&         ! Input
-         do_total_fluxes,&                        ! Input - Logical variable
-         uw_sec,uw_sec_ed,uw_sec_mf)                                  ! Input/Output
+         uw_sec)                                  ! Input/Output
 
   ! Calculate vertical flux for momentum (meridional wind)
-  do_total_fluxes = .false.
-  aw_dummy = 0._rtype
   call calc_shoc_vertflux(&
          shcol,nlev,nlevi,tk_zi,dz_zi,v_wind,&    ! Input
-         zt_grid,zi_grid,ae,aw,aw_dummy,&         ! Input
-         do_total_fluxes,&                        ! Input - Logical variable
-         vw_sec,vw_sec_ed,vw_sec_mf)                                  ! Input/Output
+         vw_sec)                                  ! Input/Output
 
   return
 end subroutine diag_second_moments
@@ -1751,9 +1734,9 @@ subroutine calc_shoc_varorcovar(&
   !  (depending on if invar1 is the same as invar2)
   !  for a given set of inputs
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: calc_shoc_varorcovar_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: calc_shoc_varorcovar_f
+#endif
 
   implicit none
 
@@ -1785,13 +1768,13 @@ subroutine calc_shoc_varorcovar(&
   integer :: i, k, kt
   real(rtype) :: sm, grid_dz2
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call calc_shoc_varorcovar_f(shcol,nlev,nlevi,tunefac,isotropy_zi,tkh_zi,dz_zi,invar1,invar2,&  ! Input
-!            varorcovar)                              ! Input/Output)
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call calc_shoc_varorcovar_f(shcol,nlev,nlevi,tunefac,isotropy_zi,tkh_zi,dz_zi,invar1,invar2,&  ! Input
+           varorcovar)                              ! Input/Output)
+      return
+   endif
+#endif
 
   do k=2,nlev
 
@@ -1812,18 +1795,16 @@ subroutine calc_shoc_varorcovar(&
 end subroutine calc_shoc_varorcovar
 
 subroutine calc_shoc_vertflux(&
-         shcol,nlev,nlevi,tkh_zi,dz_zi,invar,&     ! Input
-         zt_grid,zi_grid,mf_ae,mf_aw,mf_aw_invar,& ! Input
-         do_total_fluxes,&                         ! Input - Logical variable
-         vertflux,vertflux_ed,vertflux_mf)         ! Input/Output
+         shcol,nlev,nlevi,tkh_zi,dz_zi,invar,&  ! Input
+         vertflux)                              ! Input/Output
 
   ! Compute either the vertical flux via
   !  downgradient diffusion for a given set of
   !  input variables
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: calc_shoc_vertflux_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: calc_shoc_vertflux_f
+#endif
 
   implicit none
 
@@ -1834,101 +1815,41 @@ subroutine calc_shoc_vertflux(&
   integer, intent(in) :: nlev
   ! number of interface levels
   integer, intent(in) :: nlevi
-  ! Eddy diffusivity for heat/momentum [ms-2]
+  ! Eddy diffusivity for heat [ms-2]
   real(rtype), intent(in) :: tkh_zi(shcol,nlevi)
   ! delta z centerend on zi grid [m]
   real(rtype), intent(in) :: dz_zi(shcol,nlevi)
-  ! Heights of mid-point grid [m]
-  real(rtype), intent(in) :: zt_grid(shcol,nlev)
-  ! Heights of interface grid [m]
-  real(rtype), intent(in) :: zi_grid(shcol,nlevi)
   ! Input variable [units vary]
   real(rtype), intent(in) :: invar(shcol,nlev)
-  ! Input from the MF subroutine
-  real(rtype), intent(in) :: mf_ae(shcol,nlevi)       ! EDMF: Environmental area
-  real(rtype), intent(in) :: mf_aw(shcol,nlevi)       ! EDMF: sum(a_i * w_i) [m/s]
-  real(rtype), intent(in) :: mf_aw_invar(shcol,nlevi) ! EDMF: sum(a_i * w_i * var_in) [? m/s]
 
-  ! Logical variable
-  logical, intent(in) :: do_total_fluxes
-
-  ! INPUT/OUTPUT VARIABLES
+! INPUT/OUTPUT VARIABLES
   real(rtype), intent(out) :: vertflux(shcol,nlevi)
-  real(rtype), intent(out) :: vertflux_ed(shcol,nlevi)
-  real(rtype), intent(out) :: vertflux_mf(shcol,nlevi)
 
 ! LOCAL VARIABLES
   integer :: i, k, kt
   real(rtype) :: grid_dz
-  real(rtype) :: invar_zi(shcol,nlevi)
-  
-  real(rtype) :: grid_dz_aux(shcol,nlevi)
-  real(rtype) :: invar_dz_aux(shcol,nlevi)
-  real(rtype) :: invar_dz_mf_aux(shcol,nlevi)
-  
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call calc_shoc_vertflux_f(shcol,nlev,nlevi,tkh_zi,dz_zi,invar,&  ! Input
-!            vertflux)                                                   ! Input/Output)
-!       return
-!    endif
-! #endif
-   
-  call linear_interp(zt_grid,zi_grid,invar,invar_zi,nlev,nlevi,shcol,0._rtype)
 
-  if (do_total_fluxes) then
-    do k=2,nlev
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call calc_shoc_vertflux_f(shcol,nlev,nlevi,tkh_zi,dz_zi,invar,&  ! Input
+           vertflux)                              ! Input/Output)
+      return
+   endif
+#endif
 
-      kt=k-1 ! define upper grid point indice
-      do i=1,shcol
+  do k=2,nlev
 
-        grid_dz = 1._rtype/dz_zi(i,k) ! vertical grid diff squared
-        
-        grid_dz_aux(i,k) = 1._rtype/dz_zi(i,k)
-        invar_dz_aux(i,k) =  invar(i,kt)-invar(i,k)
-        invar_dz_mf_aux(i,k) =  invar(i,kt)+invar(i,k)
-        ! TODO (GTF): We could calculate vertflux as vertflux_ed + vertflux_mf
-        ! TODO (GTF): instead of calculating it twice.
-        !! Centered
-        vertflux(i,k)=(-1._rtype*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))) + &
-          mf_aw_invar(i,k) - mf_aw(i,k)*0.5_rtype*(invar(i,kt)+invar(i,k)) 
-          
-        vertflux_ed(i,k)= -1._rtype*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))
-        
-        vertflux_mf(i,k)= mf_aw_invar(i,k) - mf_aw(i,k)*0.5_rtype*(invar(i,kt)+invar(i,k)) 
-        
-        !! MF upwind
-        !vertflux(i,k)=(-1._rtype*mf_ae(i,k)*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))) + &
-        !  mf_aw_invar(i,k) - mf_aw(i,k)*invar(i,k)   
-        !! MF downwind
-        !vertflux(i,k)=(-1._rtype*mf_ae(i,k)*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))) + &
-        !  mf_aw_invar(i,k) - mf_aw(i,k)*invar(i,kt)
-      enddo
+    kt=k-1 ! define upper grid point indicee
+    do i=1,shcol
+
+      grid_dz=1._rtype/dz_zi(i,k) ! vertical grid diff squared
+
+      ! Compute the vertical flux via downgradient diffusion
+      vertflux(i,k)=-1._rtype*tkh_zi(i,k)*grid_dz*&
+        (invar(i,kt)-invar(i,k))
+
     enddo
-  else
-    do k=2,nlev
-
-      kt=k-1 ! define upper grid point indice
-      do i=1,shcol
-        grid_dz=1._rtype/dz_zi(i,k) ! vertical grid diff squared
-        
-        grid_dz_aux(i,k) = 1._rtype/dz_zi(i,k)
-        invar_dz_aux(i,k) =  invar(i,kt)-invar(i,k)
-        
-        ! TODO (GTF): We could calculate vertflux = vertflux_ed instead
-        ! TODO (GTF): of calculating it twice.
-        vertflux(i,k)=-1._rtype*tkh_zi(i,k)*grid_dz*&
-          (invar(i,kt)-invar(i,k))
-          
-        vertflux_ed(i,k)= -1._rtype*tkh_zi(i,k)*grid_dz*(invar(i,kt)-invar(i,k))
-        vertflux_mf(i,k)= 0._rtype  
-        invar_dz_mf_aux(i,k) = 0._rtype  
-        
-      enddo
-    enddo
-
-  endif
-
+  enddo
 
   return
 end subroutine calc_shoc_vertflux
@@ -1937,17 +1858,16 @@ subroutine diag_second_moments_ubycond(&
          shcol, &                               ! Input
          thl_sec, qw_sec,&                      ! Output
          wthl_sec,wqw_sec,&                     ! Output
-         qwthl_sec, uw_sec, vw_sec, wtke_sec,&  ! Output
-         wthl_sec_ed, wqw_sec_ed)               ! Output
+         qwthl_sec, uw_sec, vw_sec, wtke_sec)   ! Output
 
   ! Purpose of this subroutine is to diagnose the upper
   !  boundary condition for the second order moments
   !  needed for the SHOC parameterization.  Currently
   !  set all to zero.
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: shoc_diag_second_moments_ubycond_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_diag_second_moments_ubycond_f
+#endif
   implicit none
 
   ! INPUT VARIABLES
@@ -1963,10 +1883,8 @@ subroutine diag_second_moments_ubycond(&
   real(rtype), intent(out) :: qwthl_sec(shcol)
   ! vertical flux of heat [K m/s]
   real(rtype), intent(out) :: wthl_sec(shcol)
-  real(rtype), intent(out) :: wthl_sec_ed(shcol)
   ! vertical flux of total water [kg/kg m/s]
   real(rtype), intent(out) :: wqw_sec(shcol)
-  real(rtype), intent(out) :: wqw_sec_ed(shcol)
   ! vertical flux of zonal wind [m2/s2]
   real(rtype), intent(out) :: uw_sec(shcol)
   ! vertical flux of meridional wind [m2/s2]
@@ -1977,16 +1895,16 @@ subroutine diag_second_moments_ubycond(&
   ! LOCAL VARIABLES
   integer :: i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!        call shoc_diag_second_moments_ubycond_f(&
-!                              shcol, &                    ! Input
-!                              thl_sec, qw_sec,&                      ! Output
-!                              wthl_sec,wqw_sec,&                     ! Output
-!                              qwthl_sec, uw_sec, vw_sec, wtke_sec)   ! Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+       call shoc_diag_second_moments_ubycond_f(&
+                             shcol, &                    ! Input
+                             thl_sec, qw_sec,&                      ! Output
+                             wthl_sec,wqw_sec,&                     ! Output
+                             qwthl_sec, uw_sec, vw_sec, wtke_sec)   ! Output
+      return
+   endif
+#endif
 
   ! apply the upper boundary condition
   do i=1,shcol
@@ -1999,14 +1917,11 @@ subroutine diag_second_moments_ubycond(&
     thl_sec(i) = 0._rtype
     qw_sec(i) = 0._rtype
     qwthl_sec(i) = 0._rtype
-    
-    wthl_sec_ed(i) = 0._rtype
-    wqw_sec_ed(i) = 0._rtype
   enddo ! end i loop (column loop)
   return
 end subroutine diag_second_moments_ubycond
 
-! =========================================================
+!==============================================================
 ! SHOC Diagnose the third order moment of vertical velocity
 
 subroutine diag_third_shoc_moments(&
@@ -2022,9 +1937,9 @@ subroutine diag_third_shoc_moments(&
   !  for the skewness calculation in the PDF.
   !  This calculation follows that of Canuto et al. (2001)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: diag_third_shoc_moments_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: diag_third_shoc_moments_f
+#endif
 
   implicit none
 
@@ -2069,18 +1984,18 @@ subroutine diag_third_shoc_moments(&
   real(rtype) :: brunt_zi(shcol,nlevi)
   real(rtype) :: thetal_zi(shcol,nlevi)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!       call diag_third_shoc_moments_f(&
-!         shcol,nlev,nlevi, &                 ! Input
-!         w_sec, thl_sec, &                   ! Input
-!         wthl_sec, isotropy, brunt,&         ! Input
-!         thetal,tke,&                        ! Input
-!         dz_zt, dz_zi, zt_grid, zi_grid,&    ! Input
-!         w3)                                 ! Output
-!      return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+      call diag_third_shoc_moments_f(&
+        shcol,nlev,nlevi, &                 ! Input
+        w_sec, thl_sec, &                   ! Input
+        wthl_sec, isotropy, brunt,&         ! Input
+        thetal,tke,&                        ! Input
+        dz_zt, dz_zi, zt_grid, zi_grid,&    ! Input
+        w3)                                 ! Output
+     return
+  endif
+#endif
 
   ! Interpolate variables onto the interface levels
   call linear_interp(zt_grid,zi_grid,isotropy,isotropy_zi,nlev,nlevi,shcol,0._rtype)
@@ -2112,9 +2027,9 @@ subroutine compute_diag_third_shoc_moment(&
           thetal_zi,&                        ! Input
           w3)                                ! Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_diag_third_shoc_moment_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_diag_third_shoc_moment_f
+#endif
 
   implicit none
 ! INPUT VARIABLES
@@ -2148,22 +2063,21 @@ subroutine compute_diag_third_shoc_moment(&
   integer i, k, kb, kc
   real(rtype) :: omega0, omega1, omega2
   real(rtype) :: X0, Y0, X1, Y1, AA0, AA1
-  real(rtype) :: zvar, x5var, iso, thedz, thedz2
-  real(rtype) :: theterm, tsign
+  real(rtype) :: iso, thedz, thedz2
   real(rtype) :: isosqrd
   real(rtype) :: buoy_sgs2, bet2
   real(rtype) :: f0, f1, f2, f3, f4, f5
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_diag_third_shoc_moment_f(shcol,nlev,nlevi,w_sec,thl_sec, &   ! Input
-!                                           wthl_sec, tke, dz_zt, dz_zi, &      ! Input
-!                                           isotropy_zi,brunt_zi,w_sec_zi, &    ! Input
-!                                           thetal_zi, &                        ! Input
-!                                           w3)                                 ! Output
-!     return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_diag_third_shoc_moment_f(shcol,nlev,nlevi,w_sec,thl_sec, &   ! Input
+                                          wthl_sec, tke, dz_zt, dz_zi, &      ! Input
+                                          isotropy_zi,brunt_zi,w_sec_zi, &    ! Input
+                                          thetal_zi, &                        ! Input
+                                          w3)                                 ! Output
+    return
+  endif
+#endif
 
   ! set lower condition
   w3(:,nlevi) = 0._rtype
@@ -2173,36 +2087,37 @@ subroutine compute_diag_third_shoc_moment(&
      kb=k+1
      kc=k-1
      do i=1,shcol
+
         !Compute inputs for computing f0 to f5 terms
         call fterms_input_for_diag_third_shoc_moment(&
-	     dz_zi(i,k), dz_zt(i,k), dz_zt(i,kc), &               ! Input
+             dz_zi(i,k), dz_zt(i,k), dz_zt(i,kc), &               ! Input
              isotropy_zi(i,k), brunt_zi(i,k), thetal_zi(i,k), &   ! Input
              thedz, thedz2, iso, isosqrd, buoy_sgs2, bet2)        ! Output
 
         !Compute f0 to f5 terms
         call f0_to_f5_diag_third_shoc_moment(&
-	     thedz, thedz2, bet2, iso, isosqrd, &                 ! Input
-	     wthl_sec (i,k), wthl_sec(i,kc), wthl_sec(i,kb), &    ! Input
-	     thl_sec(i,k), thl_sec(i,kc), thl_sec(i,kb), &        ! Input
+             thedz, thedz2, bet2, iso, isosqrd, &                 ! Input
+             wthl_sec (i,k), wthl_sec(i,kc), wthl_sec(i,kb), &    ! Input
+             thl_sec(i,kc), thl_sec(i,kb), &                      ! Input
              w_sec(i,k), w_sec(i,kc), w_sec_zi(i,k), &            ! Input
              tke(i,k), tke(i,kc), &                               ! Input
              f0, f1, f2, f3, f4, f5)                              ! Output
 
         !Compute the omega terms
         call omega_terms_diag_third_shoc_moment(&
-	     buoy_sgs2, f3, f4, &       ! Input
-	     omega0, omega1, omega2)    ! Output
+             buoy_sgs2, f3, f4, &       ! Input
+             omega0, omega1, omega2)    ! Output
 
         !Compute the X0, Y0, X1, Y1 terms
         call x_y_terms_diag_third_shoc_moment(&
-	     i, k, buoy_sgs2, f0, f1, f2, &   ! Input
-	     x0, y0, x1, y1)            ! Output
+             buoy_sgs2, f0, f1, f2, &   ! Input
+             x0, y0, x1, y1)            ! Output
 
         !Compute the AA0, AA1 terms
         call aa_terms_diag_third_shoc_moment(&
-	     omega0, omega1, omega2, &  ! Input
-	     x0, x1, y0, y1, &          ! Input
-	     aa0, aa1)                  ! Output
+             omega0, omega1, omega2, &  ! Input
+             x0, x1, y0, y1, &          ! Input
+             aa0, aa1)                  ! Output
 
         !Finally, we have the third moment of w
         w3(i,k) = w3_diag_third_shoc_moment(aa0, aa1, x0, x1, f5)
@@ -2246,7 +2161,7 @@ end subroutine fterms_input_for_diag_third_shoc_moment
 subroutine f0_to_f5_diag_third_shoc_moment(&
      thedz, thedz2, bet2, iso, isosqrd, &    ! Input
      wthl_sec, wthl_sec_kc, wthl_sec_kb, &   ! Input
-     thl_sec, thl_sec_kc, thl_sec_kb, &      ! Input
+     thl_sec_kc, thl_sec_kb, &      ! Input
      w_sec, w_sec_kc,w_sec_zi, &             ! Input
      tke, tke_kc, &                          ! Input
      f0, f1, f2, f3, f4, f5)                 ! Output
@@ -2258,7 +2173,7 @@ subroutine f0_to_f5_diag_third_shoc_moment(&
   !intent-ins
   real(rtype), intent(in) :: thedz, thedz2, bet2, iso, isosqrd
   real(rtype), intent(in) :: wthl_sec, wthl_sec_kc, wthl_sec_kb
-  real(rtype), intent(in) :: thl_sec, thl_sec_kc, thl_sec_kb
+  real(rtype), intent(in) :: thl_sec_kc, thl_sec_kb
   real(rtype), intent(in) :: w_sec, w_sec_kc, w_sec_zi, tke, tke_kc
 
   !intent-out
@@ -2298,7 +2213,7 @@ end subroutine f0_to_f5_diag_third_shoc_moment
 
 subroutine omega_terms_diag_third_shoc_moment(&
            buoy_sgs2, f3, f4, &    ! Input
-	   omega0, omega1, omega2) ! Output
+           omega0, omega1, omega2) ! Output
 
   implicit none
 
@@ -2310,8 +2225,10 @@ subroutine omega_terms_diag_third_shoc_moment(&
   !intent-out
   real(rtype), intent(out) :: omega0, omega1, omega2
 
-  real(rtype), parameter :: a4=2.4_rtype/(3._rtype*c_diag_3rd_mom+5._rtype)
-  real(rtype), parameter :: a5=0.6_rtype/(c_diag_3rd_mom*(3._rtype+5._rtype*c_diag_3rd_mom))
+  real(rtype) :: a4, a5
+
+  a4=2.4_rtype/(3._rtype*c_diag_3rd_mom+5._rtype)
+  a5=0.6_rtype/(c_diag_3rd_mom*(3._rtype+5._rtype*c_diag_3rd_mom))
 
   omega0 = a4 / (1._rtype - a5 * buoy_sgs2)
   omega1 = omega0/(2._rtype * c_diag_3rd_mom)
@@ -2321,49 +2238,50 @@ subroutine omega_terms_diag_third_shoc_moment(&
 end subroutine omega_terms_diag_third_shoc_moment
 
 subroutine x_y_terms_diag_third_shoc_moment(&
-           i,k,buoy_sgs2, f0, f1, f2,&  ! Input
-	   x0, y0, x1, y1)          ! Output
+           buoy_sgs2, f0, f1, f2,&  ! Input
+           x0, y0, x1, y1)          ! Output
 
   implicit none
 
   !Compute the X0, Y0, X1, Y1 terms
 
   !intent-ins
-  integer, intent(in) :: i, k
   real(rtype), intent(in) :: buoy_sgs2, f0, f1, f2
 
   !intent-outs
   real(rtype), intent(out) :: x0, y0, x1, y1
 
 ! local variables
-  real(rtype) :: a0, a1, a2, a3
-
-  real(rtype) :: one_minus_a3_buoysgs
+  real(rtype) :: a0, a1, a2, a3, den_x,one_minus_a3_buoysgs
 
   a0=(0.52_rtype*(1._rtype/bfb_square(c_diag_3rd_mom)))/(c_diag_3rd_mom-2._rtype)
   a1=0.87_rtype/bfb_square(c_diag_3rd_mom)
   a2=0.5_rtype/c_diag_3rd_mom
   a3=0.6_rtype/(c_diag_3rd_mom*(c_diag_3rd_mom-2._rtype))
 
+  den_x =  (1._rtype - (a1 + a3) * buoy_sgs2)
+  if(abs(den_x) < 1.e-9_rtype) then 
+      den_x = sign(1.e-9_rtype,den_x)
+  endif
+
   one_minus_a3_buoysgs = 1._rtype - a3 * buoy_sgs2
-  x0 = (a2 * buoy_sgs2 * (one_minus_a3_buoysgs)) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
-  !if (abs(denom_y0) .lt. 0.01_rtype) then
-    ! denom_y0 = sign(0.01_rtype, denom_y0)
-  !endif
+  if (abs(one_minus_a3_buoysgs) <  1.e-9_rtype) then
+      one_minus_a3_buoysgs = sign(1.e-9_rtype,one_minus_a3_buoysgs)
+  endif
+
+  x0 = (a2 * buoy_sgs2 * one_minus_a3_buoysgs) / den_x
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / one_minus_a3_buoysgs
-  x1 = (a0 * f0 + a1 * f1 + a2 * (one_minus_a3_buoysgs) * f2) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
+  x1 = (a0 * f0 + a1 * f1 + a2 * one_minus_a3_buoysgs * f2) / den_x
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
-       (one_minus_a3_buoysgs)
+       one_minus_a3_buoysgs
 
   return
 end subroutine x_y_terms_diag_third_shoc_moment
 
 subroutine aa_terms_diag_third_shoc_moment(&
            omega0, omega1, omega2, & ! Input
-	   x0, x1, y0, y1, &         ! Input
-	   aa0, aa1)                 ! Output
+           x0, x1, y0, y1, &         ! Input
+           aa0, aa1)                 ! Output
 
   implicit none
 
@@ -2400,11 +2318,11 @@ end function w3_diag_third_shoc_moment
 
 subroutine clipping_diag_third_shoc_moments(&
            nlevi,shcol,w_sec_zi,& ! Input
-	   w3)                    ! Input/Output
+           w3)                    ! Input/Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: clipping_diag_third_shoc_moments_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: clipping_diag_third_shoc_moments_f
+#endif
 
   ! perform clipping to prevent unrealistically large values from occuring
 
@@ -2420,15 +2338,17 @@ subroutine clipping_diag_third_shoc_moments(&
   real(rtype) :: cond
   real(rtype) :: theterm
 
+  real(rtype), parameter :: w3clipdef = 0.02_rtype
+
   integer k, i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call clipping_diag_third_shoc_moments_f(nlevi,shcol,w_sec_zi, & ! Input
-!                                               w3)                     ! Input/Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call clipping_diag_third_shoc_moments_f(nlevi,shcol,w_sec_zi, & ! Input
+                                              w3)                     ! Input/Output
+      return
+   endif
+#endif
 
   do k=1, nlevi
     do i=1, shcol
@@ -2437,7 +2357,7 @@ subroutine clipping_diag_third_shoc_moments(&
       theterm = w_sec_zi(i,k)
       cond = w3clip * bfb_sqrt(2._rtype * bfb_cube(theterm))
       if (w3(i,k) .lt. 0) tsign = -1._rtype
-      if (tsign * w3(i,k) .gt. cond) w3(i,k) = tsign * cond
+      if (tsign * w3(i,k) .gt. cond) w3(i,k) = w3clipdef
 
     enddo !end i loop (column loop)
   enddo ! end k loop (vertical loop)
@@ -2464,9 +2384,9 @@ subroutine shoc_assumed_pdf(&
   !  TKE equation.  This code follows the appendix of
   !  Larson et al. (2002) for Analytic Double Gaussian 1
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: shoc_assumed_pdf_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: shoc_assumed_pdf_f
+#endif
 
   implicit none
 
@@ -2504,7 +2424,6 @@ subroutine shoc_assumed_pdf(&
   real(rtype), intent(in) :: zt_grid(shcol,nlev)
   ! heights on interface grid [m]
   real(rtype), intent(in) :: zi_grid(shcol,nlevi)
-    
 
 ! OUTPUT VARIABLES
   ! SGS cloud fraction [-]
@@ -2536,8 +2455,6 @@ subroutine shoc_assumed_pdf(&
   real(rtype) epsterm
   real(rtype) sqrtqw2_1, sqrtqw2_2, sqrtthl2_1, sqrtthl2_2
   real(rtype) thl_tol, rt_tol, w_tol_sqd, w_thresh
-  character(len=200) :: err_msg
-
 
   ! variables on thermo grid
   real(rtype) :: wthl_sec_zt(shcol,nlev)
@@ -2547,19 +2464,21 @@ subroutine shoc_assumed_pdf(&
   real(rtype) :: qwthl_sec_zt(shcol,nlev)
   real(rtype) :: qw_sec_zt(shcol,nlev)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!      call shoc_assumed_pdf_f(&
-!        shcol,nlev,nlevi, &                ! Input
-!        thetal,qw,w_field,thl_sec,qw_sec,& ! Input
-!        wthl_sec,w_sec, &                  ! Input
-!        wqw_sec,qwthl_sec,w3,pres, &       ! Input
-!        zt_grid,zi_grid,&                  ! Input
-!        shoc_cldfrac,shoc_ql,&             ! Output
-!        wqls,wthv_sec,shoc_ql2)            ! Output
-!     return
-!   endif
-! #endif
+  real(rtype), parameter :: Tl_min = 100._rtype
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call shoc_assumed_pdf_f(&
+       shcol,nlev,nlevi, &                ! Input
+       thetal,qw,w_field,thl_sec,qw_sec,& ! Input
+       wthl_sec,w_sec, &                  ! Input
+       wqw_sec,qwthl_sec,w3,pres, &       ! Input
+       zt_grid,zi_grid,&                  ! Input
+       shoc_cldfrac,shoc_ql,&             ! Output
+       wqls,wthv_sec,shoc_ql2)            ! Output
+    return
+  endif
+#endif
 
   epsterm=rgas/rv
 
@@ -2611,7 +2530,7 @@ subroutine shoc_assumed_pdf(&
       call shoc_assumed_pdf_vv_parameters(&
          w_first,w_sec(i,k),w3var,&    ! Input
          Skew_w,w1_1,w1_2,w2_1,w2_2,a) ! Output
-
+!print*,'a=',k,a,w_sec(i,k)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !  FIND PARAMETERS FOR THETAL
 
@@ -2658,15 +2577,14 @@ subroutine shoc_assumed_pdf(&
         thl1_2,basepres,pval,& ! Input
         Tl1_2)                 ! Output
 
-      ! Check to ensure Tl1_1 and Tl1_2 are not negative. endrun otherwise
-      if (Tl1_1 .le. 0._rtype) then
-         write(err_msg,*)'ERROR: Tl1_1 is .le. 0 before shoc_assumed_pdf_compute_qs in shoc. Tl1_1 is:',Tl1_1
-        !  call endscreamrun(err_msg)
+      ! Check to ensure Tl1_1 and Tl1_2 are not excessively small.
+      !  Temporary fix to set to minimum value if so.
+      if (Tl1_1 .le. Tl_min) then
+         Tl1_1 = Tl_min
       endif
 
-      if (Tl1_2 .le. 0._rtype) then
-         write(err_msg,*)'ERROR: Tl1_2 is .le. 0 before shoc_assumed_pdf_compute_qs in shoc. Tl1_2 is:',Tl1_2
-        !  call endscreamrun(err_msg)
+      if (Tl1_2 .le. Tl_min) then
+         Tl1_2 = Tl_min
       endif
 
       ! Now compute qs
@@ -3028,7 +2946,6 @@ subroutine shoc_assumed_pdf_compute_qs(&
   Tl1_1,Tl1_2,pval,&   ! Input
   qs1,beta1,qs2,beta2) ! Ouput
 
-  use mynn_shared, only: esat_blend
   implicit none
 
   ! intent-in
@@ -3043,7 +2960,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
   real(rtype), intent(out) ::   beta2
 
   ! local vars
-  !integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
+  integer, parameter :: liquid = 0   ! liquid flag for MurphyKoop
   real(rtype) :: esval1_1
   real(rtype) :: esval1_2
   real(rtype) :: lstarn1
@@ -3052,9 +2969,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
   esval1_1=0._rtype
   esval1_2=0._rtype
 
-  ! TODO (GTF): Uncomment this line when module is imported
-  !esval1_1=MurphyKoop_svp(Tl1_1, liquid)
-  esval1_1 = esat_blend(Tl1_1, svpt0, tice)
+  esval1_1=MurphyKoop_svp(Tl1_1, liquid)
   lstarn1=lcond
 
   qs1=0.622_rtype*esval1_1/max(esval1_1,pval-esval1_1)
@@ -3067,9 +2982,7 @@ subroutine shoc_assumed_pdf_compute_qs(&
     qs2=qs1
     beta2=beta1
   else
-    ! TODO (GTF): Uncomment this line when module is imported
-    !esval1_2=MurphyKoop_svp(Tl1_2, liquid)
-    esval1_2 = esat_blend(Tl1_2, svpt0, tice)
+    esval1_2=MurphyKoop_svp(Tl1_2, liquid)
     qs2=0.622_rtype*esval1_2/max(esval1_2,pval-esval1_2)
     beta2=(rgas/rv)*(lstarn2/(rgas*Tl1_2))*(lstarn2/(cp*Tl1_2))
   endif
@@ -3121,15 +3034,21 @@ subroutine shoc_assumed_pdf_compute_s(&
   qn=0._rtype
   C=0._rtype
 
-  !if (std_s .ne. 0.0_rtype) then
   if (std_s .gt. bfb_sqrt(tiny(1._rtype)) * 100) then
-    C=0.5_rtype*(1._rtype+bfb_erf(s/(sqrt2*std_s)))
+    C=0.5_rtype*(1._rtype+ bfb_erf(s/(sqrt2*std_s)))
     if (C .ne. 0._rtype) qn=s*C+(std_s/sqrt2pi)*bfb_exp(-0.5_rtype*bfb_square(s/std_s))
   else
     if (s .gt. 0._rtype) then
       C=1.0_rtype
       qn=s
     endif
+  endif
+
+  ! Prevent possibility of empty clouds or rare occurence of
+  !  cloud liquid less than zero
+  if (qn .le. 0._rtype) then
+    C=0._rtype
+    qn=0._rtype
   endif
 
 end subroutine shoc_assumed_pdf_compute_s
@@ -3220,20 +3139,20 @@ subroutine shoc_assumed_pdf_compute_buoyancy_flux(&
 
   wthv_sec=wthlsec+((1._rtype-epsterm)/epsterm)*basetemp*wqwsec &
   +((lcond/cp)*bfb_pow(basepres/pval,(rgas/cp))-(1._rtype/epsterm)*basetemp)*wqls
-    
+
 end subroutine shoc_assumed_pdf_compute_buoyancy_flux
 
 !==============================================================
 ! Advance turbulent kinetic energy equation
 
 subroutine shoc_tke(&
-         shcol,nlev,nlevi,dtime,&                ! Input
-         wthv_sec,shoc_mix,&                     ! Input
-         dz_zi,dz_zt,pres,&                      ! Input
-         u_wind,v_wind,brunt,obklen,&            ! Input
-         zt_grid,zi_grid,pblh,&                  ! Input
-         tke,tk,tkh, &                           ! Input/Output
-         isotropy, a_diss, a_prod_bu, a_prod_sh) ! Output
+         shcol,nlev,nlevi,dtime,&    ! Input
+         wthv_sec,shoc_mix,&         ! Input
+         dz_zi,dz_zt,pres,tabs,&     ! Input
+         u_wind,v_wind,brunt,&       ! Input
+         zt_grid,zi_grid,pblh,&      ! Input
+         tke,tk,tkh, &               ! Input/Output
+         isotropy)                   ! Output
 
   ! Purpose of this subroutine is to advance the SGS
   !  TKE equation due to shear production, buoyant
@@ -3257,14 +3176,14 @@ subroutine shoc_tke(&
   real(rtype), intent(in) :: u_wind(shcol,nlev)
   ! Zonal wind [m/s]
   real(rtype), intent(in) :: v_wind(shcol,nlev)
-  ! Obukov length
-  real(rtype), intent(in) :: obklen(shcol)
   ! thickness on interface grid [m]
   real(rtype), intent(in) :: dz_zi(shcol,nlevi)
   ! thickness on thermodynamic grid [m]
   real(rtype), intent(in) :: dz_zt(shcol,nlev)
   ! pressure [Pa]
   real(rtype), intent(in) :: pres(shcol,nlev)
+  ! absolute temperature [K]
+  real(rtype), intent(in) :: tabs(shcol,nlev)
   ! Brunt Vaisalla frequncy [/s]
   real(rtype), intent(in) :: brunt(shcol,nlev)
   ! heights on midpoint grid [m]
@@ -3285,14 +3204,11 @@ subroutine shoc_tke(&
 ! OUTPUT VARIABLES
   ! Return to isotropic timescale [s]
   real(rtype), intent(out) :: isotropy(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
-  real(rtype), intent(out) :: a_diss(shcol,nlev)
 
 ! LOCAL VARIABLES
   real(rtype) :: sterm(shcol,nlevi), sterm_zt(shcol,nlev)
   ! Dissipation term
-  !real(rtype) :: a_diss(shcol,nlev)
+  real(rtype) :: a_diss(shcol,nlev)
   !column integrated stability
   real(rtype) :: brunt_int(shcol)
 
@@ -3309,13 +3225,13 @@ subroutine shoc_tke(&
 
   !advance sgs TKE
   call adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
-       sterm_zt, tk, tke, a_diss, a_prod_bu, a_prod_sh)
+       sterm_zt, tk, tke, a_diss)
 
   !Compute isotropic time scale [s]
   call isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
 
   !Compute eddy diffusivity for heat and momentum
-  call eddy_diffusivities(nlev, shcol, obklen, pblh, zt_grid, &
+  call eddy_diffusivities(nlev, shcol, pblh, zt_grid, tabs, &
        shoc_mix, sterm_zt, isotropy, tke, tkh, tk)
 
   return
@@ -3326,6 +3242,10 @@ end subroutine shoc_tke
 ! Compute column integrated stability in lower troposphere
 
 subroutine integ_column_stability(nlev, shcol, dz_zt, pres, brunt, brunt_int)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: integ_column_stability_f
+#endif
 
   implicit none
   !intent-ins
@@ -3344,6 +3264,13 @@ subroutine integ_column_stability(nlev, shcol, dz_zt, pres, brunt, brunt_int)
   !local variables
   integer :: i, k
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call integ_column_stability_f(nlev, shcol, dz_zt, pres, brunt, brunt_int)
+     return
+  endif
+#endif
+
   brunt_int(1:shcol) = 0._rtype
   do k = 1, nlev
      do i = 1, shcol
@@ -3357,11 +3284,15 @@ subroutine integ_column_stability(nlev, shcol, dz_zt, pres, brunt, brunt_int)
 
 end subroutine integ_column_stability
 
-!=========================================================
+!==============================================================
 ! Compute shear production term, which is on interface levels
 ! This follows the methods of Bretheron and Park (2010)
 
 subroutine compute_shr_prod(nlevi, nlev, shcol, dz_zi, u_wind, v_wind, sterm)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_shr_prod_f
+#endif
 
   implicit none
 
@@ -3379,9 +3310,16 @@ subroutine compute_shr_prod(nlevi, nlev, shcol, dz_zi, u_wind, v_wind, sterm)
   !local variables
   integer :: i, k, km1
   real(rtype) :: grid_dz, u_grad, v_grad
-  
+
   ! Turbulent coefficient
   real(rtype), parameter :: Ck_sh = 0.1_rtype
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call compute_shr_prod_f(nlevi, nlev, shcol, dz_zi, u_wind, v_wind, sterm)
+     return
+  endif
+#endif
 
   !compute shear production term
   do k = 2, nlev
@@ -3392,7 +3330,7 @@ subroutine compute_shr_prod(nlevi, nlev, shcol, dz_zi, u_wind, v_wind, sterm)
         ! calculate vertical gradient of u&v wind
         u_grad = grid_dz*(u_wind(i,km1)-u_wind(i,k))
         v_grad = grid_dz*(v_wind(i,km1)-v_wind(i,k))
-        sterm(i,k) = Ck_sh*(u_grad**2+v_grad**2)
+        sterm(i,k) = Ck_sh*(bfb_square(u_grad)+bfb_square(v_grad))
      enddo
   enddo
 
@@ -3411,7 +3349,11 @@ end subroutine compute_shr_prod
 ! Advance SGS TKE
 
 subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
-     sterm_zt, tk, tke, a_diss, a_prod_bu, a_prod_sh)
+     sterm_zt, tk, tke, a_diss)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: adv_sgs_tke_f
+#endif
 
   implicit none
 
@@ -3436,44 +3378,47 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
   !intent-out
   ! Dissipation term
   real(rtype), intent(out) :: a_diss(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
-  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
-  
+
   !local variables
   integer :: i, k
-  !real(rtype) :: a_prod_bu, a_prod_sh
+  real(rtype) :: a_prod_bu, a_prod_sh
+
   real(rtype) :: Ck, Cs, Ce, Ce1, Ce2, Cee
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call adv_sgs_tke_f(nlev, shcol, dtime, shoc_mix, wthv_sec, &
+          sterm_zt, tk, tke, a_diss)
+     return
+  endif
+#endif
 
   Cs=0.15_rtype
   Ck=0.1_rtype
-  Ce=Ck**3/Cs**4
+  Ce=bfb_cube(Ck)/bfb_quad(Cs)
 
   Ce1=Ce/0.7_rtype*0.19_rtype
   Ce2=Ce/0.7_rtype*0.51_rtype
   Cee=Ce1+Ce2
 
-  a_prod_bu = 0._rtype
-  a_prod_sh = 0._rtype
-
-  
   do k = 1, nlev
      do i = 1, shcol
 
         ! Compute buoyant production term
-        a_prod_bu(i,k)=(ggr/basetemp)*wthv_sec(i,k)
+        a_prod_bu=(ggr/basetemp)*wthv_sec(i,k)
 
         tke(i,k)=max(0._rtype,tke(i,k))
 
         ! Shear production term, use diffusivity from
         !  previous timestep
-        a_prod_sh(i,k)=tk(i,k)*sterm_zt(i,k)
+        a_prod_sh=tk(i,k)*sterm_zt(i,k)
 
         ! Dissipation term
-        a_diss(i,k)=Cee/shoc_mix(i,k)*tke(i,k)**1.5
+        a_diss(i,k)=Cee/shoc_mix(i,k)*bfb_pow(tke(i,k),1.5_rtype)
 
-        ! March equation forward one timestep    
+        ! March equation forward one timestep
         tke(i,k)=max(mintke,tke(i,k)+dtime* &
-       ( max(0._rtype,a_prod_sh(i,k)+a_prod_bu(i,k)) - a_diss(i,k) ) )  
+             (max(0._rtype,a_prod_sh+a_prod_bu)-a_diss(i,k)))
 
         tke(i,k)=min(tke(i,k),maxtke)
      enddo
@@ -3490,6 +3435,10 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
   ! eddy coefficients as well as to diagnose higher
   ! moments in SHOC
   !------------------------------------------------------------
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: isotropic_ts_f
+#endif
 
   implicit none
 
@@ -3514,11 +3463,15 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
   real(rtype) :: tscale, lambda, buoy_sgs_save
 
   !Parameters
-  real(rtype), parameter :: lambda_low   = 0.001_rtype
-  real(rtype), parameter :: lambda_high  = 0.04_rtype
-  real(rtype), parameter :: lambda_slope = 0.65_rtype
-  real(rtype), parameter :: brunt_low    = 0.02_rtype
   real(rtype), parameter :: maxiso       = 20000.0_rtype ! Return to isotropic timescale [s]
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call isotropic_ts_f(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
+     return
+  endif
+#endif
+
 
   do k = 1, nlev
      do i = 1, shcol
@@ -3527,14 +3480,14 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
         tscale=(2.0_rtype*tke(i,k))/a_diss(i,k)
 
         ! define a damping term "lambda" based on column stability
-        lambda=lambda_low+((brunt_int(i)/ggr)-brunt_low)*lambda_slope
+        lambda=lambda_low+((brunt_int(i)/ggr)-lambda_thresh)*lambda_slope
         lambda=max(lambda_low,min(lambda_high,lambda))
 
         buoy_sgs_save=brunt(i,k)
         if (buoy_sgs_save .le. 0._rtype) lambda=0._rtype
 
         ! Compute the return to isotropic timescale
-        isotropy(i,k)=min(maxiso,tscale/(1._rtype+lambda*buoy_sgs_save*tscale**2))
+        isotropy(i,k)=min(maxiso,tscale/(1._rtype+lambda*buoy_sgs_save*bfb_square(tscale)))
      enddo
   enddo
 
@@ -3542,24 +3495,28 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
 
 end subroutine isotropic_ts
 
-subroutine eddy_diffusivities(nlev, shcol, obklen, pblh, zt_grid, &
+subroutine eddy_diffusivities(nlev, shcol, pblh, zt_grid, tabs, &
      shoc_mix, sterm_zt, isotropy, tke, tkh, tk)
 
   !------------------------------------------------------------
   ! Compute eddy diffusivity for heat and momentum
   !------------------------------------------------------------
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: eddy_diffusivities_f
+#endif
+
   implicit none
 
   !intent-ins
   integer, intent(in) :: nlev, shcol
 
-  ! Monin-Okbukov length [m]
-  real(rtype), intent(in) :: obklen(shcol)
   ! PBL height [m]
   real(rtype), intent(in) :: pblh(shcol)
   ! Heights on the mid-point grid [m]
   real(rtype), intent(in) :: zt_grid(shcol,nlev)
+  ! Absolute temperature [K]
+  real(rtype), intent(in) :: tabs(shcol,nlev)
   ! Mixing length [m]
   real(rtype), intent(in) :: shoc_mix(shcol,nlev)
   ! Interpolate shear production to thermo grid
@@ -3577,62 +3534,41 @@ subroutine eddy_diffusivities(nlev, shcol, obklen, pblh, zt_grid, &
 
   !local vars
   integer     :: i, k
-  real(rtype) :: z_over_L, zt_grid_1d(shcol)
-  real(rtype) :: Ckh_s, Ckm_s
 
   !parameters
-  ! Critical value of dimensionless Monin-Obukhov length,
-  !  for which diffusivities are no longer damped
-  real(rtype), parameter :: zL_crit_val = 100.0_rtype
+  ! Minimum absolute temperature threshold for which to apply extra mixing [K]
+  real(rtype), parameter :: temp_crit = 182.0_rtype
   ! Transition depth [m] above PBL top to allow
   ! stability diffusivities
   real(rtype), parameter :: pbl_trans = 200.0_rtype
-  ! Turbulent coefficients
-  real(rtype), parameter :: Ckh = 0.1_rtype
-  real(rtype), parameter :: Ckm = 0.1_rtype
-  ! Default eddy coefficients for stable PBL diffusivities
-  real(rtype), parameter :: Ckh_s_def = 1.0_rtype
-  real(rtype), parameter :: Ckm_s_def = 1.0_rtype
-  ! Minimum allowable value for stability diffusivities
-  real(rtype), parameter :: Ck_s_min = 0.1_rtype
 
-  !store zt_grid at nlev in 1d array
-  zt_grid_1d(1:shcol) = zt_grid(1:shcol,nlev)
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call eddy_diffusivities_f(nlev, shcol, pblh, zt_grid, tabs, &
+                                shoc_mix, sterm_zt, isotropy, tke, tkh, tk)
+      return
+   endif
+#endif
 
   do k = 1, nlev
      do i = 1, shcol
 
-        ! Dimensionless Okukhov length considering only
-        !  the lowest model grid layer height to scale
-        z_over_L = zt_grid_1d(i)/obklen(i)
+        if (tabs(i,nlev) .lt. temp_crit .and. (zt_grid(i,k) .lt. pblh(i)+pbl_trans)) then
+           ! If surface layer temperature is running away, apply extra mixing
+	   !   based on traditional stable PBL diffusivities that are not damped
+	   !   by stability functions.
 
-        if (z_over_L .gt. 0._rtype .and. (zt_grid(i,k) .lt. pblh(i)+pbl_trans)) then
-           ! If surface layer is stable, based on near surface
-           !  dimensionless Monin-Obukov use modified coefficients of
-           !  tkh and tk that are primarily based on shear production
-           !  and SHOC length scale, to promote mixing within the PBL
-           !  and to a height slighty above to ensure smooth transition.
-
-	   ! Compute diffusivity coefficient as function of dimensionless
-           !  Obukhov, given a critical value
-           Ckh_s = max(Ck_s_min,min(Ckh_s_def,z_over_L/zL_crit_val))
-           Ckm_s = max(Ck_s_min,min(Ckm_s_def,z_over_L/zL_crit_val))
-
-	   ! Compute stable PBL diffusivities
-           tkh(i,k) = Ckh_s*(shoc_mix(i,k)**2)*sqrt(sterm_zt(i,k))
-           tk(i,k)  = Ckm_s*(shoc_mix(i,k)**2)*sqrt(sterm_zt(i,k))
-           
+           tkh(i,k) = Ckh_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
+           tk(i,k)  = Ckm_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
         else
            ! Default definition of eddy diffusivity for heat and momentum
            tkh(i,k) = Ckh*isotropy(i,k)*tke(i,k)
-           tk(i,k)  = Ckm*isotropy(i,k)*tke(i,k)        
-           
+           tk(i,k)  = Ckm*isotropy(i,k)*tke(i,k)
         endif
 
      enddo
   enddo
 
-           
   return
 
 end subroutine eddy_diffusivities
@@ -3644,9 +3580,9 @@ subroutine check_tke(&
              shcol,nlev,& ! Input
              tke)         ! Input/Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: check_tke_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: check_tke_f
+#endif
 
   implicit none
   ! Make sure TKE falls within reasonable bounds
@@ -3662,13 +3598,13 @@ subroutine check_tke(&
 ! LOCAL VARIABLES
   integer :: i, k
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call check_tke_f(shcol,nlev, & ! Input
-!            tke)                      ! Input/Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call check_tke_f(shcol,nlev, & ! Input
+           tke)                      ! Input/Output
+      return
+   endif
+#endif
 
   do k=1,nlev
     do i=1,shcol
@@ -3682,19 +3618,19 @@ end subroutine check_tke
 ! Compute the turbulent length scale
 
 subroutine shoc_length(&
-         shcol,nlev,nlevi,&        ! Input
-         host_dx,host_dy,pblh,&        ! Input
-         tke,zt_grid,zi_grid,dz_zt,dz_zi,& ! Input
-         thetal,wthv_sec,thv,&         ! Input
+         shcol,nlev,nlevi,&            ! Input
+         host_dx,host_dy,&             ! Input
+         zt_grid,zi_grid,dz_zt,&       ! Input
+         tke,thv,&                     ! Input
          brunt,shoc_mix)               ! Output
 
   ! Purpose of this subroutine is to compute the SHOC
   !  mixing length scale, which is used to compute the
   !  turbulent dissipation in the SGS TKE equation
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: shoc_length_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: shoc_length_f
+#endif
 
   implicit none
 
@@ -3710,8 +3646,6 @@ subroutine shoc_length(&
   real(rtype), intent(in) :: host_dx(shcol)
   ! host model grid size [m]
   real(rtype), intent(in) :: host_dy(shcol)
-  ! Planetary boundary layer (PBL) height [m]
-  real(rtype), intent(in) :: pblh(shcol)
   ! turbulent kinetic energy [m^2/s^2]
   real(rtype), intent(in) :: tke(shcol,nlev)
   ! heights on midpoint grid [m]
@@ -3720,12 +3654,6 @@ subroutine shoc_length(&
   real(rtype), intent(in) :: zi_grid(shcol,nlevi)
   ! dz on midpoint grid [m]
   real(rtype), intent(in) :: dz_zt(shcol,nlev)
-  ! dz on interface grid [m]
-  real(rtype), intent(in) :: dz_zi(shcol,nlevi)
-  ! SGS buoyancy flux [K m/s]
-  real(rtype), intent(in) :: wthv_sec(shcol,nlev)
-  ! liquid water potential temperature [K]
-  real(rtype), intent(in) :: thetal(shcol,nlev)
   ! virtual potential temperature [K]
   real(rtype), intent(in) :: thv(shcol,nlev)
 
@@ -3736,21 +3664,18 @@ subroutine shoc_length(&
   real(rtype), intent(out) :: shoc_mix(shcol,nlev)
 
   ! LOCAL VARIABLES
-  real(rtype) :: conv_vel(shcol), tscale(shcol)
   real(rtype) :: thv_zi(shcol,nlevi)
   real(rtype) :: l_inf(shcol)
 
-  integer :: i,k
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_length_f(shcol,nlev,nlevi,host_dx,host_dy,&
+                         zt_grid,zi_grid,dz_zt,tke,&
+                         thv,brunt,shoc_mix)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_length_f(shcol,nlev,nlevi,host_dx,host_dy,pblh,tke,&
-!                          zt_grid,zi_grid,dz_zt,dz_zi,wthv_sec,thetal,&
-!                          thv,brunt,shoc_mix)
-
-!       return
-!    endif
-! #endif
+      return
+   endif
+#endif
 
   ! Interpolate virtual potential temperature onto interface grid
   call linear_interp(zt_grid,zi_grid,thv,thv_zi,nlev,nlevi,shcol,0._rtype)
@@ -3761,21 +3686,8 @@ subroutine shoc_length(&
   ! Find L_inf
   call compute_l_inf_shoc_length(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
 
-  ! determine the convective velocity scale of
-  !   the planetary boundary layer
-  call compute_conv_vel_shoc_length(nlev,shcol,pblh,zt_grid,dz_zt,thv,wthv_sec,conv_vel)
-
-  ! computed quantity above is wstar3
-  ! clip, to avoid negative values and take the cubed
-  !   root to get the convective velocity scale
-
-  ! Compute eddy turnover timescale.  If
-  !  convective velocity scale is zero then
-  !  set to a minimum threshold
-  call compute_conv_time_shoc_length(shcol,pblh,conv_vel,tscale)
-
   ! compute mixing-length
-  call compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_inf,shoc_mix)
+  call compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,zt_grid,l_inf,shoc_mix)
 
   ! Do checks on the length scale.  Make sure it is not
   !  larger than the grid mesh of the host model.
@@ -3786,15 +3698,15 @@ subroutine shoc_length(&
 end subroutine shoc_length
 
 !==============================================================
-! Subroutine to determine superdiagonal and subdiagonal coeffs of
-! the tridiagonal diffusion matrix.
+! Subroutine to determine superdiagonal and the factorized
+! subdiagonal and diagonal coeffs for solving the
+! tridiagonal diffusion matrix.
 
 subroutine vd_shoc_decomp( &
          shcol,nlev,nlevi,&          ! Input
          kv_term,tmpi,rdp_zt,dtime,& ! Input
          flux, &                     ! Input
-         do_mf,mf_ae,mf_aw,tmpi3,&   ! EDMF input
-         ca,cc,denom,ze)             ! Output
+         du,dl,d)                    ! Output
 
   implicit none
 
@@ -3817,92 +3729,50 @@ subroutine vd_shoc_decomp( &
   ! surface flux [varies]
   real(rtype), intent(in) :: flux(shcol)
 
-  ! EDMF inputs
-  logical,  intent(in)  :: do_mf
-  ! Sum of environment area, i.e. 1-sum(a_i) [-]
-  real(rtype), intent(in)  :: mf_ae(shcol,nlevi)
-  ! Sum (a_i*w_i) [m/s]
-  real(rtype), intent(in)  :: mf_aw(shcol,nlevi)
-  ! dt*g*rho on interfaces
-  real(rtype), intent(in)  :: tmpi3(shcol,nlevi)
-
 ! OUTPUT VARIABLES
   ! superdiagonal
-  real(rtype), intent(out) :: ca(shcol,nlev)
-  ! subdiagonal
-  real(rtype), intent(out) :: cc(shcol,nlev)
-  ! 1./(1.+ca(k)+cc(k)-cc(k)*ze(k-1))
-  real(rtype), intent(out) :: denom(shcol,nlev)
-  ! Term in tri-diag. matrix system
-  real(rtype), intent(out) :: ze(shcol,nlev)
+  real(rtype), intent(out) :: du(shcol,nlev)
+  ! Factorized version of subdiagonal
+  real(rtype), intent(out) :: dl(shcol,nlev)
+  ! Factorized version of diagonal
+  real(rtype), intent(out) :: d(shcol,nlev)
 
 ! LOCAL VARIABLES
   integer :: i, k
 
-  ! Determine superdiagonal (ca(k)) and subdiagonal (cc(k)) coeffs of the
-  ! tridiagonal diffusion matrix. The diagonal elements  (cb=1+ca+cc) are
-  ! a combination of ca and cc; they are not required by the solver.
-
-  do k=nlev-1,1,-1
+  ! Determine superdiagonal (du) and subdiagonal (dl) coeffs of the
+  ! tridiagonal diffusion matrix.
+  do k=1,nlev-1
     do i=1,shcol
-      if ( do_mf ) then
-         ca(i,k  ) = (mf_ae(i,k+1)*kv_term(i,k+1)*tmpi(i,k+1) &
-              - 0.5_rtype*tmpi3(i,k+1)*mf_aw(i,k+1))*rdp_zt(i,k  )
-         cc(i,k+1) = (mf_ae(i,k+1)*kv_term(i,k+1)*tmpi(i,k+1) &
-              + 0.5_rtype*tmpi3(i,k+1)*mf_aw(i,k+1))*rdp_zt(i,k+1)
-      else
-        ca(i,k) = kv_term(i,k+1) * tmpi(i,k+1) * rdp_zt(i,k)
-        cc(i,k+1) = kv_term(i,k+1) * tmpi(i,k+1) * rdp_zt(i,k+1)
-      endif
+      du(i,k)   = -1._rtype * kv_term(i,k+1) * tmpi(i,k+1) * rdp_zt(i,k)
+      dl(i,k+1) = -1._rtype * kv_term(i,k+1) * tmpi(i,k+1) * rdp_zt(i,k+1)
     enddo
   enddo
 
-  ! The bottom element of the upper diagonal (ca) is zero (not used).
-  ! The subdiagonal (cc) is not needed in the solver.
+  ! The bottom element of the superdiagonal (du) and the top element of
+  ! the subdiagonal (dl) is set to zero (not included in linear system).
+  du(:,nlev) = 0._rtype
+  dl(:,1)    = 0._rtype
 
-  ca(:,nlev) = 0._rtype
-
-  ! Calculate e(k). This term is required in the solution of the
-  ! tridiagonal matrix as defined by the implicit diffusion equation.
-
+  ! Compute the diagonal and perform Thomas factorization. The diagonal
+  ! elements are a combination of du and dl (d=1-du-dl). Surface fluxes
+  ! are applied explicitly in the diagonal at the top level.
   do i=1,shcol
-    if ( do_mf ) then
-      denom(i,nlev) = 1._rtype/ &
-        (1._rtype + cc(i,nlev) - &
-        tmpi3(i,nlev)*mf_aw(i,nlev)*rdp_zt(i,nlev) + &
-        flux(i)*dtime*ggr*rdp_zt(i,nlev))
-    else
-      denom(i,nlev) = 1._rtype/ &
-        (1._rtype + cc(i,nlev) + flux(i)*dtime*ggr*rdp_zt(i,nlev))
-    endif
-    ze(i,nlev) = cc(i,nlev) * denom(i,nlev)
+    d(i,1) = 1._rtype - du(i,1)
   enddo
-
-  do k=nlev-1,2,-1
+  do k=2,nlev-1
     do i=1,shcol
-      if ( do_mf ) then
-        denom(i,k) = 1._rtype/ &
-          (1._rtype + ca(i,k) + cc(i,k) - &
-          ca(i,k)*ze(i,k+1) - &
-          (tmpi3(i,k)*mf_aw(i,k) - tmpi3(i,k+1)*mf_aw(i,k+1))*rdp_zt(i,k))
-      else
-        denom(i,k) = 1._rtype/ &
-          (1._rtype + ca(i,k) + cc(i,k) - &
-          ca(i,k) * ze(i,k+1))
-      endif
-      ze(i,k) = cc(i,k) * denom(i,k)
+      d(i,k) = 1._rtype - du(i,k) - dl(i,k)
+
+      dl(i,k) = dl(i,k)/d(i,k-1)
+      d (i,k) = d (i,k) - dl(i,k)*du(i,k-1)
     enddo
   enddo
-
   do i=1,shcol
-    if ( do_mf ) then
-      denom(i,1) = 1._rtype/ &
-        (1._rtype + ca(i,1) - ca(i,1)*ze(i,2) + &
-        tmpi3(i,2)*mf_aw(i,2)*rdp_zt(i,1))
-    else
-      denom(i,1) = 1._rtype/ &
-        (1._rtype + ca(i,1) - ca(i,1) * ze(i,2))
-    endif
+    d(i,nlev) = 1._rtype - dl(i,nlev) + flux(i)*dtime*ggr*rdp_zt(i,nlev)
+
+    dl(i,nlev) = dl(i,nlev)/d(i,nlev-1)
+    d (i,nlev) = d (i,nlev) - dl(i,nlev)*du(i,nlev-1)
   enddo
 
   return
@@ -3911,36 +3781,23 @@ end subroutine vd_shoc_decomp
 
 !==============================================================
 ! Subroutine to solve the implicit vertical diffsion equation
-! with zero flux boundary conditions.  Actual surface fluxes
-! should be applied explicitly.  Procedure for solution of the
+! with zero flux boundary conditions. Actual surface fluxes
+! should be applied explicitly. Procedure for solution of the
 ! implicit equation follows Richtmeyer and Morton (1967, pp 198-200).
-! The equation solved is
 !
-!     -ca(k)*q(k+1) + cb(k)*q(k) - cc(k)*q(k-1) = d(k),
-!
-! where d(k) is the input profile and q(k) is the output profile
-!
-! The solution has the form
-!
-!     q(k) = ze(k)*q(k-1) + zf(k)
-!
-!     ze(k) = cc(k) * dnom(k)
-!
-!     zf(k) = [d(k) + ca(k)*zf(k+1)] * dnom(k)
-!
-!     dnom(k) = 1/[cb(k) - ca(k)*ze(k+1)]
-!             = 1/[1 + ca(k) + cc(k) - ca(k)*ze(k+1)]
+! Here, du is the superdiagonal and dl and d are the factorized
+! version of the subdiagonal and diagonal using the Thomas algorithm.
+! This subroutine takes in an input profile var and solves using the
+! remainder of the Thomas algorithm. The solution is stored in var.
 !
 ! Note that the same routine is used for temperature, momentum and
-! tracers, and that input variables are replaced.
+! tracers.
 ! ---------------------------------------------------------------
 
 subroutine vd_shoc_solve(&
-         shcol,nlev,nlevi,&   ! Input
-         ca,cc,denom,ze,&     ! Input
-         do_mf,mf_awvar,&      ! EDMF Input
-         tmpi3,rdp_zt,&       ! EDMF Input
-         var)                 ! Input/Output
+         shcol,nlev,& ! Input
+         du,dl,d,&    ! Input
+         var)         ! Input/Output
 
   implicit none
 
@@ -3949,69 +3806,31 @@ subroutine vd_shoc_solve(&
   integer, intent(in) :: shcol
   ! number of mid-point levels
   integer, intent(in) :: nlev
-  ! number of levels on the interface
-  integer, intent(in) :: nlevi
   ! superdiagonal
-  real(rtype), intent(in) :: ca(shcol,nlev)
-  ! subdiagonal
-  real(rtype), intent(in) :: cc(shcol,nlev)
-  ! 1./(1.+ca(k)+cc(k)-cc(k)*ze(k-1))
-  real(rtype), intent(in) :: denom(shcol,nlev)
-  ! Term in tri-diag. matrix system
-  real(rtype), intent(in) :: ze(shcol,nlev)
-
-  ! EDMF inputs
-  logical,  intent(in)    :: do_mf
-  ! Sum of plume (a_i*w_i*var_i)
-  real(rtype), intent(in)    :: mf_awvar(shcol,nlevi)
-  ! dt*g*rho on interfaces
-  real(rtype), intent(in)    :: tmpi3(shcol,nlevi)
-  ! 1/dp
-  real(rtype), intent(in)    :: rdp_zt(shcol,nlev)
+  real(rtype), intent(in) :: du(shcol,nlev)
+  ! Factorized version of subdiagonal
+  real(rtype), intent(in) :: dl(shcol,nlev)
+  ! Factorized version of diagonal
+  real(rtype), intent(in) :: d(shcol,nlev)
 
 ! IN/OUT VARIABLES
   real(rtype), intent(inout) :: var(shcol,nlev)
 
 ! LOCAL VARIABLES
   integer :: i, k
-  ! Term in tri-diag solution
-  real(rtype) :: zf(shcol,nlev)
 
-
-  ! Calculate zf(k). Terms zf(k) and ze(k) are required in solution of
-  ! tridiagonal matrix defined by implicit diffusion equation.
-  ! Note that only levels ntop through nbot need be solved for.
-
-  do i=1,shcol
-    if (do_mf) then
-      zf(i,nlev) = (var(i,nlev) - &
-        tmpi3(i,nlev)*mf_awvar(i,nlev)*rdp_zt(i,nlev))*denom(i,nlev)
-    else
-      zf(i,nlev) = var(i,nlev) * denom(i,nlev)
-    endif
-  enddo
-
-  do k=nlev-1,1,-1
-    do i=1,shcol
-      if (do_mf) then
-        zf(i,k) = (var(i,k) + &
-          (tmpi3(i,k+1)*mf_awvar(i,k+1) - tmpi3(i,k)*mf_awvar(i,k))*rdp_zt(i,k) + &
-          ca(i,k)*zf(i,k+1))*denom(i,k)
-      else
-        zf(i,k) = (var(i,k) + ca(i,k) * zf(i,k+1)) * denom(i,k)
-      endif
-    enddo
-  enddo
-
-  ! Perform back substitution
-
-  do i=1,shcol
-    var(i,1) = zf(i,1)
-  enddo
-
+  ! Solve using Thomas algorithm
   do k=2,nlev
     do i=1,shcol
-      var(i,k) = zf(i,k) + ze(i,k)*var(i,k-1)
+      var(i,k) = var(i,k) - dl(i,k)*var(i,k-1)
+    enddo
+  enddo
+  do i=1,shcol
+    var(i,nlev) = var(i,nlev)/d(i,nlev)
+  enddo
+  do k=nlev,2,-1
+    do i=1,shcol
+      var(i,k-1) = (var(i,k-1) - du(i,k-1)*var(i,k))/d(i,k-1)
     enddo
   enddo
 
@@ -4028,9 +3847,9 @@ subroutine shoc_energy_integrals(&
          rtm,rcm,u_wind,v_wind,&        ! Input
          se_int,ke_int,wv_int,wl_int)   ! Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: shoc_energy_integrals_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_energy_integrals_f
+#endif
 
   implicit none
 
@@ -4066,14 +3885,14 @@ subroutine shoc_energy_integrals(&
   integer :: i, k
   real(rtype) :: rvm
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_energy_integrals_f(shcol,nlev,host_dse,pdel,&   ! Input
-!                                    rtm,rcm,u_wind,v_wind,&      ! Input
-!                                    se_int,ke_int,wv_int,wl_int) ! Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_energy_integrals_f(shcol,nlev,host_dse,pdel,&   ! Input
+                                   rtm,rcm,u_wind,v_wind,&      ! Input
+                                   se_int,ke_int,wv_int,wl_int) ! Output
+      return
+   endif
+#endif
 
   se_int(:) = 0._rtype
   ke_int(:) = 0._rtype
@@ -4082,6 +3901,9 @@ subroutine shoc_energy_integrals(&
   do k=1,nlev
     do i=1,shcol
        rvm = rtm(i,k) - rcm(i,k) ! compute water vapor
+
+!technically wrong, need to remove gz from geopotential
+!but shoc does not change gz term
        se_int(i) = se_int(i) + host_dse(i,k)*pdel(i,k)/ggr
        ke_int(i) = ke_int(i) + 0.5_rtype*(bfb_square(u_wind(i,k))+bfb_square(v_wind(i,k)))*pdel(i,k)/ggr
        wv_int(i) = wv_int(i) + rvm*pdel(i,k)/ggr
@@ -4098,12 +3920,12 @@ end subroutine shoc_energy_integrals
 
 subroutine update_host_dse(&
          shcol,nlev,thlm,&                 ! Input
-         shoc_ql,inv_exner,zt_grid,phis,&      ! Input
+         shoc_ql,inv_exner,zt_grid,phis,&  ! Input
          host_dse)                         ! Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: update_host_dse_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: update_host_dse_f
+#endif
 
   implicit none
 
@@ -4116,7 +3938,7 @@ subroutine update_host_dse(&
   real(rtype), intent(in) :: thlm(shcol,nlev)
   ! cloud liquid water mixing ratio [kg/kg]
   real(rtype), intent(in) :: shoc_ql(shcol,nlev)
-  ! inverse exner function [-]
+  ! inverse of exner function [-]
   real(rtype), intent(in) :: inv_exner(shcol,nlev)
   ! heights at mid point [m]
   real(rtype), intent(in) :: zt_grid(shcol,nlev)
@@ -4133,17 +3955,17 @@ subroutine update_host_dse(&
 
   integer :: i, k
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call update_host_dse_f(shcol,nlev,thlm,shoc_ql,exner,zt_grid,phis, &  ! Input
-!            host_dse)                              ! Input/Output)
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call update_host_dse_f(shcol,nlev,thlm,shoc_ql,inv_exner,zt_grid,phis, &  ! Input
+           host_dse)                              ! Input/Output)
+      return
+   endif
+#endif
 
   do k=1,nlev
     do i=1,shcol
-      temp = thlm(i,k)/inv_exner(i,k)+(lcond/cp)*shoc_ql(i,k)
+      temp = (thlm(i,k)/inv_exner(i,k))+(lcond/cp)*shoc_ql(i,k)
       host_dse(i,k) = cp*temp+ggr*zt_grid(i,k)+phis(i)
     enddo
   enddo
@@ -4164,9 +3986,9 @@ subroutine shoc_energy_fixer(&
          rho_zt,tke,pint,&              ! Input
          host_dse)                      ! Input/Output
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: shoc_energy_fixer_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: shoc_energy_fixer_f
+#endif
 
   implicit none
 
@@ -4220,25 +4042,25 @@ subroutine shoc_energy_fixer(&
   real(rtype) :: se_dis(shcol), te_a(shcol), te_b(shcol)
   integer :: shoctop(shcol)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_energy_fixer_f(shcol,nlev,nlevi,dtime,nadv,& ! Input
-!                               zt_grid,zi_grid,&              ! Input
-!                               se_b,ke_b,wv_b,wl_b,&          ! Input
-!                               se_a,ke_a,wv_a,wl_a,&          ! Input
-!                               wthl_sfc,wqw_sfc,&             ! Input
-!                               rho_zt,tke,pint,&              ! Input
-!                               host_dse)                      ! Input/Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_energy_fixer_f(shcol,nlev,nlevi,dtime,nadv,& ! Input
+                              zt_grid,zi_grid,&              ! Input
+                              se_b,ke_b,wv_b,wl_b,&          ! Input
+                              se_a,ke_a,wv_a,wl_a,&          ! Input
+                              wthl_sfc,wqw_sfc,&             ! Input
+                              rho_zt,tke,pint,&              ! Input
+                              host_dse)                      ! Input/Output
+      return
+   endif
+#endif
 
   call shoc_energy_total_fixer(&
          shcol,nlev,nlevi,dtime,nadv,&  ! Input
          zt_grid,zi_grid,&              ! Input
          se_b,ke_b,wv_b,wl_b,&          ! Input
          se_a,ke_a,wv_a,wl_a,&          ! Input
-         wthl_sfc,wqw_sfc,rho_zt,&      ! Input
+         wthl_sfc,wqw_sfc,rho_zt,pint,& ! Input
          te_a, te_b)                    ! Output
 
   call shoc_energy_threshold_fixer(&
@@ -4263,7 +4085,7 @@ subroutine shoc_energy_total_fixer(&
          zt_grid,zi_grid,&              ! Input
          se_b,ke_b,wv_b,wl_b,&          ! Input
          se_a,ke_a,wv_a,wl_a,&          ! Input
-         wthl_sfc,wqw_sfc,rho_zt,&      ! Input
+         wthl_sfc,wqw_sfc,rho_zt,pint,& ! Input
          te_a, te_b)                    ! Output
 
   implicit none
@@ -4305,6 +4127,8 @@ subroutine shoc_energy_total_fixer(&
   real(rtype), intent(in) :: zi_grid(shcol,nlevi)
   ! density on midpoint grid [kg/m^3]
   real(rtype), intent(in) :: rho_zt(shcol,nlev)
+  ! pressure on interface grid [Pa]
+  real(rtype), intent(in) :: pint(shcol,nlevi)
 
   ! OUTPUT VARIABLES
   real(rtype), intent(out) :: te_a(shcol)
@@ -4314,8 +4138,8 @@ subroutine shoc_energy_total_fixer(&
   ! density on interface grid [kg/m^3]
   real(rtype) :: rho_zi(shcol,nlevi)
   ! sensible and latent heat fluxes [W/m^2]
-  real(rtype) :: shf, lhf, hdtime
-  integer :: i, k
+  real(rtype) :: shf, lhf, hdtime, exner_surf
+  integer :: i
 
   ! compute the host timestep
   hdtime = dtime * float(nadv)
@@ -4325,8 +4149,10 @@ subroutine shoc_energy_total_fixer(&
   ! Based on these integrals, compute the total energy before and after SHOC
   ! call
   do i=1,shcol
-    ! convert shf and lhf to W/m^2
-    shf=wthl_sfc(i)*cp*rho_zi(i,nlevi)
+    ! convert shf and lhf
+    exner_surf = bfb_pow(pint(i,nlevi)/100000.0, rgas/cp)
+    shf=wthl_sfc(i)*cp*rho_zi(i,nlevi)*exner_surf
+
     lhf=wqw_sfc(i)*rho_zi(i,nlevi)
     te_a(i) = se_a(i) + ke_a(i) + (lcond+lice)*wv_a(i)+lice*wl_a(i)
     te_b(i) = se_b(i) + ke_b(i) + (lcond+lice)*wv_b(i)+lice*wl_b(i)
@@ -4371,7 +4197,7 @@ subroutine shoc_energy_threshold_fixer(&
 
   ! LOCAL VARIABLES
   ! sensible and latent heat fluxes [W/m^2]
-  integer :: i, k
+  integer :: i
 
   ! Limit the energy fixer to find highest layer where SHOC is active
   ! Find first level where wp2 is higher than lowest threshold
@@ -4434,9 +4260,9 @@ subroutine shoc_diag_obklen(&
          cldliq_sfc,qv_sfc,&        ! Input
          ustar,kbfs,obklen)         ! Ouput
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: shoc_diag_obklen_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: shoc_diag_obklen_f
+#endif
 
   implicit none
 
@@ -4471,15 +4297,15 @@ subroutine shoc_diag_obklen(&
   real(rtype) :: th_sfc  ! potential temperature at surface
   real(rtype) :: thv_sfc ! virtual potential temperature at surface
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call shoc_diag_obklen_f(shcol,uw_sfc,vw_sfc,&      ! Input
-!                             wthl_sfc,wqw_sfc,thl_sfc,& ! Input
-!                             cldliq_sfc,qv_sfc,&        ! Input
-!                             ustar,kbfs,obklen)         ! Ouput
-!     return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call shoc_diag_obklen_f(shcol,uw_sfc,vw_sfc,&      ! Input
+                            wthl_sfc,wqw_sfc,thl_sfc,& ! Input
+                            cldliq_sfc,qv_sfc,&        ! Input
+                            ustar,kbfs,obklen)         ! Ouput
+    return
+  endif
+#endif
 
   do i=1,shcol
     th_sfc = thl_sfc(i) + (lcond/cp)*cldliq_sfc(i)
@@ -4500,7 +4326,11 @@ subroutine pblintd(&
        z,zi,thl,ql,&                  ! Input
        q,u,v,&                        ! Input
        ustar,obklen,kbfs,cldn,&       ! Input
-       pblh,rino)                          ! Output
+       pblh)                          ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: pblintd_f
+#endif
 
     !-----------------------------------------------------------------------
     !
@@ -4554,12 +4384,24 @@ subroutine pblintd(&
     !
     !---------------------------Local workspace-----------------------------
     !
-    real(rtype), intent(out) :: rino(shcol,nlev)
-    !real(rtype) :: rino(shcol,nlev)        ! bulk Richardson no. from level to ref lev
+
+    real(rtype) :: rino(shcol,nlev)        ! bulk Richardson no. from level to ref lev
     real(rtype) :: thv(shcol,nlev)         ! virtual potential temperature
     real(rtype) :: tlv(shcol)              ! ref. level pot tmp + tmp excess
 
     logical  :: check(shcol)            ! True=>chk if Richardson no.>critcal
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call pblintd_f(&
+      shcol,nlev,nlevi,npbl,&        ! Input
+      z,zi,thl,ql,&                  ! Input
+      q,u,v,&                        ! Input
+      ustar,obklen,kbfs,cldn,&       ! Input
+      pblh)                          ! Output
+    return
+  endif
+#endif
 
     !
     ! Compute Obukhov length virtual temperature flux and various arrays for use later:
@@ -4624,9 +4466,9 @@ subroutine pblintd_init_pot(&
        shcol,nlev,&             ! Input
        thl,ql,q,&               ! Input
        thv)                     ! Output
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: shoc_pblintd_init_pot_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_pblintd_init_pot_f
+#endif
     !------------------------------Arguments--------------------------------
     !
     ! Input arguments
@@ -4645,13 +4487,13 @@ subroutine pblintd_init_pot(&
     integer  :: k                       ! level index
     real(rtype) :: th
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_pblintd_init_pot_f(shcol,nlev,thl,ql,q,&               ! Input
-!                                    thv)                     ! Output
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_pblintd_init_pot_f(shcol,nlev,thl,ql,q,&               ! Input
+                                   thv)                     ! Output
+      return
+   endif
+#endif
     ! Compute virtual potential temperature
     do k=1,nlev
       do i=1,shcol
@@ -4666,6 +4508,7 @@ subroutine pblintd_init(&
        shcol,nlev,&             ! Input
        z,&                      ! Input
        check,rino,pblh)         ! Output
+
     !------------------------------Arguments--------------------------------
     ! Input arguments
     !
@@ -4684,6 +4527,7 @@ subroutine pblintd_init(&
     !---------------------------Local workspace-----------------------------
     !
     integer  :: i                       ! longitude index
+
     do i=1,shcol
        check(i)     = .true.
        rino(i,nlev) = 0.0_rtype
@@ -4696,6 +4540,11 @@ subroutine pblintd_height(&
        z,u,v,ustar,&             ! Input
        thv,thv_ref,&             ! Input
        pblh,rino,check)          ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: pblintd_height_f
+#endif
+
     !------------------------------Arguments--------------------------------
     !
     ! Input arguments
@@ -4713,7 +4562,7 @@ subroutine pblintd_height(&
     !
     ! Output arguments
     !
-    real(rtype), intent(out)   :: pblh(shcol)             ! boundary-layer height [m]
+    real(rtype), intent(inout)   :: pblh(shcol)             ! boundary-layer height [m]
     real(rtype), intent(inout) :: rino(shcol,nlev)                     ! bulk Richardson no. from level to ref lev
     logical, intent(inout)     :: check(shcol)            ! True=>chk if Richardson no.>critcal
 
@@ -4723,7 +4572,15 @@ subroutine pblintd_height(&
     integer  :: i                       ! longitude index
     integer  :: k                       ! level index
     real(rtype) :: vvk                     ! velocity magnitude squared
-    real(rtype) :: th
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call pblintd_height_f(shcol,nlev,npbl,z,u,v,ustar,thv,thv_ref,& ! Input
+                            pblh,rino,check)                          ! Output
+      return
+   endif
+#endif
+
     !
     ! PBL height calculation:  Scan upward until the Richardson number between
     ! the first level and the current level exceeds the "critical" value.
@@ -4731,20 +4588,17 @@ subroutine pblintd_height(&
     do k=nlev-1,nlev-npbl+1,-1
        do i=1,shcol
           if (check(i)) then
-             vvk = (u(i,k) - u(i,nlev))**2 + (v(i,k) - v(i,nlev))**2 +fac*ustar(i)**2
+             vvk = bfb_square((u(i,k) - u(i,nlev))) + bfb_square((v(i,k) - v(i,nlev))) + fac*bfb_square(ustar(i))
              vvk = max(vvk,tinyw)
              rino(i,k) = ggr*(thv(i,k) -thv_ref(i))*(z(i,k)-z(i,nlev))/(thv(i,nlev)*vvk)
              if (rino(i,k) >= ricr) then
                 pblh(i) = z(i,k+1) + (ricr - rino(i,k+1))/(rino(i,k) -rino(i,k+1)) * &
                      (z(i,k) - z(i,k+1))
-                check(i) = .false.               
-             end if
-             !--- sanity check
-             pblh(i) = max(0.0_rtype, pblh(i)) 
-          end if
+                check(i) = .false.
+             endif
+          endif
        end do
     end do
-        
     return
 end subroutine pblintd_height
 
@@ -4753,6 +4607,11 @@ subroutine pblintd_surf_temp(&
        z,ustar,obklen,kbfs,thv,&   ! Input
        tlv,&                       ! Output
        pblh,check,rino)            ! InOutput
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: pblintd_surf_temp_f
+#endif
+
     !------------------------------Arguments--------------------------------
     ! Input arguments
     !
@@ -4778,11 +4637,19 @@ subroutine pblintd_surf_temp(&
 
     !===================
     ! const parameter for Diagnosis of PBL depth
-    real(rtype), parameter :: onet  = 1._rtype/3._rtype  ! 1/3 power in wind gradient expression
     real(rtype), parameter :: fak   =  8.5_rtype      ! Constant in surface temperature excess
     real(rtype), parameter :: betam = 15.0_rtype      ! Constant in wind gradient expression
     real(rtype), parameter :: sffrac=  0.1_rtype      ! Surface layer fraction of boundary layer
     real(rtype), parameter :: binm  = betam*sffrac ! betam * sffrac
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call pblintd_surf_temp_f(shcol,nlev,nlevi,&          ! Input
+                         z,ustar,obklen,kbfs,thv,&   ! Input
+                         tlv,pblh,check,rino)            ! InOutput
+      return
+   endif
+#endif
 
     !
     ! Estimate an effective surface temperature to account for surface
@@ -4791,8 +4658,9 @@ subroutine pblintd_surf_temp(&
     do i=1,shcol
        if (check(i)) pblh(i) = z(i,nlevi-npbl)
        check(i)  = (kbfs(i) > 0._rtype)
+       tlv(i)    = thv(i,nlev)
        if (check(i)) then
-          phiminv      = (1._rtype - binm*pblh(i)/obklen(i))**onet
+          phiminv      = bfb_cbrt(1._rtype - binm*pblh(i)/obklen(i))
           rino(i,nlev) = 0.0_rtype
           tlv(i)       = thv(i,nlev) + kbfs(i)*fak/( ustar(i)*phiminv )
        end if
@@ -4804,6 +4672,11 @@ subroutine pblintd_check_pblh(&
        shcol,nlev,nlevi,&             ! Input
        z,ustar,check,&                ! Input
        pblh)                          ! Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: pblintd_check_pblh_f
+#endif
+
     !------------------------------Arguments--------------------------------
     ! Input arguments
     !
@@ -4817,11 +4690,19 @@ subroutine pblintd_check_pblh(&
     !
     ! Output arguments
     !
-    real(rtype), intent(out) :: pblh(shcol)             ! boundary-layer height [m]
+    real(rtype), intent(inout) :: pblh(shcol)             ! boundary-layer height [m]
     !
     !---------------------------Local workspace-----------------------------
     !
     integer  :: i                       ! longitude index
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call pblintd_check_pblh_f(shcol,nlev,nlevi,npbl,z,ustar,check,pblh)
+      return
+   endif
+#endif
+
     !
     ! PBL height must be greater than some minimum mechanical mixing depth
     ! Several investigators have proposed minimum mechanical mixing depth
@@ -4848,9 +4729,9 @@ subroutine pblintd_cldcheck(      &
                    zi,cldn,          &                  ! Input
                    pblh)                                ! InOutput
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: shoc_pblintd_cldcheck_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_pblintd_cldcheck_f
+#endif
 
     !------------------------------Arguments--------------------------------
     ! Input arguments
@@ -4871,12 +4752,12 @@ subroutine pblintd_cldcheck(      &
     integer  :: i                       ! longitude index
     logical  :: cldcheck(shcol)      ! True=>if cloud in lowest layer
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call shoc_pblintd_cldcheck_f(shcol, nlev, nlevi, zi, cldn, pblh)
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call shoc_pblintd_cldcheck_f(shcol, nlev, nlevi, zi, cldn, pblh)
+      return
+   endif
+#endif
 
     !
     ! Final requirement on PBL heightis that it must be greater than the depth
@@ -4902,9 +4783,9 @@ end subroutine pblintd_cldcheck
 
 subroutine linear_interp(x1,x2,y1,y2,km1,km2,ncol,minthresh)
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!     use shoc_iso_f, only: linear_interp_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: linear_interp_f
+#endif
 
     implicit none
 
@@ -4917,12 +4798,12 @@ subroutine linear_interp(x1,x2,y1,y2,km1,km2,ncol,minthresh)
 
     integer :: k1, k2, i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!    if (use_cxx) then
-!       call linear_interp_f(x1,x2,y1,y2,km1,km2,ncol,minthresh)
-!       return
-!    endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+   if (use_cxx) then
+      call linear_interp_f(x1,x2,y1,y2,km1,km2,ncol,minthresh)
+      return
+   endif
+#endif
 
 #if 1
     !i = check_grid(x1,x2,km1,km2,ncol)
@@ -4991,9 +4872,9 @@ subroutine compute_brunt_shoc_length(nlev,nlevi,shcol,dz_zt,thv,thv_zi,brunt)
   !
   ! Computes the brunt_visala frequency
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_brunt_shoc_length_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_brunt_shoc_length_f
+#endif
 
   implicit none
   integer, intent(in) :: nlev, nlevi, shcol
@@ -5007,12 +4888,12 @@ subroutine compute_brunt_shoc_length(nlev,nlevi,shcol,dz_zt,thv,thv_zi,brunt)
   real(rtype), intent(out) :: brunt(shcol, nlev)
   integer k, i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_brunt_shoc_length_f(nlev,nlevi,shcol,dz_zt,thv,thv_zi,brunt)
-!     return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_brunt_shoc_length_f(nlev,nlevi,shcol,dz_zt,thv,thv_zi,brunt)
+    return
+  endif
+#endif
 
   do k=1,nlev
     do i=1,shcol
@@ -5027,9 +4908,9 @@ subroutine compute_l_inf_shoc_length(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
   !=========================================================
   !
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_l_inf_shoc_length_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_l_inf_shoc_length_f
+#endif
 
   implicit none
   integer, intent(in) :: nlev, shcol
@@ -5038,12 +4919,12 @@ subroutine compute_l_inf_shoc_length(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
   real(rtype) :: tkes, numer(shcol), denom(shcol)
   integer k, i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_l_inf_shoc_length_f(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
-!     return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_l_inf_shoc_length_f(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
+    return
+  endif
+#endif
 
   numer(:) = 0._rtype
   denom(:) = 0._rtype
@@ -5062,91 +4943,11 @@ subroutine compute_l_inf_shoc_length(nlev,shcol,zt_grid,dz_zt,tke,l_inf)
 
 end subroutine compute_l_inf_shoc_length
 
-subroutine compute_conv_vel_shoc_length(nlev,shcol,pblh,zt_grid,dz_zt,thv,wthv_sec,conv_vel)
+subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,zt_grid,l_inf,shoc_mix)
 
-  !=========================================================
-  ! determine the convective velocity scale of
-  !   the planetary boundary layer
-
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_conv_vel_shoc_length_f
-! #endif
-
-  implicit none
-  integer, intent(in) :: nlev, shcol
-! Planetary boundary layer (PBL) height [m]
-  real(rtype), intent(in) :: pblh(shcol)
-  real(rtype), intent(in) :: zt_grid(shcol,nlev)
-  real(rtype), intent(in) :: dz_zt(shcol,nlev)
-  real(rtype), intent(in) :: thv(shcol,nlev)
-  real(rtype), intent(in) :: wthv_sec(shcol,nlev)
-  real(rtype), intent(inout) :: conv_vel(shcol)
-  integer k, i
-
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!      call compute_conv_vel_shoc_length_f(nlev,shcol,pblh,zt_grid,dz_zt,thv,wthv_sec,&  ! Input
-!                                          conv_vel)                                     ! Output)
-!      return
-!   endif
-! #endif
-
-  conv_vel(:) = 0._rtype
-
-  do k=nlev,1,-1
-    do i=1,shcol
-      if (zt_grid(i,k) .lt. pblh(i)) then
-        conv_vel(i) = conv_vel(i)+2.5_rtype*dz_zt(i,k)*(ggr/thv(i,k))*wthv_sec(i,k)
-      endif
-    enddo ! end i loop (column loop)
-  enddo ! end k loop (vertical loop)
-
-end subroutine compute_conv_vel_shoc_length
-
-subroutine compute_conv_time_shoc_length(shcol,pblh,conv_vel,tscale)
-  ! Compute eddy turnover timescale.  If
-  !  convective velocity scale is zero then
-  !  set to a minimum threshold
-
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_conv_time_shoc_length_f
-! #endif
-
-  implicit none
-  integer, intent(in) :: shcol
-! Planetary boundary layer (PBL) height [m]
-  real(rtype), intent(in) :: pblh(shcol)
-  ! Convective velocity scale
-  real(rtype), intent(inout) :: conv_vel(shcol)
-  ! Convective time scale
-  real(rtype), intent(inout) ::  tscale(shcol)
-
-  integer i
-
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_conv_time_shoc_length_f(shcol,pblh,conv_vel,tscale)
-!     return
-!   endif
-! #endif
-
-  do i=1,shcol
-    conv_vel(i) = bfb_pow(max(0._rtype,conv_vel(i)), (1._rtype/3._rtype))
-
-    if (conv_vel(i) .gt. 0._rtype) then
-      tscale(i)=pblh(i)/conv_vel(i)
-    else
-      tscale(i)=100._rtype
-    endif
-  enddo
-  
-end subroutine compute_conv_time_shoc_length
-
-subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_inf,shoc_mix)
-
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: compute_shoc_mix_shoc_length_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: compute_shoc_mix_shoc_length_f
+#endif
 
   implicit none
 
@@ -5155,8 +4956,6 @@ subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_in
   real(rtype), intent(in) :: tke(shcol,nlev)
   ! brunt vaisala frequency [s-1]
   real(rtype), intent(in) :: brunt(shcol,nlev)
-  ! convective time scale
-  real(rtype), intent(in) :: tscale(shcol)
   ! heights, for thermo grid [m]
   real(rtype), intent(in) :: zt_grid(shcol,nlev)
   real(rtype), intent(in) :: l_inf(shcol)
@@ -5168,39 +4967,29 @@ subroutine compute_shoc_mix_shoc_length(nlev,shcol,tke,brunt,tscale,zt_grid,l_in
   real(rtype) :: brunt2(shcol,nlev)
   integer k, i
   real(rtype) :: tkes
-  
-  ! Turnover timescale [s]
-  real(rtype), parameter :: tscale_const = 400._rtype
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call compute_shoc_mix_shoc_length_f(nlev,shcol,tke,brunt,tscale,zt_grid,l_inf,& !Input
-!                                         shoc_mix) ! Ouptut
-!     return
-!   endif
-! #endif
+  ! Turnover timescale [s]
+  real(rtype), parameter :: tscale = 400._rtype
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call compute_shoc_mix_shoc_length_f(nlev,shcol,tke,brunt,zt_grid,l_inf,& !Input
+                                        shoc_mix) ! Ouptut
+    return
+  endif
+#endif
 
   brunt2(:,:) = 0.0
 
   do k=1,nlev
     do i=1,shcol
+
       tkes = sqrt(tke(i,k))
 
       if(brunt(i,k) .ge. 0) brunt2(i,k) = brunt(i,k)
 
-      ! (GTF): The original SHOCMF code uses shoc_mix with a tscale that varies with
-      ! the column. However, in E3SM code, SHOC uses a constant tscale.
-      ! We have tested varying tscale but it was found to be numerically unstable.
-      ! Therefore, we use a constant tscale for SHOCMF, which is consistent with the
-      ! SHOC code in E3SM.
-
-      ! shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale(i)*tkes*vk*zt_grid(i,k)))&
-      !   +(1._rtype/(tscale(i)*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
-      
-      !! shoc_mix using tscale_const
-      shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale_const*tkes*vk*zt_grid(i,k)))&
-       +(1._rtype/(tscale_const*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
-      
+      shoc_mix(i,k)=min(maxlen,(2.8284_rtype*sqrt(1._rtype/((1._rtype/(tscale*tkes*vk*zt_grid(i,k)))&
+        +(1._rtype/(tscale*tkes*l_inf(i)))+0.01_rtype*(brunt2(i,k)/tke(i,k)))))/length_fac)
     enddo ! end i loop (column loop)
   enddo ! end k loop (vertical loop)
 
@@ -5210,9 +4999,9 @@ subroutine check_length_scale_shoc_length(nlev,shcol,host_dx,host_dy,shoc_mix)
   ! Do checks on the length scale.  Make sure it is not
   !  larger than the grid mesh of the host model.
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   use shoc_iso_f, only: check_length_scale_shoc_length_f
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: check_length_scale_shoc_length_f
+#endif
 
   implicit none
   integer, intent(in) :: nlev, shcol
@@ -5221,12 +5010,12 @@ subroutine check_length_scale_shoc_length(nlev,shcol,host_dx,host_dy,shoc_mix)
   real(rtype), intent(inout) :: shoc_mix(shcol, nlev)
   integer k, i
 
-! #ifdef SCREAM_CONFIG_IS_CMAKE
-!   if (use_cxx) then
-!     call check_length_scale_shoc_length_f(nlev,shcol,host_dx,host_dy,shoc_mix)
-!     return
-!   endif
-! #endif
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call check_length_scale_shoc_length_f(nlev,shcol,host_dx,host_dy,shoc_mix)
+    return
+  endif
+#endif
 
   do k=1,nlev
     do i=1,shcol

@@ -1874,7 +1874,7 @@ module module_cu_gf_monan
       end if
       !
       if( use_shear_ctrl_entr >= 0 .and. trim(cumulus) == 'deep') &
-         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,itf,ktf,its,ite, kts,kte            &
+         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte &
                              ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec,precip_rescaled )
       !
       !-- get the pickup of ensemble ave prec, following Neelin et al 2009.
@@ -4690,6 +4690,7 @@ module module_cu_gf_monan
            i = get_data_value(vec_ok,vtp_index)
            !- scale dependence
            xmb(i)=sig(i)*xmb(i)
+
            if(xmb(i) == 0. ) then 
               ierr(i)=14 ; is_removed = remove(vec_ok, i)
            endif 
@@ -10859,7 +10860,7 @@ module module_cu_gf_monan
 
       end subroutine reset_2d
 !---------------------------------------------------------------------------------------------!
-      subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,itf,ktf,its,ite, kts,kte &
+      subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte &
                                 ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec,precip_rescaled)
       implicit none
       character *(*)  ,intent (in) :: cumulus
@@ -10868,7 +10869,7 @@ module module_cu_gf_monan
       integer, dimension (:)  ,intent (in   ) :: ktop,kbcon,klcl
       real,                    intent(in    ) :: min_entr_rate
       real,    dimension (:)  ,intent (in   ) :: x_add_buoy,zqexec
-      real,    dimension (:,:),intent (in   ) :: us,vs,zo,po,qo
+      real,    dimension (:,:),intent (in   ) :: us,vs,zo,po,qo,po_cup
 
       integer, dimension (:)  ,intent (inout) :: ierr
       real,    dimension (:)  ,intent (inout) :: entr_rate,precip_rescaled
@@ -10891,11 +10892,15 @@ module module_cu_gf_monan
       real,    parameter :: width2    = 2.0
       real,    parameter :: sharpness = 50.0
 
-      integer :: i,k650
-      real    :: u650, u975, v650, v975, H
-      real,    dimension (its:itf) :: scale_factor
+      real,    parameter :: rmin=12.0,rmax=33.0,xc=15.0,yc=50.0,alpha2=0.2,beta2=0.2
+      real,    parameter :: p850  = 850.  ! lower level of shear calculation
+
+      integer :: i,k,k650,k850
+      real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp
+      real,    dimension (its:itf) :: scale_factor,w_col
       
       !scale_factor = 1.0
+      if( use_shear_ctrl_entr < 3 ) then
       do i=its,itf 
            k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
            !-- v1 
@@ -10910,6 +10915,7 @@ module module_cu_gf_monan
            vshear(i) = sqrt( (u650-u975)**2 + (v650-v975)**2 )
            !print*,'B',po(k650,i),po(k975,i),vshear(i)
       enddo
+      endif
             
       if( use_shear_ctrl_entr == 1 ) then
          do i=its,itf
@@ -10932,6 +10938,52 @@ module module_cu_gf_monan
             precip_rescaled(i) =  min(1.5, max(scale_factor(i),1.))
          enddo
       endif
+
+      if( use_shear_ctrl_entr == 3 .or. use_shear_ctrl_entr == 4 ) then
+        !--- integrated column water vapor
+        do i=its,itf
+           w_col(i) = 0.0
+           loopN:    do k=kts,ktf
+              if(po(k,i) .lt. 200.) exit loopN
+              dp=100.*(po_cup(k,i)-po_cup(k+1,i))
+              w_col(i) = w_col(i) + qo(k,i)*dp/c_grav ! unit mm
+           enddo loopN
+        enddo
+
+        !---- zonal shear U650-U850
+        do i=its,itf 
+           k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
+           k850 = minloc( abs(po(kts:ktf,i)-p850),1 )
+           u650 = us(k650,i) 
+           u850 = us(k850,i) 
+           vshear(i) = abs (u650-u850)
+        enddo
+        !print*,'XX',maxval(w_col),minval(w_col),maxval(vshear),minval(vshear)
+
+        do i=its,itf
+            x = vshear(i)
+            y = w_col(i)
+            sigx = 1.0 / (1.0 + exp(-alpha2 * (X - xc)))
+            sigy = 1.0 / (1.0 + exp(-beta2  * (Y - yc)))
+
+            ! Função final
+            scale_factor(i) = ( Rmin + (Rmax - Rmin) * sigx * sigy ) /Rmin
+            !var2d2(i)    = scale_factor(i)
+            !precip_rescaled(i) =  min(1.5, max(scale_factor(i),1.))
+        enddo
+        if( use_shear_ctrl_entr == 3 ) then 
+               precip_rescaled(:) =  min(1.5, max(scale_factor(:),1.))
+        endif
+        if( use_shear_ctrl_entr == 4 ) then 
+               scale_factor(:) = 2.0 - scale_factor(:)
+               scale_factor(:) = min(1.,max(scale_factor(:),0.5))
+               entr_rate(:)    = max(scale_factor(:)*entr_rate(:), min_entr_rate)
+        endif
+        !--- for output only
+        var2d2(:) = scale_factor(:)
+
+      endif
+
       end subroutine get_entr_vshear
 !---------------------------------------------------------------------------------------------!
      subroutine adv_trigger_check(cumulus,ave_layer,ierr,ierrc,itf,ktf,its,ite,kts,kte,dtime,us,vs & 

@@ -187,6 +187,7 @@
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
     case("bl_shocmf")
+      if(.not.allocated(dx_p)                ) allocate(dx_p(ims:ime,jms:jme)                )
       if(.not.allocated(mf_dry_freq_p)       ) allocate(mf_dry_freq_p(ims:ime,jms:jme)       )
       if(.not.allocated(mf_moist_freq_p)     ) allocate(mf_moist_freq_p(ims:ime,jms:jme)     )
       if(.not.allocated(plumeheight_p)       ) allocate(plumeheight_p(ims:ime,jms:jme)       )
@@ -198,9 +199,8 @@
       if(.not.allocated(ht_p)                ) allocate(ht_p(ims:ime,jms:jme)                )
       if(.not.allocated(uw_sfc_p)            ) allocate(uw_sfc_p(ims:ime,jms:jme)            )
       if(.not.allocated(vw_sfc_p)            ) allocate(vw_sfc_p(ims:ime,jms:jme)            )
-      if(.not.allocated(area_p)              ) allocate(area_p(ims:ime,jms:jme)              )
-      if(.not.allocated(cda_p)               ) allocate(cda_p(ims:ime,jms:jme)               )
 
+      if(.not.allocated(tkepbl_p)           ) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme)           )
       if(.not.allocated(wthv_sec_p)         ) allocate(wthv_sec_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(shoc_mix_p)         ) allocate(shoc_mix_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(w_sec_p)            ) allocate(w_sec_p(ims:ime,kms:kme,jms:jme)            )
@@ -254,6 +254,7 @@
       if(.not.allocated(cldfrabl_p)         ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(dse_p)              ) allocate(dse_p(ims:ime,kms:kme,jms:jme)              )
       if(.not.allocated(rtkeblten_p)        ) allocate(rtkeblten_p(ims:ime,kms:kme,jms:jme)        )
+
     case default
 
  end select pbl_select
@@ -361,7 +362,9 @@
 
        !deallocation of additional arrays:
        if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
+
     case("bl_shocmf")
+        if(allocated(dx_p)                ) deallocate(dx_p                )
         if(allocated(mf_dry_freq_p)       ) deallocate(mf_dry_freq_p       )
         if(allocated(mf_moist_freq_p)     ) deallocate(mf_moist_freq_p     )
         if(allocated(plumeheight_p)       ) deallocate(plumeheight_p       )
@@ -373,9 +376,8 @@
         if(allocated(ht_p)                ) deallocate(ht_p                )
         if(allocated(uw_sfc_p)            ) deallocate(uw_sfc_p            )
         if(allocated(vw_sfc_p)            ) deallocate(vw_sfc_p            )
-        if(allocated(area_p)              ) deallocate(area_p              )
-        if(allocated(cda_p)               ) deallocate(cda_p               )
 
+        if(allocated(tkepbl_p)           ) deallocate(tkepbl_p           )
         if(allocated(wthv_sec_p)         ) deallocate(wthv_sec_p         )
         if(allocated(shoc_mix_p)         ) deallocate(shoc_mix_p         )
         if(allocated(w_sec_p)            ) deallocate(w_sec_p            )
@@ -475,7 +477,7 @@
  !local pointers for SHOCMF scheme:
  real(kind=RKIND),dimension(:),pointer  :: mf_dry_freq,mf_moist_freq,plumeheight
  real(kind=RKIND),dimension(:),pointer  :: plume_dry_height,ztop_B,lh
- real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc,area_cell,cda
+ real(kind=RKIND),dimension(:),pointer  :: uw_sfc,vw_sfc
  real(kind=RKIND),dimension(:,:),pointer:: wthv_sec,shoc_mix,w_sec
  real(kind=RKIND),dimension(:,:),pointer:: wqls_sec,isotropy,brunt,shoc_ql2
  real(kind=RKIND),dimension(:,:),pointer:: tke_dissip,tke_prod_b,tke_prod_sh,thl_sec
@@ -489,6 +491,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,zgrid,dse
+ real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -516,7 +519,7 @@
     xland_p(i,j) = xland(i)
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
-    !... ocean currents are set to zero:
+    !... ocean currents are set to zero: ! TODO (GTF): why?
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
@@ -563,6 +566,8 @@
        do k = kts,kte
        do i = its,ite
           exch_p(i,k,j) = 0._RKIND
+          kzh_p(i,k,j)  = 0._RKIND
+          kzm_p(i,k,j)  = 0._RKIND
        enddo
        enddo
        enddo
@@ -643,6 +648,9 @@
           rniblten_p(i,k,j) = 0._RKIND
 
           pattern_spp_pbl(i,k,j) = 0._RKIND
+
+          kzh_p(i,k,j)      = 0._RKIND
+          kzm_p(i,k,j)      = 0._RKIND
        enddo
        enddo
        do i = its,ite
@@ -662,11 +670,14 @@
        call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
        call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
        call mpas_pool_get_array(diag_physics, 'lh'               ,lh              )
-       call mpas_pool_get_array(diag_physics, 'cda'              ,cda             )
-       call mpas_pool_get_array(mesh        , 'areaCell'         ,area_cell       )
        call mpas_pool_get_array(mesh        , 'zgrid'            ,zgrid           )
+       call mpas_pool_get_array(mesh        , 'meshDensity'      ,meshDensity     )
+       call mpas_pool_get_config(configs    , 'config_len_disp'  ,len_disp        )
+       call mpas_pool_get_array(diag_physics, 'kzh'              ,kzh             )
+       call mpas_pool_get_array(diag_physics, 'kzm'              ,kzm             )
 
        
+       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
@@ -728,12 +739,11 @@
         ztop_b_p(i,j)           = ztop_B(i)
         uw_sfc_p(i,j)           = uw_sfc(i)
         vw_sfc_p(i,j)           = vw_sfc(i)
-        cda_p(i,j)              = cda(i)
 
         lh_p(i,j)               = lh(i)
         ht_p(i,j)               = zgrid(1,i)
 
-        area_p(i,j)             = area_cell(i)
+        dx_p(i,j)   = len_disp / meshDensity(i)**0.25
 
         pblh_wthl_p(i,j)        = 0._RKIND
         pblh_tke_p(i,j)         = 0._RKIND
@@ -743,6 +753,7 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
+        tkepbl_p(i,k,j)          = tke_pbl(k,i)
         wthv_sec_p(i,k,j)        = wthv_sec(k,i)
         shoc_mix_p(i,k,j)        = shoc_mix(k,i)
         w_sec_p(i,k,j)           = w_sec(k,i)
@@ -796,9 +807,13 @@
         dse_p(i,k,j)             = dse(k,i)
 
         rtkeblten_p(i,k,j)       = 0._RKIND
+
+        kzh_p(i,k,j)             = kzh(k,i)
+        kzm_p(i,k,j)             = kzm(k,i)
        enddo
        enddo
        enddo
+
     case default
 
  end select pbl_select
@@ -813,8 +828,6 @@
     rqcblten_p(i,k,j) = 0._RKIND
     rqiblten_p(i,k,j) = 0._RKIND
 
-    kzh_p(i,k,j) = 0._RKIND
-    kzm_p(i,k,j) = 0._RKIND
     kzq_p(i,k,j) = 0._RKIND
  enddo
  enddo
@@ -875,6 +888,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,dse
+
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
@@ -1013,6 +1027,7 @@
        call mpas_pool_get_array(diag_physics, 'uw_sfc'           ,uw_sfc          )
        call mpas_pool_get_array(diag_physics, 'vw_sfc'           ,vw_sfc          )
 
+       call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
@@ -1083,6 +1098,7 @@
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
+          tke_pbl(k,i)         = tkepbl_p(i,k,j)
           wthv_sec(k,i)        = wthv_sec_p(i,k,j)
           shoc_mix(k,i)        = shoc_mix_p(i,k,j)
           w_sec(k,i)           = w_sec_p(i,k,j)
@@ -1138,6 +1154,7 @@
        enddo
        enddo
        enddo
+    
     case default
 
  end select pbl_select
@@ -1181,12 +1198,13 @@
  end subroutine init_pbl
 
 !=================================================================================================================
- subroutine driver_pbl(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
+ subroutine driver_pbl(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,dminfo,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
+ type(dm_info),intent(in):: dminfo
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
@@ -1387,9 +1405,8 @@
       call mpas_timer_start('bl_shocmf')
       call bl_shocmf_driver( &
             itimestep     = itimestep    , dt_pbl         = dt_pbl                                            , &
-            area_p        = area_p       , cda_p          = cda_p         , lh_p            = lh_p            , &
-            hfx_p         = hfx_p        , ht_p           = ht_p                                              , &
-            theta_m_p     = theta_m_p    , theta_p        = th_p          , z_p             = z_p             , &
+            dx_p          = dx_p         , lh_p           = lh_p          , hfx_p           = hfx_p           , &
+            ht_p          = ht_p         , theta_p        = th_p          , z_p             = z_p             , &
             zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
             pi_p          = pi_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p      , &
@@ -1413,17 +1430,18 @@
             mf_awqi_p     = mf_awqi_p    , mf_awu_p       = mf_awu_p      , mf_awv_p        = mf_awv_p        , &
             cfl_mf_p      = cfl_mf_p     , mf_dry_freq_p  = mf_dry_freq_p , mf_moist_freq_p = mf_moist_freq_p , &
             plumeheight_p = plumeheight_p, plume_dry_height_p = plume_dry_height_p                            , &
+            ustar_p       = ust_p        , wspd_p         = wspd_p                                            , &
             ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p   , &
             wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl_p          = kpbl_p          , &
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
-            qs_p          = qs_p         , qi_p           = qi_p          , qg_p            = qg_p            , &
-            qr_p          = qr_p         , rublten_p      = rublten_p     , rvblten_p       = rvblten_p       , &
+            rublten_p     = rublten_p    , rvblten_p      = rvblten_p       , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                               &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
       )
             
+      tkepbl_p = tke_shmf_p
       call mpas_timer_stop('bl_shocmf')
 
     case default
