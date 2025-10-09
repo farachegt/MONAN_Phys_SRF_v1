@@ -538,54 +538,56 @@ module module_bl_shocmf
         shoc_timestep = dt_pbl
     endif
 
+    print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
+
     ! If mpi rank is 0, print some debugging information
-    if (dminfo % my_proc_id == 5) then
-        print *, "1. Before flipping vertical coordinates:"
-        print *, ""
-        print *, "dx_p(1,1)", dx_p(1,1)
-        print *, ""
-        print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
-        print *, ""
-        print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
-        print *, ""
-        print *, "w_p(1, :, 1): ", w_p(1,:,1)
-        print *, ""
-        print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
-        print *, ""
-        print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
-        print *, ""
-        print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
-        print *, ""
-        print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
-        print *, ""
-        print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
-        print *, ""
-        print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
-        print *, ""
-        print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
-        print *, ""
-        print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
-        print *, ""
-        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
-        print *, ""
-        print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
-        print *, ""
-        print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
-        print *, ""
-        print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
-        print *, ""
-        print *, "hfx_p(1, 1): ", hfx_p(1,1)
-        print *, ""
-        print *, "hfx_converted_p(1, 1): ", hfx_converted_p(1,1)
-        print *, ""
-        print *, "lh_p(1, 1): ", lh_p(1,1)
-        print *, ""
-        print *, "lh_converted_p(1, 1): ", lh_converted_p(1,1)
-        print *, ""
-        print *, "uw_sfc_p(1, 1): ", uw_sfc_p(1,1)
-        print *, ""
-        print *, "vw_sfc_p(1, 1): ", vw_sfc_p(1,1)
-    endif
+    ! if (dminfo % my_proc_id == 5) then
+    !     print *, "1. Before flipping vertical coordinates:"
+    !     print *, ""
+    !     print *, "dx_p(1,1)", dx_p(1,1)
+    !     print *, ""
+    !     print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_p(1, :, 1): ", w_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
+    !     print *, ""
+    !     print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
+    !     print *, ""
+    !     print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
+    !     print *, ""
+    !     print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
+    !     print *, ""
+    !     print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
+    !     print *, ""
+    !     print *, "hfx_p(1, 1): ", hfx_p(1,1)
+    !     print *, ""
+    !     print *, "hfx_converted_p(1, 1): ", hfx_converted_p(1,1)
+    !     print *, ""
+    !     print *, "lh_p(1, 1): ", lh_p(1,1)
+    !     print *, ""
+    !     print *, "lh_converted_p(1, 1): ", lh_converted_p(1,1)
+    !     print *, ""
+    !     print *, "uw_sfc_p(1, 1): ", uw_sfc_p(1,1)
+    !     print *, ""
+    !     print *, "vw_sfc_p(1, 1): ", vw_sfc_p(1,1)
+    ! endif
 
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
@@ -615,39 +617,39 @@ module module_bl_shocmf
         thetal_p, presdiff_p &
     )
 
-    if (dminfo % my_proc_id == 5) then
-        print *, ""
-        print *, "2. After flipping vertical coordinates:"
-        print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
-        print *, ""
-        print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
-        print *, ""
-        print *, "w_p(1, :, 1): ", w_p(1,:,1)
-        print *, ""
-        print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
-        print *, ""
-        print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
-        print *, ""
-        print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
-        print *, ""
-        print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
-        print *, ""
-        print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
-        print *, ""
-        print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
-        print *, ""
-        print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
-        print *, ""
-        print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
-        print *, ""
-        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
-        print *, ""
-        print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
-        print *, ""
-        print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
-        print *, ""
-        print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
-    endif
+    ! if (dminfo % my_proc_id == 5) then
+    !     print *, ""
+    !     print *, "2. After flipping vertical coordinates:"
+    !     print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_p(1, :, 1): ", w_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
+    !     print *, ""
+    !     print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
+    !     print *, ""
+    !     print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
+    !     print *, ""
+    !     print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
+    !     print *, ""
+    !     print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
+    ! endif
     ! As last position of the array is a extra position, to not letting a
     ! zero value, we are going to extrapolate it considering that
     ! the kme-1 value is the average among kme-2 and kme
@@ -721,43 +723,43 @@ module module_bl_shocmf
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qv_p)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
-    if (dminfo % my_proc_id == 5) then
-        print *, ""
-        print *, "3. After reflipping vertical coordinates:"
-        print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
-        print *, ""
-        print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
-        print *, ""
-        print *, "w_p(1, :, 1): ", w_p(1,:,1)
-        print *, ""
-        print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
-        print *, ""
-        print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
-        print *, ""
-        print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
-        print *, ""
-        print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
-        print *, ""
-        print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
-        print *, ""
-        print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
-        print *, ""
-        print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
-        print *, ""
-        print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
-        print *, ""
-        print *, "thetav(1, :, 1): ", thv_p(1,:,1)
-        print *, ""
-        print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
-        print *, ""
-        print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
-        print *, ""
-        print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
-        print *, ""
-        print *, "hpbl_p(1, 1): ", hpbl_p(1,1)
-        print *, ""
-        print *, "kpbl_p(1, 1): ", kpbl_p(1,1)
-    endif
+    ! if (dminfo % my_proc_id == 5) then
+    !     print *, ""
+    !     print *, "3. After reflipping vertical coordinates:"
+    !     print *, "height_interface_p(1, :, 1): ", height_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "height_mid_p(1, :, 1): ", height_mid_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_p(1, :, 1): ", w_p(1,:,1)
+    !     print *, ""
+    !     print *, "w_zt(1, :, 1): ", w_zt(1,:,1)
+    !     print *, ""
+    !     print *, "pres_p(1, :, 1): ", pres_p(1,:,1)
+    !     print *, ""
+    !     print *, "pres2_p(1, :, 1): ", pres2_p(1,:,1)
+    !     print *, ""
+    !     print *, "presdiff_p(1, :, 1): ", presdiff_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_p(1, :, 1): ", rho_p(1,:,1)
+    !     print *, ""
+    !     print *, "rho_interface_p(1, :, 1): ", rho_interface_p(1,:,1)
+    !     print *, ""
+    !     print *, "theta_p(1, :, 1): ", theta_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetal_p(1, :, 1): ", thetal_p(1,:,1)
+    !     print *, ""
+    !     print *, "thetav(1, :, 1): ", thv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qv_p(1, :, 1): ", qv_p(1,:,1)
+    !     print *, ""
+    !     print *, "qc_p(1, :, 1): ", qc_p(1,:,1)
+    !     print *, ""
+    !     print *, "qw_p(1, :, 1): ", qw_p(1,:,1)
+    !     print *, ""
+    !     print *, "hpbl_p(1, 1): ", hpbl_p(1,1)
+    !     print *, ""
+    !     print *, "kpbl_p(1, 1): ", kpbl_p(1,1)
+    ! endif
 
     ! Calculating tendencies
     do i=ims,ime
