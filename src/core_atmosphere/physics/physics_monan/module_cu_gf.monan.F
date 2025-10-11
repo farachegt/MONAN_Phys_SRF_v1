@@ -11080,7 +11080,7 @@ module module_cu_gf_monan
 
                     !- time-scale cape removal from Bechtold et al. 2008
                     tau_ecmwf(i)=( zo_cup(ktop(i),i)- zo_cup(kbcon(i),i) ) / wmean(i)
-                    tau_ecmwf(i)= min(10800., max(1200.,tau_ecmwf(i)))
+                    tau_ecmwf(i)= min(10800., max(900.,tau_ecmwf(i)))
 
                  enddo
               endif
