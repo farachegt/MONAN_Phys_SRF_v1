@@ -9,9 +9,9 @@ dummy:
 
 gnu:   # BUILDTARGET GNU Fortran, C, and C++ compilers
 	( $(MAKE) all \
-	"FC_PARALLEL = ftn" \
-	"CC_PARALLEL = cc" \
-	"CXX_PARALLEL = CC" \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
 	"FC_SERIAL = gfortran" \
 	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = g++" \
@@ -380,18 +380,18 @@ intel-mpi:   # BUILDTARGET Intel compiler suite with Intel MPI library
 
 gfortran:   # BUILDTARGET GNU Fortran, C, and C++ compilers
 	( $(MAKE) all \
-	"FC_PARALLEL = ftn" \
-	"CC_PARALLEL = cc" \
-	"CXX_PARALLEL = CC" \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
 	"FC_SERIAL = gfortran" \
 	"CC_SERIAL = gcc" \
 	"CXX_SERIAL = g++" \
 	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
-	"FFLAGS_OPT = -O3 -ffree-line-length-none -fconvert=big-endian -ffree-form -fallow-argument-mismatch" \
+	"FFLAGS_OPT = -O3 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -ffree-line-length-none -fallow-argument-mismatch -fconvert=big-endian -ffree-form -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow" \
+	"FFLAGS_DEBUG = -g -ffree-line-length-none -fconvert=big-endian -ffree-form -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow" \
 	"CFLAGS_DEBUG = -g" \
 	"CXXFLAGS_DEBUG = -g" \
 	"LDFLAGS_DEBUG = -g" \
@@ -656,9 +656,9 @@ cray:   # BUILDTARGET Cray Programming Environment
 
 intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
 	( $(MAKE) all \
-	"FC_PARALLEL = ftn" \
-	"CC_PARALLEL = cc" \
-	"CXX_PARALLEL = CC" \
+	"FC_PARALLEL = mpifort" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpic++" \
 	"FC_SERIAL = ifx" \
 	"CC_SERIAL = icx" \
 	"CXX_SERIAL = icpx" \

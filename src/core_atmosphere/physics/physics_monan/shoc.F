@@ -327,6 +327,17 @@ subroutine shoc_main ( &
 #endif
 
   implicit none
+! INPUT VARIABLES
+  ! number of SHOC columns in the array
+  integer, intent(in) :: shcol
+  ! number of levels [-]
+  integer, intent(in) :: nlev
+  ! number of levels on interface grid [-]
+  integer, intent(in) :: nlevi
+  ! number of tracers [-]
+  integer, intent(in) :: num_qtracers
+  ! number of times to loop SHOC
+  integer, intent(in) :: nadv
 
   ! DUMMY VARIABLES IN ORDER TO TEST BOTH SHOC VERSIONS
   integer, intent(in) :: itimestep
@@ -364,17 +375,7 @@ subroutine shoc_main ( &
   real(rtype), intent(out) :: wqw_sec_mf(shcol,nlevi)
 
 
-! INPUT VARIABLES
-  ! number of SHOC columns in the array
-  integer, intent(in) :: shcol
-  ! number of levels [-]
-  integer, intent(in) :: nlev
-  ! number of levels on interface grid [-]
-  integer, intent(in) :: nlevi
-  ! number of tracers [-]
-  integer, intent(in) :: num_qtracers
-  ! number of times to loop SHOC
-  integer, intent(in) :: nadv
+
 
   ! SHOC timestep [s]
   real(rtype), intent(in) :: dtime

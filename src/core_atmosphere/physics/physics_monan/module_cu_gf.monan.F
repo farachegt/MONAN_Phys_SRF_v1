@@ -291,6 +291,8 @@ module module_cu_gf_monan
    integer ::  use_excess        != default= 1   - use for t,q excess sub-grid scale variability
    integer ::  use_smooth_tend   != default  1,1,1,
 
+   integer :: use_cold_start  = 1   != 0/1 default 0
+   real    :: fac_cold_start  = 1
    !-- General internal controls for the diverse options in GF
 
    logical, parameter :: melt_glac      = .true.  != turn on/off ice phase/melting
@@ -629,6 +631,8 @@ module module_cu_gf_monan
       
       !print*,"buoyx kJ/kg - Wlpool m/s",1.e-3*maxval(buoyx(its:ite,kts:kte,jts:jte)),1.e-3*minval(buoyx(its:ite,kts:kte,jts:jte))&
       !              ,maxval(wlpool(its:ite,jts:jte)),minval(wlpool(its:ite,jts:jte))
+      !fac_cold_start = 1.0
+       if(use_cold_start == 1) fac_cold_start = allev_initial(itimestep,dt)
 
       !-- big loop over j dimension
       j_loop: do j = jts,jtf
@@ -640,7 +644,9 @@ module module_cu_gf_monan
          dp_dens    (:,j) = 0.0
          sh_dens    (:,j) = 0.0
          cg_dens    (:,j) = 0.0
-         
+         var2d1     (:,j) = 0.0
+         var2d2     (:,j) = 0.0
+
          !-- initialization
          ztexec   (:) = 0.0
          zqexec   (:) = 0.0
@@ -1846,15 +1852,15 @@ module module_cu_gf_monan
       !
       !- reescale entrainment rate in terms of the grid spacing (Zhao et al 2024, GRL https://doi.org/10.1029/2024GL110735)
       if(entr_rate_input < 0.0 .and. trim(cumulus) == 'deep') then 
-         entr_rescaled(:) = (delta_ref/dx(:))**0.2
+         entr_rescaled(:) = (delta_ref/dx(:))**0.2 * fac_cold_start
          entr_rate    (:) = entr_ref * entr_rescaled(:)
          min_entr_rate    = entr_ref * fr_min_entr * minval(entr_rescaled)
          overshoot_rescaled(:) = min(0.7, overshoot * entr_rescaled(:))
       else
       !-- initial entrainment rate and the mininum acceptable entrainment rate
-         entr_rate(:)  = entr_rate_input
+         entr_rate(:)  = entr_rate_input * fac_cold_start
          min_entr_rate = entr_rate_input * fr_min_entr
-         overshoot_rescaled(:) = overshoot 
+         overshoot_rescaled(:) = overshoot * fac_cold_start
       endif
       ! 
       !-- controls of LCL and PBL turbulence on the entrainment rate
@@ -10933,10 +10939,11 @@ module module_cu_gf_monan
             H = ( qo(klcl(i),i) + zqexec(i) + x_add_buoy(i)/c_alvl )*1.e+3 ! g/kg
             scale_factor(i) = Pmin + (Pmax - Pmin) * (1.0 - exp(-alpha * vshear(i))) &
                                                    * (1.0 - exp(-beta * (H - H0)))
-            scale_factor(i) = scale_factor(i)/Pmin
-            var2d2(i)       = scale_factor(i)
+            scale_factor(i)    = scale_factor(i)/Pmin
             precip_rescaled(i) =  min(1.5, max(scale_factor(i),1.))
-         enddo
+            var2d2(i)          = precip_rescaled(i)
+           !var2d2(i)          = scale_factor(i)
+         enddo       
       endif
 
       if( use_shear_ctrl_entr == 3 .or. use_shear_ctrl_entr == 4 ) then
@@ -10968,20 +10975,17 @@ module module_cu_gf_monan
 
             ! Função final
             scale_factor(i) = ( Rmin + (Rmax - Rmin) * sigx * sigy ) /Rmin
-            !var2d2(i)    = scale_factor(i)
-            !precip_rescaled(i) =  min(1.5, max(scale_factor(i),1.))
         enddo
         if( use_shear_ctrl_entr == 3 ) then 
                precip_rescaled(:) =  min(1.5, max(scale_factor(:),1.))
+               var2d2(:)          = precip_rescaled(:)   !--- for output only
         endif
         if( use_shear_ctrl_entr == 4 ) then 
                scale_factor(:) = 2.0 - scale_factor(:)
                scale_factor(:) = min(1.,max(scale_factor(:),0.5))
                entr_rate(:)    = max(scale_factor(:)*entr_rate(:), min_entr_rate)
+               var2d2(:)       = scale_factor(:)  !--- for output only
         endif
-        !--- for output only
-        var2d2(:) = scale_factor(:)
-
       endif
 
       end subroutine get_entr_vshear
@@ -11080,7 +11084,8 @@ module module_cu_gf_monan
 
                     !- time-scale cape removal from Bechtold et al. 2008
                     tau_ecmwf(i)=( zo_cup(ktop(i),i)- zo_cup(kbcon(i),i) ) / wmean(i)
-                    tau_ecmwf(i)= min(10800., max(900.,tau_ecmwf(i)))
+                    tau_ecmwf(i)= min(10800., max(1200.,tau_ecmwf(i)))
+                   !tau_ecmwf(i)= min(10800., max(900.,tau_ecmwf(i)))
 
                  enddo
               endif
@@ -11102,6 +11107,8 @@ module module_cu_gf_monan
                     tau_ecmwf(i)= min(10800., max(1200.,tau_ecmwf(i)))
                  enddo
               endif
+              if(use_cold_start==1 .and. fac_cold_start<0.99) tau_ecmwf(:) = tau_ecmwf(:)*fac_cold_start
+
       end subroutine get_timescales
 !---------------------------------------------------------------------------------------------!
       subroutine dicycle_closure_trigger(aa1_bl,aa1,t,tn,q,qo,dtime,po_cup,zo_cup,us,vs          &
@@ -11168,6 +11175,22 @@ module module_cu_gf_monan
 
 
       end subroutine dicycle_closure_trigger 
+!---------------------------------------------------------------------------------------------!
+      real function allev_initial(itimestep,dt)
+        implicit none
+        real,    parameter  :: sharpness = 1
+        real    ,parameter  :: maxseconds=86400.
+        integer ,intent(in) :: itimestep
+        real    ,intent(in) :: dt
+        integer :: max_timesteps
+        real    :: width2 
+        max_timesteps = nint(maxseconds/dt)
+        width2        = real(max_timesteps/6)
+        allev_initial = 0.5 * (1.0 + tanh(sharpness * (itimestep - (2*max_timesteps/3) ) / width2))
+        allev_initial = min(max(allev_initial,0.7),1.0)
+
+        !print*,"alle", itimestep,max_timesteps,width2,allev_initial,dt
+       end function
 !---------------------------------------------------------------------------------------------!
 !- list of ierr reasons:
 ! ierr(i)=21   ==>  ierrc(i)='for shallow convection:  LCL height < PBL height'
