@@ -10892,14 +10892,12 @@ module module_cu_gf_monan
       real,    parameter :: beta  = 0.32
       real,    parameter :: H0    = 11.0
       real,    parameter :: Pmin = 17.0
-      real,    parameter :: Pmax = 27.0   
-      ! Parameters to control the sharpness of the transition
-      real,    parameter :: center    = 20.0
-      real,    parameter :: width2    = 2.0
-      real,    parameter :: sharpness = 50.0
-
+      real,    parameter :: Pmax = 27.0
       real,    parameter :: rmin=12.0,rmax=33.0,xc=15.0,yc=50.0,alpha2=0.2,beta2=0.2
       real,    parameter :: p850  = 850.  ! lower level of shear calculation
+
+      ! use_shear_ctrl_entr == 1
+      real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 1.0
 
       integer :: i,k,k650,k850
       real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp
@@ -10925,12 +10923,12 @@ module module_cu_gf_monan
             
       if( use_shear_ctrl_entr == 1 ) then
          do i=its,itf
-          !scale_factor(i)  = 1.5/(1.5+atan(2.*(vshear(i) - turnw)/width))
-          !scale_factor(i)  = scale_factor(i)**xexp
-           scale_factor(i)  = 1.0 - 0.5 * (1.0 + tanh(sharpness * (vshear(i) - center) / width2))
-           var2d2(i)        = scale_factor(i)
-           scale_factor(i)  = min(1., max(scale_factor(i),0.01))
-           entr_rate(i)     = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+           scale_factor(i)    = 1.0 + tanh(sharpness * (vshear(i) - center) / width2)
+           precip_rescaled(i) = min(1.5, max(scale_factor(i),1.))
+           var2d2(i)          = precip_rescaled(i)
+           
+           !scale_factor(i)  = min(1., max(scale_factor(i),0.01))
+           !entr_rate(i)     = max(scale_factor(i)*entr_rate(i), min_entr_rate)
          enddo
       endif
 

@@ -177,7 +177,7 @@ real function MurphyKoop_svp(t, i_type)
 
        write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
             i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
-       stop err_msg
+       stop 'err_msg'
     endif
 
     return
