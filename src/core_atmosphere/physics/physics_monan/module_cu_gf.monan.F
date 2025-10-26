@@ -107,7 +107,7 @@ module module_cu_gf_monan
       ,modConvParGF_initialized,use_pass_cloudvol                        &
       ,use_lcl_ctrl_entr,use_rhu_ctrl_entr,cum_min_cloud_depth,use_sub3d &
       ,cum_fr_min_entr,use_shear_ctrl_entr,use_cwv_ctrl_entr,adv_trigger &
-      ,dcape_threshold
+      ,dcape_threshold,use_cold_start
 
    public makeDropletNumber,makeIceNumber,FractLiqF                      &
       ,coldPoolStart,readGFConvParNML,initModConvParGF,cu_gf_monan_driver&
@@ -291,7 +291,7 @@ module module_cu_gf_monan
    integer ::  use_excess        != default= 1   - use for t,q excess sub-grid scale variability
    integer ::  use_smooth_tend   != default  1,1,1,
 
-   integer :: use_cold_start  = 1   != 0/1 default 0
+   integer :: use_cold_start     != 0/1 default 0
    real    :: fac_cold_start  = 1
    !-- General internal controls for the diverse options in GF
 
@@ -6160,7 +6160,7 @@ module module_cu_gf_monan
          ,add_coldpool_clos,add_coldpool_trig,add_coldpool_diff,n_cldrop          &
          ,output_sound,use_pass_cloudvol,use_lcl_ctrl_entr,use_rhu_ctrl_entr      &
          ,cum_min_cloud_depth,use_sub3d,cum_fr_min_entr,use_shear_ctrl_entr       &
-         ,use_cwv_ctrl_entr,adv_trigger,dcape_threshold
+         ,use_cwv_ctrl_entr,adv_trigger,dcape_threshold,use_cold_start
 
       if(present(IO_NODE)) then 
          local_io_node = IO_NODE
@@ -6253,6 +6253,7 @@ module module_cu_gf_monan
          print*, 'use_cwv_ctrl_entr  ' , use_cwv_ctrl_entr
          print*, 'adv_trigger        ' , adv_trigger
          print*, 'dcape_threshold    ' , dcape_threshold
+         print*, 'use_cold_start     ' , use_cold_start
          print*,'!--- controls rainfall evaporation'
          print*, 'use_rebcb          ' , use_rebcb
          print*, 'downdraft          ' , downdraft
@@ -6893,7 +6894,7 @@ module module_cu_gf_monan
       real   ,intent(out)           :: x_aver
       !-- local vars
       integer                       :: i,local_order_aver,order_aver, i_beg,i_end,ic
-      real,    parameter            :: frac_ave_layer_ocean= 1.0
+      real,    parameter            :: frac_ave_layer_ocean= 0.5
       real                          :: count,dp,dp_layer,effec_frac,x_ave_layer
 
       if(ave_from_surface) then
@@ -8603,6 +8604,7 @@ module module_cu_gf_monan
       use_rhu_ctrl_entr = 0
       use_shear_ctrl_entr=0
       use_cwv_ctrl_entr = 0
+      use_cold_start    = 1
       adv_trigger       = 0
       dcape_threshold   = 70.
       use_tracer_transp = 0 
@@ -8638,7 +8640,7 @@ module module_cu_gf_monan
       irainevap         = 0
       cum_fr_min_entr   = (/0.01, 0.1, 0.1/)
       cum_max_edt_land  = (/0.50, 0.00, 0.30/)
-      cum_max_edt_ocean = (/0.60, 0.00, 0.40/)
+      cum_max_edt_ocean = (/0.45, 0.00, 0.40/)
       cum_use_excess    = (/1, 1, 1/)
       cum_ave_layer     = (/50., 30., 30./)
       cum_min_cloud_depth=(/200., 70., 150./)
@@ -10896,16 +10898,17 @@ module module_cu_gf_monan
       real,    parameter :: rmin=12.0,rmax=33.0,xc=15.0,yc=50.0,alpha2=0.2,beta2=0.2
       real,    parameter :: p850  = 850.  ! lower level of shear calculation
 
-      ! use_shear_ctrl_entr == 1
-      real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 1.0
+      ! for use_shear_ctrl_entr == 1 or 2
+     !real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 1.0
+      real,    parameter :: center = 14.0, width2 = 20.0, sharpness = 5.0
 
       integer :: i,k,k650,k850
       real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp
       real,    dimension (its:itf) :: scale_factor,w_col
       
       !scale_factor = 1.0
-      if( use_shear_ctrl_entr < 3 ) then
-      do i=its,itf 
+      if( use_shear_ctrl_entr <= 2 ) then
+         do i=its,itf 
            k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
            !-- v1 
            !u650 = sqrt(us(k650,i)*us(k650,i) + vs(k650,i)*vs(k650,i))
@@ -10918,21 +10921,25 @@ module module_cu_gf_monan
            u975 = us(k975,i) ; v975 = vs(k975,i)
            vshear(i) = sqrt( (u650-u975)**2 + (v650-v975)**2 )
            !print*,'B',po(k650,i),po(k975,i),vshear(i)
-      enddo
-      endif
-            
+         enddo
+      endif   
       if( use_shear_ctrl_entr == 1 ) then
          do i=its,itf
            scale_factor(i)    = 1.0 + tanh(sharpness * (vshear(i) - center) / width2)
            precip_rescaled(i) = min(1.5, max(scale_factor(i),1.))
            var2d2(i)          = precip_rescaled(i)
-           
-           !scale_factor(i)  = min(1., max(scale_factor(i),0.01))
-           !entr_rate(i)     = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+           scale_factor =  max(0.5, min(0.85/scale_factor,1.))
          enddo
       endif
-
       if( use_shear_ctrl_entr == 2 ) then
+         do i=its,itf
+           scale_factor(i) = 1.0 + tanh(sharpness * (vshear(i) - center) / width2)
+           scale_factor(i) = max(0.5, min(0.85/scale_factor(i),1.))
+           var2d2(i)       = scale_factor(i)
+           entr_rate(i)    = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+         enddo
+      endif
+      if( use_shear_ctrl_entr == 20 ) then
          do i=its,itf
             H = ( qo(klcl(i),i) + zqexec(i) + x_add_buoy(i)/c_alvl )*1.e+3 ! g/kg
             scale_factor(i) = Pmin + (Pmax - Pmin) * (1.0 - exp(-alpha * vshear(i))) &
