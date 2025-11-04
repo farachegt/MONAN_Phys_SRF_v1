@@ -1,6 +1,6 @@
 module module_bl_shocmf
  use mpas_atmphys_constants
- use shoc, only: shoc_init, shoc_main, length_fac, mintke, linear_interp
+ use shoc, only: shoc_init, shoc_main, length_fac, mintke, linear_interp, p0_shoc => p0
  use mpas_pool_routines
 
 
@@ -420,7 +420,7 @@ module module_bl_shocmf
 
  subroutine bl_shocmf_driver( &
     itimestep, dt_pbl, dx_p, lh_p, hfx_p, ht_p, theta_p, &
-    z_p, zmid_p, pres_p, pres2_p, uw_sfc_p, vw_sfc_p, w_p, pi_p, dse_p, tke_shmf_p, qw_p, &
+    z_p, zmid_p, pres_p, pres2_p, uw_sfc_p, vw_sfc_p, w_p, dse_p, tke_shmf_p, qw_p, &
     u_p, v_p, wthv_sec_p, kzh_p, kzm_p, qc_p, cldfrabl_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
     rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, &
     thl_sec_p, qw_sec_p, qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, &
@@ -458,7 +458,7 @@ module module_bl_shocmf
         mf_qtflx_p, mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, &
         mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
         wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, &
-        cldfrabl_p, theta_p, t_p, z_p, zmid_p, pres_p, pres2_p, w_p, pi_p, qv_p, &
+        cldfrabl_p, theta_p, t_p, z_p, zmid_p, pres_p, pres2_p, w_p, qv_p, &
         rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
         rqcblten_p, rqiblten_p
 
@@ -490,7 +490,7 @@ module module_bl_shocmf
     do i=ims,ime
     do k=kms,kme-1
     do j=jms,jme
-        inv_exner_p(i,k,j) = 1.0_RKIND/pi_p(i,k,j) ! inv_exner_p = theta_p/t_p
+        inv_exner_p(i,k,j) = 1.0_RKIND/((pres_p(i,k,j)/p0_shoc)**(R_d/cp)) ! inv_exner_p = theta_p/t_p
         tke_shmf_p(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
     enddo
     enddo

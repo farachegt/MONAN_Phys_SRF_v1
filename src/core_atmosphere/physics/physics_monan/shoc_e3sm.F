@@ -531,7 +531,6 @@ subroutine shoc_main ( &
      se_b,ke_b,wv_b,wl_b)                   ! Input/Output
 
   do t=1,nadv
-
     ! Check TKE to make sure values lie within acceptable
     !  bounds after host model performs horizontal advection
     call check_tke(shcol,nlev,&                 ! Input
