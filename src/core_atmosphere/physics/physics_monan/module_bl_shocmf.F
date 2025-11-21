@@ -413,7 +413,7 @@ module module_bl_shocmf
     nbot_shoc = 1
 
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
-                   presref_mid, nbot_shoc, ntop_shoc, length_fac)
+                   presref_mid, nbot_shoc, ntop_shoc)
 
     deallocate(presref_mid)
  end subroutine bl_shocmf_init

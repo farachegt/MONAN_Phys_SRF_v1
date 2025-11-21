@@ -64,7 +64,6 @@ real(rtype) :: Ckh = 0.1_rtype ! Eddy diffusivity coefficient for heat
 real(rtype) :: Ckm = 0.1_rtype ! Eddy diffusivity coefficient for momentum
 real(rtype) :: Ckh_s = 0.1_rtype ! Stable PBL diffusivity for heat
 real(rtype) :: Ckm_s = 0.1_rtype ! Stable PBL diffusivity for momentum
-real(rtype) :: tice = 240.0   ! (GTF) temp at saturation w.r.t. ice. Got from bl_mynn_subroutines
 
 !=========================================================
 ! Private module parameters
