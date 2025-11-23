@@ -1,6 +1,6 @@
 module module_bl_shocmf
  use mpas_atmphys_constants
- use shoc, only: shoc_init, shoc_main, length_fac, mintke, linear_interp, p0_shoc => p0
+ use shoc, only: shoc_init, shoc_main, mintke, linear_interp, p0_shoc => p0
  use mpas_pool_routines
 
 
@@ -19,7 +19,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:), intent(in) :: ust_p, u_p, v_p, wspd_p, rho_p
     real(kind=RKIND), dimension(:,:), intent(out) :: uw_sfc_p, vw_sfc_p
     
-    real(kind=RKIND), dimension(ime, jme) :: fmom
+    real(kind=RKIND), dimension(ims:ime, jms:jme) :: fmom
 
     integer :: i, j
 
@@ -35,7 +35,7 @@ module module_bl_shocmf
 
  subroutine calculate_dry_static_energy(ims, ime, kms, kme, jms, jme, t, z, gravity_in, phis, cp_in, dse)
     ! Calculate the dry static energy considering the terrain height.
-    ! This is the calculation waited by the SHOCMF module. 
+    ! This is the calculation required by the SHOCMF module. 
     ! Reference: https://glossary.ametsoc.org/wiki/Dry_static_energy
     integer, intent(in) :: ims, ime, kms, kme, jms, jme
     real(kind=RKIND), dimension(:,:,:), intent(in) :: t, z
@@ -172,42 +172,151 @@ module module_bl_shocmf
  end subroutine calculate_qw
 
 
- subroutine flip_vertical_coordinates(&
-    kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
-    tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
-    wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
-    wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &
-    mf_dry_w_p, mf_moist_w_p, mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, &
-    mf_moist_thl_p, mf_dry_u_p, mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, &
-    mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, mf_ae_p, mf_aw_p, &
-    mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
-    mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
-    wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-    kzm_p, qc_p, cldfrabl_p, thv_p, height_interface_p, &
-    height_mid_p, pres_p, pres2_p, w_p, inv_exner_p, &
-    thetal_p, presdiff_p &
+ subroutine flip_vertical_coordinates( &
+    kms,                               &
+    kme,                               &
+    rino_p,                            &
+    shoc_mix_p,                        &
+    isotropy_p,                        &
+    tke_dissip_p,                      &
+    tke_prod_b_p,                      &
+    tke_prod_sh_p,                     &
+    w_sec_p,                           &
+    thl_sec_p,                         &
+    qw_sec_p,                          &
+    qwthl_sec_p,                       &
+    wthl_sec_p,                        &
+    wqw_sec_p,                         &
+    wtke_sec_p,                        &
+    uw_sec_p,                          &
+    vw_sec_p,                          &
+    w3_p,                              &
+    wqls_sec_p,                        &
+    brunt_p,                           &
+    shoc_ql2_p,                        &
+    mf_dry_a_p,                        &
+    mf_moist_a_p,                      &
+    mf_dry_w_p,                        &
+    mf_moist_w_p,                      &
+    mf_dry_qt_p,                       &
+    mf_moist_qt_p,                     &
+    mf_dry_thl_p,                      &
+    mf_moist_thl_p,                    &
+    mf_dry_u_p,                        &
+    mf_moist_u_p,                      &
+    mf_dry_v_p,                        &
+    mf_moist_v_p,                      &
+    mf_moist_qc_p,                     &
+    mf_thlflx_p,                       &
+    mf_qtflx_p,                        &
+    mf_ae_p,                           &
+    mf_aw_p,                           &
+    mf_awthv_p,                        &
+    mf_awthl_p,                        &
+    mf_awqt_p,                         &
+    mf_awql_p,                         &
+    mf_awqi_p,                         &
+    mf_awu_p,                          &
+    mf_awv_p,                          &
+    cfl_mf_p,                          &
+    wthl_sec_ed_p,                     &
+    wthl_sec_mf_p,                     &
+    wqw_sec_ed_p,                      &
+    wqw_sec_mf_p,                      &
+    dse_p,                             &
+    qw_p,                              &
+    u_p,                               &
+    v_p,                               &
+    wthv_sec_p,                        &
+    tke_shmf_p,                        &
+    kzh_p,                             &
+    kzm_p,                             &
+    qc_p,                              &
+    cldfrabl_p,                        &
+    thv_p,                             &
+    height_interface_p,                &
+    height_mid_p,                      &
+    pres_p,                            &
+    pres2_p,                           &
+    w_p,                               &
+    inv_exner_p,                       &
+    thetal_p,                          &
+    presdiff_p                         &
   )
     integer, intent(in) :: kms, kme
-    real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
-                                                        tke_dissip_p, tke_prod_b_p, &
-                                                        tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
-                                                        qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, &
-                                                        uw_sec_p, vw_sec_p, w3_p, wqls_sec_p, brunt_p, shoc_ql2_p, &
-                                                        mf_dry_a_p, mf_moist_a_p, mf_dry_w_p, mf_moist_w_p, &
-                                                        mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, mf_moist_thl_p, &
-                                                        mf_dry_u_p, mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, &
-                                                        mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, mf_ae_p, &
-                                                        mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, &
-                                                        mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, &
-                                                        wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, dse_p, qw_p, u_p, &
-                                                        v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, cldfrabl_p, &
-                                                        thv_p, height_interface_p, height_mid_p, &
-                                                        pres_p, pres2_p, w_p, inv_exner_p, thetal_p, presdiff_p
+    real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p,             &
+                                                        shoc_mix_p,         &
+                                                        isotropy_p,         &
+                                                        tke_dissip_p,       &
+                                                        tke_prod_b_p,       &
+                                                        tke_prod_sh_p,      &
+                                                        w_sec_p,            &
+                                                        thl_sec_p,          &
+                                                        qw_sec_p,           &
+                                                        qwthl_sec_p,        &
+                                                        wthl_sec_p,         &
+                                                        wqw_sec_p,          &
+                                                        wtke_sec_p,         &
+                                                        uw_sec_p,           &
+                                                        vw_sec_p,           &
+                                                        w3_p,               &
+                                                        wqls_sec_p,         &
+                                                        brunt_p,            &
+                                                        shoc_ql2_p,         &
+                                                        mf_dry_a_p,         &
+                                                        mf_moist_a_p,       &
+                                                        mf_dry_w_p,         &
+                                                        mf_moist_w_p,       &   
+                                                        mf_dry_qt_p,        &
+                                                        mf_moist_qt_p,      &
+                                                        mf_dry_thl_p,       &
+                                                        mf_moist_thl_p,     &
+                                                        mf_dry_u_p,         &   
+                                                        mf_moist_u_p,       &
+                                                        mf_dry_v_p,         &
+                                                        mf_moist_v_p,       &
+                                                        mf_moist_qc_p,      &
+                                                        mf_thlflx_p,        &
+                                                        mf_qtflx_p,         &
+                                                        mf_ae_p,            &
+                                                        mf_aw_p,            &
+                                                        mf_awthv_p,         &
+                                                        mf_awthl_p,         &
+                                                        mf_awqt_p,          &
+                                                        mf_awql_p,          &
+                                                        mf_awqi_p,          &
+                                                        mf_awu_p,           &
+                                                        mf_awv_p,           &
+                                                        cfl_mf_p,           &
+                                                        wthl_sec_ed_p,      &
+                                                        wthl_sec_mf_p,      &
+                                                        wqw_sec_ed_p,       &
+                                                        wqw_sec_mf_p,       &
+                                                        dse_p,              &
+                                                        qw_p,               &
+                                                        u_p,                &
+                                                        v_p,                &
+                                                        wthv_sec_p,         &
+                                                        tke_shmf_p,         &
+                                                        kzh_p,              &
+                                                        kzm_p,              &
+                                                        qc_p,               &
+                                                        cldfrabl_p,         &
+                                                        thv_p,              &
+                                                        height_interface_p, &
+                                                        height_mid_p,       &
+                                                        pres_p,             &
+                                                        pres2_p,            &
+                                                        w_p,                &
+                                                        inv_exner_p,        &
+                                                        thetal_p,           &
+                                                        presdiff_p
 
     ! Flip the vertical coordinates of the SHOC-MF variables
     ! This is necessary because SHOC-MF expects the vertical
     ! coordinate starting from the top of the atmosphere.
     ! This subroutine is called before and after the SHOC-MF call
+    ! Group 1: All variables with kme levels
     thl_sec_p          = thl_sec_p(:, kme:kms:-1, :)
     qw_sec_p           = qw_sec_p(:, kme:kms:-1, :)
     qwthl_sec_p        = qwthl_sec_p(:, kme:kms:-1, :)
@@ -253,6 +362,7 @@ module module_bl_shocmf
     ! of them are only kme-1 levels (thermodynamic ones).
     ! So, in these cases we need to flip only the vertical
     ! coordinates of the kme-1 levels
+    ! Group 2: All variables with kme-1 levels
     rino_p(:,kms:kme-1,:)        = rino_p(:,kme-1:kms:-1,:)
     thv_p(:,kms:kme-1,:)         = thv_p(:,kme-1:kms:-1,:)
     shoc_mix_p(:,kms:kme-1,:)    = shoc_mix_p(:,kme-1:kms:-1,:)
@@ -283,14 +393,14 @@ module module_bl_shocmf
  end subroutine flip_vertical_coordinates
 
   
- subroutine convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_p, cp_in, xlv_in, hfx_converted_p, lh_converted_p)
+ subroutine convert_heat_fluxes(ims, ime, jms, jme, kms, hfx_p, lh_p, rho_p, cp_in, xlv_in, inv_exner_p, hfx_converted_p, lh_converted_p)
     ! Convert the surface heat fluxes from W/m^2 to both K*m/s and kg/kg m/s
     ! hfx_p is the sensible heat flux
     ! lh_p is the latent heat flux
-    integer, intent(in) :: ims, ime, jms, jme
+    integer, intent(in) :: ims, ime, jms, jme, kms
     real(kind=RKIND), intent(in) :: cp_in, xlv_in
     real(kind=RKIND), dimension(:,:), intent(in) :: hfx_p, lh_p
-    real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p
+    real(kind=RKIND), dimension(:,:,:), intent(in) :: rho_p, inv_exner_p
     real(kind=RKIND), dimension(:,:), intent(inout) :: hfx_converted_p, lh_converted_p
 
     integer :: i, j
@@ -298,10 +408,10 @@ module module_bl_shocmf
     do j = jms,jme
     do i = ims,ime
         ! Converting hfx_p from W/m^2 to K*m/s
-        hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,1,j)) ! [K m/s] = [W/m^2]/([J kg-1 K-1]*[kg m^{-3}])
-        ! hfx_converted_p(i,j) = hfx_converted_p(i,j)*inv_exner_p(i,1,j) ! Got from E3SM shoc_intr.F90 code
+        hfx_converted_p(i,j) = hfx_p(i,j)/(cp_in*rho_p(i,kms,j)) ! [K m/s] = [W/m^2]/([J kg-1 K-1]*[kg m^{-3}])
+        hfx_converted_p(i,j) = hfx_converted_p(i,j)*inv_exner_p(i,kms,j) ! Got from E3SM shoc_intr.F90 code
         ! Converting lh_p from W/m^2 to kg/kg m/s
-        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,1,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
+        lh_converted_p(i,j) = lh_p(i,j)/(xlv_in*rho_p(i,kms,j)) ! [kg/kg m/s] = [W/m^2]/([J kg-1]*[kg m^{-3}])
         ! xls instead of xlv - shoc_energy_total_fixer method in shoc
         ! lh_p/xlv = qfx_p
     enddo
@@ -358,10 +468,10 @@ module module_bl_shocmf
     do i=ims,ime
     do j=jms,jme
     do k=kms,kme
-        height_interface_p(i,k,j) = z_p(i,k,j)    - z_p(i,1,j)
+        height_interface_p(i,k,j) = z_p(i,k,j)    - z_p(i,kms,j)
 
         if (k .ne. kme) then
-            height_mid_p(i,k,j)   = zmid_p(i,k,j) - z_p(i,1,j)
+            height_mid_p(i,k,j)   = zmid_p(i,k,j) - z_p(i,kms,j)
         end if
     enddo
     enddo
@@ -393,8 +503,21 @@ module module_bl_shocmf
  end subroutine calculate_kpbl
 
  subroutine bl_shocmf_init( &
-    ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, &
-    xlf_in, karman_in, diag &
+    ims,ime,                &
+    kms,kme,                &
+    jms,jme,                &
+    its,ite,                &
+    kts,kte,                &
+    jts,jte,                &
+    gravity_in,             &
+    Rd_in,                  &
+    Rv_in,                  &
+    cp_in,                  &
+    ep_1_in,                &
+    xlv_in,                 &
+    xlf_in,                 &
+    karman_in,              &
+    diag &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -406,7 +529,7 @@ module module_bl_shocmf
     integer:: ntop_shoc, nbot_shoc
     real(RKIND), dimension(:), allocatable :: presref_mid
     allocate(presref_mid(kms:kme))
-    
+
     call calculate_presref_mid(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,diag,presref_mid)
 
     ntop_shoc = kte
@@ -419,61 +542,254 @@ module module_bl_shocmf
  end subroutine bl_shocmf_init
 
  subroutine bl_shocmf_driver( &
-    itimestep, dt_pbl, dx_p, lh_p, hfx_p, ht_p, theta_p, &
-    z_p, zmid_p, pres_p, pres2_p, uw_sfc_p, vw_sfc_p, w_p, dse_p, tke_shmf_p, qw_p, &
-    u_p, v_p, wthv_sec_p, kzh_p, kzm_p, qc_p, cldfrabl_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
-    rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, &
-    thl_sec_p, qw_sec_p, qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, &
-    vw_sec_p, w3_p, wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, mf_dry_w_p, &
-    mf_moist_w_p, mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, mf_moist_thl_p, mf_dry_u_p, &
-    mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, &
-    mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
-    mf_awv_p, cfl_mf_p, mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, plume_dry_height_p, &
-    ustar_p, wspd_p, ztop_b_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, wqw_sec_mf_p, &
-    kpbl_p, rho_p, t_p, qv_p, rublten_p, rvblten_p, rthblten_p, &
-    rqvblten_p, rqcblten_p, rqiblten_p, rtkeblten_p, &
-    ims, ime, jms, jme, kms, kme, its, ite, jts, jte, kts, kte, dminfo &
+    itimestep,                &
+    dt_pbl,                   &
+    dx_p,                     &
+    lh_p,                     &
+    hfx_p,                    &
+    ht_p,                     &
+    theta_p,                  &
+    z_p,                      &
+    zmid_p,                   &
+    pres_p,                   &
+    pres2_p,                  &
+    uw_sfc_p,                 &
+    vw_sfc_p,                 &
+    w_p,                      &
+    dse_p,                    &
+    tke_shmf_p,               &
+    qw_p,                     &
+    u_p,                      &
+    v_p,                      &
+    wthv_sec_p,               &
+    kzh_p,                    &
+    kzm_p,                    &
+    qc_p,                     &
+    cldfrabl_p,               &
+    hpbl_p,                   &
+    pblh_wthl_p,              &
+    pblh_tke_p,               &
+    rino_p,                   &
+    shoc_mix_p,               &
+    isotropy_p,               &
+    tke_dissip_p,             &
+    tke_prod_b_p,             &
+    tke_prod_sh_p,            &
+    w_sec_p,                  &
+    thl_sec_p,                &
+    qw_sec_p,                 &
+    qwthl_sec_p,              &
+    wthl_sec_p,               &
+    wqw_sec_p,                &
+    wtke_sec_p,               &
+    uw_sec_p,                 &
+    vw_sec_p,                 &
+    w3_p,                     &
+    wqls_sec_p,               &
+    brunt_p,                  &
+    shoc_ql2_p,               &
+    mf_dry_a_p,               &
+    mf_moist_a_p,             &
+    mf_dry_w_p,               &
+    mf_moist_w_p,             &
+    mf_dry_qt_p,              &
+    mf_moist_qt_p,            &
+    mf_dry_thl_p,             &
+    mf_moist_thl_p,           &
+    mf_dry_u_p,               &
+    mf_moist_u_p,             &
+    mf_dry_v_p,               &
+    mf_moist_v_p,             &
+    mf_moist_qc_p,            &
+    mf_thlflx_p,              &
+    mf_qtflx_p,               &
+    mf_ae_p,                  &
+    mf_aw_p,                  &
+    mf_awthv_p,               &
+    mf_awthl_p,               &
+    mf_awqt_p,                &
+    mf_awql_p,                &
+    mf_awqi_p,                &
+    mf_awu_p,                 &
+    mf_awv_p,                 &
+    cfl_mf_p,                 &
+    mf_dry_freq_p,            &
+    mf_moist_freq_p,          &
+    plumeheight_p,            &
+    plume_dry_height_p,       &
+    ustar_p,                  &
+    wspd_p,                   &
+    ztop_b_p,                 &
+    wthl_sec_ed_p,            &
+    wthl_sec_mf_p,            &
+    wqw_sec_ed_p,             &
+    wqw_sec_mf_p,             &
+    kpbl_p,                   &
+    rho_p,                    &
+    t_p,                      &
+    qv_p,                     &
+    rublten_p,                &
+    rvblten_p,                &
+    rthblten_p,               &
+    rqvblten_p,               &
+    rqcblten_p,               &
+    rqiblten_p,               &
+    rtkeblten_p,              &
+    ims, ime,                 &
+    jms, jme,                 &
+    kms, kme,                 &
+    its, ite,                 &
+    jts, jte,                 &
+    kts, kte,                 &
+    dminfo                    &
  )
     ! Driver for the SHOC-MF module
     ! This subroutine is called from the main driver
     ! It calls the SHOC-MF module to calculate the turbulence
     ! and the EDMF module to calculate the subgrid-scale clouds
     integer, intent(in) :: itimestep, &
-                           ims, ime, jms, jme, kms, kme, its, ite, &
-                           jts, jte, kts, kte
+                           ims, ime, &
+                           jms, jme, &
+                           kms, kme, &
+                           its, ite, &
+                           jts, jte, &
+                           kts, kte
     type(dm_info), intent(in) :: dminfo
     real(kind=RKIND), intent(in) :: dt_pbl
     real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p
 
-    real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p, vw_sfc_p, hpbl_p, pblh_wthl_p, pblh_tke_p, &
-                                                      mf_dry_freq_p, mf_moist_freq_p, plumeheight_p, & 
-                                                      plume_dry_height_p, ztop_b_p, ustar_p, wspd_p
+    real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p,           &
+                                                      vw_sfc_p,           &
+                                                      hpbl_p,             &
+                                                      pblh_wthl_p,        &
+                                                      pblh_tke_p,         &
+                                                      mf_dry_freq_p,      &
+                                                      mf_moist_freq_p,    &
+                                                      plumeheight_p,      & 
+                                                      plume_dry_height_p, &
+                                                      ztop_b_p,           &
+                                                      ustar_p,            &
+                                                      wspd_p
     integer, dimension(:,:), intent(inout) :: kpbl_p
-    real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p, shoc_mix_p, isotropy_p, &
-        tke_dissip_p, tke_prod_b_p, tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, &
-        qwthl_sec_p, wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
-        wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, mf_dry_w_p, &
-        mf_moist_w_p, mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, mf_moist_thl_p, &
-        mf_dry_u_p, mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, mf_moist_qc_p, mf_thlflx_p, &
-        mf_qtflx_p, mf_ae_p, mf_aw_p, mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, &
-        mf_awqi_p, mf_awu_p, mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
-        wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, kzm_p, qc_p, &
-        cldfrabl_p, theta_p, t_p, z_p, zmid_p, pres_p, pres2_p, w_p, qv_p, &
-        rho_p, rublten_p, rvblten_p, rthblten_p, rqvblten_p, rtkeblten_p, &
-        rqcblten_p, rqiblten_p
+    real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p,           &
+                                                        shoc_mix_p,       &
+                                                        isotropy_p,       &
+                                                        tke_dissip_p,     &
+                                                        tke_prod_b_p,     &
+                                                        tke_prod_sh_p,    &
+                                                        w_sec_p,          &
+                                                        thl_sec_p,        &
+                                                        qw_sec_p,         &
+                                                        qwthl_sec_p,      &
+                                                        wthl_sec_p,       &
+                                                        wqw_sec_p,        &
+                                                        wtke_sec_p,       &
+                                                        uw_sec_p,         &
+                                                        vw_sec_p,         &
+                                                        w3_p,             &
+                                                        wqls_sec_p,       &
+                                                        brunt_p,          &
+                                                        shoc_ql2_p,       &
+                                                        mf_dry_a_p,       &
+                                                        mf_moist_a_p,     &
+                                                        mf_dry_w_p,       &
+                                                        mf_moist_w_p,     &
+                                                        mf_dry_qt_p,      &
+                                                        mf_moist_qt_p,    &
+                                                        mf_dry_thl_p,     &
+                                                        mf_moist_thl_p,   &
+                                                        mf_dry_u_p,       &
+                                                        mf_moist_u_p,     &
+                                                        mf_dry_v_p,       &
+                                                        mf_moist_v_p,     &
+                                                        mf_moist_qc_p,    &
+                                                        mf_thlflx_p,      &
+                                                        mf_qtflx_p,       &
+                                                        mf_ae_p,          &
+                                                        mf_aw_p,          &
+                                                        mf_awthv_p,       &
+                                                        mf_awthl_p,       &
+                                                        mf_awqt_p,        &
+                                                        mf_awql_p,        &
+                                                        mf_awqi_p,        &
+                                                        mf_awu_p,         &
+                                                        mf_awv_p,         &
+                                                        cfl_mf_p,         &
+                                                        wthl_sec_ed_p,    &
+                                                        wthl_sec_mf_p,    &
+                                                        wqw_sec_ed_p,     &
+                                                        wqw_sec_mf_p,     &
+                                                        dse_p,            &
+                                                        qw_p,             &
+                                                        u_p,              &
+                                                        v_p,              &
+                                                        wthv_sec_p,       &
+                                                        tke_shmf_p,       &
+                                                        kzh_p,            &
+                                                        kzm_p,            &
+                                                        qc_p,             &
+                                                        cldfrabl_p,       &
+                                                        theta_p,          &
+                                                        t_p,              &
+                                                        z_p,              &
+                                                        zmid_p,           &
+                                                        pres_p,           &
+                                                        pres2_p,          &
+                                                        w_p,              &
+                                                        qv_p,             &
+                                                        rho_p,            &
+                                                        rublten_p,        &
+                                                        rvblten_p,        &
+                                                        rthblten_p,       &
+                                                        rqvblten_p,       &
+                                                        rtkeblten_p,      &
+                                                        rqcblten_p,       &
+                                                        rqiblten_p
 
-    real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p, thetal_p, qtracers, height_interface_p, height_mid_p
-    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p, w_zt
-    real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p, rho_interface_p, thv_p
-    real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc, dy_p, hfx_converted_p, lh_converted_p, phis_p
+    real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p,         &
+                                                       thetal_p,           &
+                                                       qtracers,           &
+                                                       height_interface_p, &
+                                                       height_mid_p
+    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p,               &
+                                                       vm_p,               &
+                                                       thetam_p,           &
+                                                       qvm_p,              &
+                                                       qcm_p,              &
+                                                       tkem_p,             &
+                                                       w_zt
+    real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p,        &
+                                                       rho_interface_p,    &
+                                                       thv_p
+    real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc,        &
+                                                       dy_p,               &
+                                                       hfx_converted_p,    &
+                                                       lh_converted_p,     &
+                                                       phis_p
 
     integer :: num_qtracers, nadv, i, j, k
     real(kind=RKIND) :: shoc_timestep
 
+    if (itimestep == 1) then
+        wthv_sec_p(:,:,:) = 0.0_RKIND
+        w_sec_p(:,:,:)    = 0.0_RKIND
+        thl_sec_p(:,:,:)  = 0.0_RKIND
+        qw_sec_p(:,:,:)   = 0.0_RKIND
+        qwthl_sec_p(:,:,:) = 0.0_RKIND
+        wthl_sec_p(:,:,:)  = 0.0_RKIND
+        wqw_sec_p(:,:,:)   = 0.0_RKIND
+        wtke_sec_p(:,:,:)  = 0.0_RKIND
+        rino_p(:,:,:)      = 0.0_RKIND
+        shoc_mix_p(:,:,:)  = 0.0_RKIND
+        isotropy_p(:,:,:)  = 0.0_RKIND
+    end if
+
+
+
     allocate(                                  &
         um_p(ims:ime, kms:kme, jms:jme)      , &
         vm_p(ims:ime, kms:kme, jms:jme)      , &
-        thetam_p(ims:ime, kms:kme, jms:jme), &
+        thetam_p(ims:ime, kms:kme, jms:jme)  , &
         qvm_p(ims:ime, kms:kme, jms:jme)     , &
         qcm_p(ims:ime, kms:kme, jms:jme)     , &
         tkem_p(ims:ime, kms:kme, jms:jme)      &
@@ -529,7 +845,7 @@ module module_bl_shocmf
     allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme), rho_interface_p(ims:ime, kms:kme, jms:jme))
     ! Get density on the interface grid
     call linear_interp(height_mid_p,height_interface_p,rho_p,rho_interface_p,kme-1,kme,ime,0.0_RKIND)
-    call convert_heat_fluxes(ims, ime, jms, jme, hfx_p, lh_p, rho_interface_p, cp, xlv, hfx_converted_p, lh_converted_p)
+    call convert_heat_fluxes(ims, ime, jms, jme, kms, hfx_p, lh_p, rho_interface_p, cp, xlv, inv_exner_p, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
@@ -553,19 +869,75 @@ module module_bl_shocmf
     qtracers = 0.0_RKIND
 
     call flip_vertical_coordinates(&
-        kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
-        tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
-        wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
-        wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &
-        mf_dry_w_p, mf_moist_w_p, mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, &
-        mf_moist_thl_p, mf_dry_u_p, mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, &
-        mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, mf_ae_p, mf_aw_p, &
-        mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
-        mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
-        wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, thv_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_zt, inv_exner_p, &
-        thetal_p, presdiff_p &
+        kms,                               &
+        kme,                               &
+        rino_p,                            &
+        shoc_mix_p,                        &
+        isotropy_p,                        &
+        tke_dissip_p,                      &
+        tke_prod_b_p,                      &
+        tke_prod_sh_p,                     &
+        w_sec_p,                           &
+        thl_sec_p,                         &
+        qw_sec_p,                          &
+        qwthl_sec_p,                       &
+        wthl_sec_p,                        &
+        wqw_sec_p,                         &
+        wtke_sec_p,                        &
+        uw_sec_p,                          &
+        vw_sec_p,                          &
+        w3_p,                              &
+        wqls_sec_p,                        &
+        brunt_p,                           &
+        shoc_ql2_p,                        &
+        mf_dry_a_p,                        &
+        mf_moist_a_p,                      &
+        mf_dry_w_p,                        &
+        mf_moist_w_p,                      &
+        mf_dry_qt_p,                       &
+        mf_moist_qt_p,                     &
+        mf_dry_thl_p,                      &
+        mf_moist_thl_p,                    &
+        mf_dry_u_p,                        &
+        mf_moist_u_p,                      &
+        mf_dry_v_p,                        &
+        mf_moist_v_p,                      &
+        mf_moist_qc_p,                     &
+        mf_thlflx_p,                       &
+        mf_qtflx_p,                        &
+        mf_ae_p,                           &
+        mf_aw_p,                           &
+        mf_awthv_p,                        &
+        mf_awthl_p,                        &
+        mf_awqt_p,                         &
+        mf_awql_p,                         &
+        mf_awqi_p,                         &
+        mf_awu_p,                          &
+        mf_awv_p,                          &
+        cfl_mf_p,                          &
+        wthl_sec_ed_p,                     &
+        wthl_sec_mf_p,                     &
+        wqw_sec_ed_p,                      &
+        wqw_sec_mf_p,                      &
+        dse_p,                             &
+        qw_p,                              &
+        u_p,                               &
+        v_p,                               &
+        wthv_sec_p,                        &
+        tke_shmf_p,                        &
+        kzh_p,                             &
+        kzm_p,                             &
+        qc_p,                              &
+        cldfrabl_p,                        &
+        thv_p,                             &
+        height_interface_p,                &
+        height_mid_p,                      &
+        pres_p,                            &
+        pres2_p,                           &
+        w_zt,                              &
+        inv_exner_p,                       &
+        thetal_p,                          &
+        presdiff_p                         &
     )
 
     ! As last position of the array is a extra position, to not letting a
@@ -574,63 +946,170 @@ module module_bl_shocmf
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    call shoc_main( &
-        itimestep, ime, kme-1, kme, shoc_timestep, nadv, &                           ! Input
-        dx_p(:ime,1), dy_p(:ime,1), thv_p(:ime,:kme-1,1),&                           ! Input
-        height_mid_p(:ime,:kme-1,1), height_interface_p(:ime,:kme,1), &              ! Input
-        pres_p(:ime,:kme-1,1), pres2_p(:ime,:kme,1), &                               ! Input
-        presdiff_p(:ime,:kme-1,1), hfx_converted_p(:ime,1), &                        ! Input
-        lh_converted_p(:ime,1), uw_sfc_p(:ime,1), vw_sfc_p(:ime,1), &                ! Input
-        wtracer_sfc(:ime,:num_qtracers), num_qtracers, w_zt(:ime,:kme-1,1), &        ! Input
-        inv_exner_p(:ime,:kme-1,1),phis_p(:ime,1), &                                 ! Input
-        dse_p(:ime,:kme-1,1), tke_shmf_p(:ime,:kme-1,1), &                           ! Input/Output
-        thetal_p(:ime,:kme-1,1), qw_p(:ime,:kme-1,1), &                              ! Input/Output
-        u_p(:ime,:kme-1,1), v_p(:ime,:kme-1,1), qtracers(:,:kme-1,:num_qtracers), &  ! Input/Output
-        wthv_sec_p(:ime,:kme-1,1), kzh_p(:ime,:kme-1,1),kzm_p(:ime,:kme-1,1), &      ! Input/Output
-        qc_p(:ime,:kme-1,1),cldfrabl_p(:ime,:kme-1,1), &                             ! Input/Output
-        hpbl_p(:ime,1),pblh_wthl_p(:ime,1),pblh_tke_p(:ime,1), &                     ! Output
-        rino_p(:ime,:kme-1,1), &                                                     ! Output
-        shoc_mix_p(:ime,:kme-1,1), isotropy_p(:ime,:kme-1,1), &                      ! Output (diagnostic)
-        tke_dissip_p(:ime,:kme-1,1), tke_prod_b_p(:ime,:kme-1,1), &                  ! Output (diagnostic)
-        tke_prod_sh_p(:ime,:kme-1,1), &                                              ! Output (diagnostic)
-        w_sec_p(:ime,:kme-1,1), thl_sec_p(:ime,:kme,1), qw_sec_p(:ime,:kme,1), &     ! Output (diagnostic)
-        qwthl_sec_p(:ime,:kme,1), &                                                  ! Output (diagnostic)
-        wthl_sec_p(:ime,:kme,1), wqw_sec_p(:ime,:kme,1), wtke_sec_p(:ime,:kme,1), &  ! Output (diagnostic)
-        uw_sec_p(:ime,:kme,1), vw_sec_p(:ime,:kme,1), w3_p(:ime,:kme,1), &           ! Output (diagnostic)
-        wqls_sec_p(:ime,:kme-1,1),brunt_p(:ime,:kme-1,1),shoc_ql2_p(:ime,:kme-1,1), &! Output (diagnostic)
-        mf_dry_a_p(:ime,:kme,1), mf_moist_a_p(:ime,:kme,1), &                        ! Output (EDMF diagnostic)
-        mf_dry_w_p(:ime,:kme,1), mf_moist_w_p(:ime,:kme,1), &                        ! Output (EDMF diagnostic)
-        mf_dry_qt_p(:ime,:kme,1), mf_moist_qt_p(:ime,:kme,1), &                      ! Output (EDMF diagnostic)
-        mf_dry_thl_p(:ime,:kme,1), mf_moist_thl_p(:ime,:kme,1), &                    ! Output (EDMF diagnostic)
-        mf_dry_u_p(:ime,:kme,1),   mf_moist_u_p(:ime,:kme,1), &                      ! Output (EDMF diagnostic)
-        mf_dry_v_p(:ime,:kme,1),   mf_moist_v_p(:ime,:kme,1), &                      ! Output (EDMF diagnostic)
-        mf_moist_qc_p(:ime,:kme,1), &                                                ! Output (EDMF diagnostic)
-        mf_thlflx_p(:ime,:kme,1), mf_qtflx_p(:ime,:kme,1), &                         ! Output (EDMF diagnostic)
-        mf_ae_p(:ime,:kme,1), mf_aw_p(:ime,:kme,1), &                                ! Output (EDMF diagnostic)
-        mf_awthv_p(:ime,:kme,1), &                                                   ! Output (EDMF diagnostic)
-        mf_awthl_p(:ime,:kme,1), mf_awqt_p(:ime,:kme,1), &                           ! Output (EDMF diagnostic)
-        mf_awql_p(:ime,:kme,1), mf_awqi_p(:ime,:kme,1), &                            ! Output (EDMF diagnostic)
-        mf_awu_p(:ime,:kme,1), mf_awv_p(:ime,:kme,1), cfl_mf_p(:ime,:kme,1), &       ! Output (EDMF diagnostic)
-        mf_dry_freq_p(:,1), mf_moist_freq_p(:,1), plumeheight_p(:,1), &              ! Output (EDMF diagnostic)
-        plume_dry_height_p(:,1), ztop_b_p(:,1), &                                    ! Output (EDMF diagnostic)
-        wthl_sec_ed_p(:ime,:kme,1), wthl_sec_mf_p(:ime,:kme,1), &                    ! Output (EDMF diagnostic)
-        wqw_sec_ed_p(:ime,:kme,1), wqw_sec_mf_p(:ime,:kme,1) &                       ! Output (EDMF diagnostic)  
+    call shoc_main(                       & ! Input
+        itimestep,                        & ! Input
+        ime,                              & ! Input
+        kme-1,                            & ! Input
+        kme,                              & ! Input
+        shoc_timestep,                    & ! Input
+        nadv,                             & ! Input
+        dx_p(:ime,1),                     & ! Input
+        dy_p(:ime,1),                     & ! Input
+        thv_p(:ime,:kme-1,1),             & ! Input
+        height_mid_p(:ime,:kme-1,1),      & ! Input
+        height_interface_p(:ime,:kme,1),  & ! Input
+        pres_p(:ime,:kme-1,1),            & ! Input
+        pres2_p(:ime,:kme,1),             & ! Input
+        presdiff_p(:ime,:kme-1,1),        & ! Input
+        hfx_converted_p(:ime,1),          & ! Input
+        lh_converted_p(:ime,1),           & ! Input
+        uw_sfc_p(:ime,1),                 & ! Input
+        vw_sfc_p(:ime,1),                 & ! Input
+        wtracer_sfc(:ime,:num_qtracers),  & ! Input
+        num_qtracers,                     & ! Input
+        w_zt(:ime,:kme-1,1),              & ! Input
+        inv_exner_p(:ime,:kme-1,1),       & ! Input
+        phis_p(:ime,1),                   & ! Input
+        dse_p(:ime,:kme-1,1),             & ! Input
+        tke_shmf_p(:ime,:kme-1,1),        & ! Input/Output
+        thetal_p(:ime,:kme-1,1),          & ! Input/Output
+        qw_p(:ime,:kme-1,1),              & ! Input/Output
+        u_p(:ime,:kme-1,1),               & ! Input/Output
+        v_p(:ime,:kme-1,1),               & ! Input/Output
+        qtracers(:,:kme-1,:num_qtracers), & ! Input/Output
+        wthv_sec_p(:ime,:kme-1,1),        & ! Input/Output
+        kzh_p(:ime,:kme-1,1),             & ! Input/Output
+        kzm_p(:ime,:kme-1,1),             & ! Input/Output
+        qc_p(:ime,:kme-1,1),              & ! Input/Output
+        cldfrabl_p(:ime,:kme-1,1),        & ! Input/Output
+        hpbl_p(:ime,1),                   & ! Input/Output
+        pblh_wthl_p(:ime,1),              & ! Input/Output
+        pblh_tke_p(:ime,1),               & ! Output
+        rino_p(:ime,:kme-1,1),            & ! Output
+        shoc_mix_p(:ime,:kme-1,1),        & ! Output
+        isotropy_p(:ime,:kme-1,1),        & ! Output (diagnostic)
+        tke_dissip_p(:ime,:kme-1,1),      & ! Output (diagnostic)
+        tke_prod_b_p(:ime,:kme-1,1),      & ! Output (diagnostic)
+        tke_prod_sh_p(:ime,:kme-1,1),     & ! Output (diagnostic)
+        w_sec_p(:ime,:kme-1,1),           & ! Output (diagnostic)
+        thl_sec_p(:ime,:kme,1),           & ! Output (diagnostic)
+        qw_sec_p(:ime,:kme,1),            & ! Output (diagnostic)
+        qwthl_sec_p(:ime,:kme,1),         & ! Output (diagnostic)
+        wthl_sec_p(:ime,:kme,1),          & ! Output (diagnostic)
+        wqw_sec_p(:ime,:kme,1),           & ! Output (diagnostic)
+        wtke_sec_p(:ime,:kme,1),          & ! Output (diagnostic)
+        uw_sec_p(:ime,:kme,1),            & ! Output (diagnostic)
+        vw_sec_p(:ime,:kme,1),            & ! Output (diagnostic)
+        w3_p(:ime,:kme,1),                & ! Output (diagnostic)
+        wqls_sec_p(:ime,:kme-1,1),        & ! Output (diagnostic)
+        brunt_p(:ime,:kme-1,1),           & ! Output (diagnostic)
+        shoc_ql2_p(:ime,:kme-1,1),        & ! Output (diagnostic)
+        mf_dry_a_p(:ime,:kme,1),          & ! Output (diagnostic)
+        mf_moist_a_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        mf_dry_w_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_moist_w_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        mf_dry_qt_p(:ime,:kme,1),         & ! Output (EDMF diagnostic)
+        mf_moist_qt_p(:ime,:kme,1),       & ! Output (EDMF diagnostic)
+        mf_dry_thl_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        mf_moist_thl_p(:ime,:kme,1),      & ! Output (EDMF diagnostic)
+        mf_dry_u_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_moist_u_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        mf_dry_v_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_moist_v_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        mf_moist_qc_p(:ime,:kme,1),       & ! Output (EDMF diagnostic)
+        mf_thlflx_p(:ime,:kme,1),         & ! Output (EDMF diagnostic)
+        mf_qtflx_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_ae_p(:ime,:kme,1),             & ! Output (EDMF diagnostic)
+        mf_aw_p(:ime,:kme,1),             & ! Output (EDMF diagnostic)
+        mf_awthv_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_awthl_p(:ime,:kme,1),          & ! Output (EDMF diagnostic)
+        mf_awqt_p(:ime,:kme,1),           & ! Output (EDMF diagnostic)
+        mf_awql_p(:ime,:kme,1),           & ! Output (EDMF diagnostic)
+        mf_awqi_p(:ime,:kme,1),           & ! Output (EDMF diagnostic)
+        mf_awu_p(:ime,:kme,1),            & ! Output (EDMF diagnostic)
+        mf_awv_p(:ime,:kme,1),            & ! Output (EDMF diagnostic)
+        cfl_mf_p(:ime,:kme,1),            & ! Output (EDMF diagnostic)
+        mf_dry_freq_p(:,1),               & ! Output (EDMF diagnostic)
+        mf_moist_freq_p(:,1),             & ! Output (EDMF diagnostic)
+        plumeheight_p(:,1),               & ! Output (EDMF diagnostic)
+        plume_dry_height_p(:,1),          & ! Output (EDMF diagnostic)
+        ztop_b_p(:,1),                    & ! Output (EDMF diagnostic)
+        wthl_sec_ed_p(:ime,:kme,1),       & ! Output (EDMF diagnostic)
+        wthl_sec_mf_p(:ime,:kme,1),       & ! Output (EDMF diagnostic)
+        wqw_sec_ed_p(:ime,:kme,1),        & ! Output (EDMF diagnostic)
+        wqw_sec_mf_p(:ime,:kme,1)         & ! Output (EDMF diagnostic)  
     )
 
     call flip_vertical_coordinates(&
-        kms, kme, rino_p, shoc_mix_p, isotropy_p, tke_dissip_p, tke_prod_b_p, &
-        tke_prod_sh_p, w_sec_p, thl_sec_p, qw_sec_p, qwthl_sec_p, &
-        wthl_sec_p, wqw_sec_p, wtke_sec_p, uw_sec_p, vw_sec_p, w3_p, &
-        wqls_sec_p, brunt_p, shoc_ql2_p, mf_dry_a_p, mf_moist_a_p, &
-        mf_dry_w_p, mf_moist_w_p, mf_dry_qt_p, mf_moist_qt_p, mf_dry_thl_p, &
-        mf_moist_thl_p, mf_dry_u_p, mf_moist_u_p, mf_dry_v_p, mf_moist_v_p, &
-        mf_moist_qc_p, mf_thlflx_p, mf_qtflx_p, mf_ae_p, mf_aw_p, &
-        mf_awthv_p, mf_awthl_p, mf_awqt_p, mf_awql_p, mf_awqi_p, mf_awu_p, &
-        mf_awv_p, cfl_mf_p, wthl_sec_ed_p, wthl_sec_mf_p, wqw_sec_ed_p, &
-        wqw_sec_mf_p, dse_p, qw_p, u_p, v_p, wthv_sec_p, tke_shmf_p, kzh_p, &
-        kzm_p, qc_p, cldfrabl_p, thv_p, height_interface_p, &
-        height_mid_p, pres_p, pres2_p, w_zt, inv_exner_p, &
-        thetal_p, presdiff_p &
+        kms,                               &
+        kme,                               &
+        rino_p,                            &
+        shoc_mix_p,                        &
+        isotropy_p,                        &
+        tke_dissip_p,                      &
+        tke_prod_b_p,                      &
+        tke_prod_sh_p,                     &
+        w_sec_p,                           &
+        thl_sec_p,                         &
+        qw_sec_p,                          &
+        qwthl_sec_p,                       &
+        wthl_sec_p,                        &
+        wqw_sec_p,                         &
+        wtke_sec_p,                        &
+        uw_sec_p,                          &
+        vw_sec_p,                          &
+        w3_p,                              &
+        wqls_sec_p,                        &
+        brunt_p,                           &
+        shoc_ql2_p,                        &
+        mf_dry_a_p,                        &
+        mf_moist_a_p,                      &
+        mf_dry_w_p,                        &
+        mf_moist_w_p,                      &
+        mf_dry_qt_p,                       &
+        mf_moist_qt_p,                     &
+        mf_dry_thl_p,                      &
+        mf_moist_thl_p,                    &
+        mf_dry_u_p,                        &
+        mf_moist_u_p,                      &
+        mf_dry_v_p,                        &
+        mf_moist_v_p,                      &
+        mf_moist_qc_p,                     &
+        mf_thlflx_p,                       &
+        mf_qtflx_p,                        &
+        mf_ae_p,                           &
+        mf_aw_p,                           &
+        mf_awthv_p,                        &
+        mf_awthl_p,                        &
+        mf_awqt_p,                         &
+        mf_awql_p,                         &
+        mf_awqi_p,                         &
+        mf_awu_p,                          &
+        mf_awv_p,                          &
+        cfl_mf_p,                          &
+        wthl_sec_ed_p,                     &
+        wthl_sec_mf_p,                     &
+        wqw_sec_ed_p,                      &
+        wqw_sec_mf_p,                      &
+        dse_p,                             &
+        qw_p,                              &
+        u_p,                               &
+        v_p,                               &
+        wthv_sec_p,                        &
+        tke_shmf_p,                        &
+        kzh_p,                             &
+        kzm_p,                             &
+        qc_p,                              &
+        cldfrabl_p,                        &
+        thv_p,                             &
+        height_interface_p,                &
+        height_mid_p,                      &
+        pres_p,                            &
+        pres2_p,                           &
+        w_zt,                              &
+        inv_exner_p,                       &
+        thetal_p,                          &
+        presdiff_p                         &
     )
     ! As last position of the array is a extra position,
     ! we are going to extrapolate it considering that
