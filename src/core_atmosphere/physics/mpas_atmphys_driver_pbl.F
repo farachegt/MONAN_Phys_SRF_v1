@@ -249,7 +249,6 @@
       if(.not.allocated(wthl_sec_mf_p)      ) allocate(wthl_sec_mf_p(ims:ime,kms:kme,jms:jme)      )
       if(.not.allocated(wqw_sec_ed_p)       ) allocate(wqw_sec_ed_p(ims:ime,kms:kme,jms:jme)       )
       if(.not.allocated(wqw_sec_mf_p)       ) allocate(wqw_sec_mf_p(ims:ime,kms:kme,jms:jme)       )
-      if(.not.allocated(qw_p)               ) allocate(qw_p(ims:ime,kms:kme,jms:jme)               )
       if(.not.allocated(cldfrabl_p)         ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)         )
       if(.not.allocated(dse_p)              ) allocate(dse_p(ims:ime,kms:kme,jms:jme)              )
       if(.not.allocated(rtkeblten_p)        ) allocate(rtkeblten_p(ims:ime,kms:kme,jms:jme)        )
@@ -426,7 +425,6 @@
         if(allocated(wthl_sec_mf_p)      ) deallocate(wthl_sec_mf_p      )
         if(allocated(wqw_sec_ed_p)       ) deallocate(wqw_sec_ed_p       )
         if(allocated(wqw_sec_mf_p)       ) deallocate(wqw_sec_mf_p       )
-        if(allocated(qw_p)               ) deallocate(qw_p               )
         if(allocated(cldfrabl_p)         ) deallocate(cldfrabl_p         )
         if(allocated(dse_p)              ) deallocate(dse_p              )
         if(allocated(rtkeblten_p)        ) deallocate(rtkeblten_p        )
@@ -489,7 +487,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,zgrid,dse
+ real(kind=RKIND),dimension(:,:),pointer:: rino,zgrid,dse
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -518,7 +516,7 @@
     xland_p(i,j) = xland(i)
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
-    !... ocean currents are set to zero: ! TODO (GTF): why?
+    !... ocean currents are set to zero:
     uoce_p(i,j)  = 0._RKIND
     voce_p(i,j)  = 0._RKIND
  enddo
@@ -886,7 +884,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: mf_awv,mf_thlflx,mf_qtflx
  real(kind=RKIND),dimension(:,:),pointer:: cfl_mf,wthl_sec_ed,wthl_sec_mf
  real(kind=RKIND),dimension(:,:),pointer:: wqw_sec_ed,wqw_sec_mf
- real(kind=RKIND),dimension(:,:),pointer:: rino,theta_m,dse
+ real(kind=RKIND),dimension(:,:),pointer:: rino,dse
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1149,6 +1147,7 @@
           wqw_sec_mf(k,i)      = wqw_sec_mf_p(i,k,j)
           cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
           dse(k,i)             = dse_p(i,k,j)
+
           rtkeblten(k,i)       = rtkeblten_p(i,k,j)
        enddo
        enddo
@@ -1410,7 +1409,7 @@
             zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
             dse_p         = dse_p        , tke_shmf_p     = tke_shmf_p                                        , &
-            qw_p          = qw_p         , u_p            = u_p           , v_p             = v_p             , &
+            u_p           = u_p          , v_p            = v_p                                               , &
             wthv_sec_p    = wthv_sec_p   , kzh_p          = kzh_p         , kzm_p           = kzm_p           , &
             qc_p          = qc_p         , cldfrabl_p     = cldfrabl_p    , hpbl_p          = hpbl_p          , &
             pblh_wthl_p   = pblh_wthl_p  , pblh_tke_p     = pblh_tke_p    , rino_p          = rino_p          , &

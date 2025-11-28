@@ -558,7 +558,6 @@ module module_bl_shocmf
     w_p,                      &
     dse_p,                    &
     tke_shmf_p,               &
-    qw_p,                     &
     u_p,                      &
     v_p,                      &
     wthv_sec_p,               &
@@ -720,7 +719,6 @@ module module_bl_shocmf
                                                         wqw_sec_ed_p,     &
                                                         wqw_sec_mf_p,     &
                                                         dse_p,            &
-                                                        qw_p,             &
                                                         u_p,              &
                                                         v_p,              &
                                                         wthv_sec_p,       &
@@ -761,6 +759,7 @@ module module_bl_shocmf
     real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p,        &
                                                        rho_interface_p,    &
                                                        thv_p
+    real(kind=RKIND), dimension(:,:,:), allocatable :: qw_p
     real(kind=RKIND), dimension(:,:)  , allocatable :: wtracer_sfc,        &
                                                        dy_p,               &
                                                        hfx_converted_p,    &
@@ -824,6 +823,7 @@ module module_bl_shocmf
     allocate(presdiff_p(ims:ime, kms:kme, jms:jme))
     call calculate_presdiff(ims, ime, kms, kme, jms, jme, pres2_p, presdiff_p)
 
+    allocate(qw_p(ims:ime, kms:kme, jms:jme))
     call calculate_qw(ims, ime, jms, jme, kms, kme, qc_p, qv_p, qw_p)
 
     allocate(height_interface_p(ims:ime, kms:kme, jms:jme), height_mid_p(ims:ime, kms:kme, jms:jme))

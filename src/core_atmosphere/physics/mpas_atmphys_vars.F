@@ -555,8 +555,6 @@
     wthl_sec_mf_p,    &!vertical heat flux (EDMF) - nVertLevelsP1                                          [K m/s]
     wqw_sec_ed_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
     wqw_sec_mf_p,     &!vertical moisture flux (EDMF) - nVertLevelsP1                                  [kg/kg m/s]
-    theta_m_p,        &!virtual potential temperature                                                          [K]
-    qw_p,             &!total water mixing ratio                                                           [kg/kg]
     tke_shmf_p,       &!tke from shocmf scheme                                                             [m2/s3]
     dse_p              !dry static energy                                                                   [J/kg]
 
