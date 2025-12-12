@@ -1470,6 +1470,7 @@
                         <var name="buoyx" array_group="convection" units="J kg^{-1}"
                              description="Buoyancy excess from the cold pool scheme"
                              packages="gf_monan_cporg"/>
+                         
                         <var name="tke_shmf" array_group="pbl" units="m^{2} s^{-2}"
                              description="Turbulent Kinetic Energy from the PBL scheme"
                              packages="bl_shocmf_in"/>
@@ -1807,6 +1808,7 @@
                        <var name="tend_buoyx" name_in_code="buoyx" array_group="convection" units="J kg^{-1} s^{-1}" 
                              description="Tendency of buoyancy excess from the cold pool scheme multiplied by dry air density divided by d(zeta)/dz"
                              packages="gf_monan_cporg"/>
+
                        <var name="tend_tke_shmf" name_in_code="tke_shmf" array_group="pbl" units="m^{2} s^{-3}" 
                              description="Tendency of turbulent kinetic energy from the PBL scheme"
                              packages="bl_shocmf_in"/>
@@ -1874,6 +1876,7 @@
                         
                         <var name="lbc_buoyx" name_in_code="buoyx" array_group="convection" packages="gf_monan_cporg" units="J kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of Buoyancy excess from the cold pool scheme"/>
+
                         <var name="lbc_tke_shmf" name_in_code="tke_shmf" array_group="pbl" packages="bl_shocmf_in" units="m^{2} s^{-3}"
                                description="Lateral boundary tendency of Turbulent Kinetic Energy from the SHOCMF PBL scheme"/>
 
@@ -2679,14 +2682,6 @@
 
                <var name="shoc_mix" type="real" dimensions="nVertLevels nCells Time" units="m"
                     description="SHOC length scale"
-                    packages="bl_shocmf_in"/>
-
-               <var name="tk" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
-                    description="Eddy viscosity for momentum"
-                    packages="bl_shocmf_in"/>
-
-               <var name="tkh" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
-                    description="Eddy viscosity for heat"
                     packages="bl_shocmf_in"/>
 
                <var name="w_sec" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
@@ -3555,6 +3550,7 @@
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
                      packages="bl_mynn_in"/>
+
                 <var name="rtkeblten" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2} s^{-1}"
                      description="tendency of tke due to pbl processes"
                      packages="bl_shocmf_in"/>

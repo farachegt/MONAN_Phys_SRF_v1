@@ -146,6 +146,7 @@
 
  nullify(bl_ysu_in)
  call mpas_pool_get_package(packages,'bl_ysu_inActive',bl_ysu_in)
+
  nullify(bl_shocmf_in)
  call mpas_pool_get_package(packages,'bl_shocmf_inActive',bl_shocmf_in)
 

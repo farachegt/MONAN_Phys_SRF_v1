@@ -1031,7 +1031,7 @@
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
        call mpas_pool_get_array(diag_physics, 'w_sec'            ,w_sec          )
-       call mpas_pool_get_array(diag_physics, 'wqls_sec'          ,wqls_sec      )
+       call mpas_pool_get_array(diag_physics, 'wqls_sec'         ,wqls_sec       )
        call mpas_pool_get_array(diag_physics, 'isotropy'         ,isotropy       )
        call mpas_pool_get_array(diag_physics, 'brunt'            ,brunt          )
        call mpas_pool_get_array(diag_physics, 'shoc_ql2'         ,shoc_ql2       )
@@ -1409,7 +1409,7 @@
             ht_p          = ht_p         , theta_p        = th_p          , z_p             = z_p             , &
             zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
-            pi_p          = pi_p         , dse_p          = dse_p         , tke_shmf_p      = tke_shmf_p      , &
+            dse_p         = dse_p        , tke_shmf_p     = tke_shmf_p                                        , &
             qw_p          = qw_p         , u_p            = u_p           , v_p             = v_p             , &
             wthv_sec_p    = wthv_sec_p   , kzh_p          = kzh_p         , kzm_p           = kzm_p           , &
             qc_p          = qc_p         , cldfrabl_p     = cldfrabl_p    , hpbl_p          = hpbl_p          , &
@@ -1434,13 +1434,13 @@
             ztop_b_p      = ztop_b_p     , wthl_sec_ed_p  = wthl_sec_ed_p , wthl_sec_mf_p   = wthl_sec_mf_p   , &
             wqw_sec_ed_p  = wqw_sec_ed_p , wqw_sec_mf_p   = wqw_sec_mf_p  , kpbl_p          = kpbl_p          , &
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
-            rublten_p     = rublten_p    , rvblten_p      = rvblten_p       , &
+            rublten_p     = rublten_p    , rvblten_p      = rvblten_p                                         , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
       )
-            
+      
       tkepbl_p = tke_shmf_p
       call mpas_timer_stop('bl_shocmf')
 

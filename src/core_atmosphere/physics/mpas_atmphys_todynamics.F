@@ -400,8 +400,8 @@
             do i = 1, nCellsSolve
             do k = 1, nVertLevels
                 tend_scalars(index_tke_shmf,k,i) = tend_scalars(index_tke_shmf,k,i) + rtkeblten(k,i)*mass(k,i)
-             enddo
-             enddo
+            enddo
+            enddo
    
           case default         
 

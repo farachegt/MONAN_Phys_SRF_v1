@@ -1856,6 +1856,7 @@ module module_cu_gf_monan
          entr_rate    (:) = entr_ref * entr_rescaled(:)
          min_entr_rate    = entr_ref * fr_min_entr * minval(entr_rescaled)
          overshoot_rescaled(:) = min(0.7, overshoot * entr_rescaled(:))
+         !t_star = 0.8/maxval(entr_rescaled)
       else
       !-- initial entrainment rate and the mininum acceptable entrainment rate
          entr_rate(:)  = entr_rate_input * fac_cold_start
@@ -1880,8 +1881,9 @@ module module_cu_gf_monan
       end if
       !
       if( use_shear_ctrl_entr >= 0 .and. trim(cumulus) == 'deep') &
-         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte &
-                             ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec,precip_rescaled )
+         call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte     &
+                             ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec,precip_rescaled &
+                             ,overshoot_rescaled )
       !
       !-- get the pickup of ensemble ave prec, following Neelin et al 2009.
       if( use_cwv_ctrl_entr == 1 .and. trim(cumulus) == 'deep') &
@@ -6676,7 +6678,7 @@ module module_cu_gf_monan
             !-- reduce entr rate, where cold pools exist
             do vtp_index = get_num_elements(vec_ok),1,-1
                i = get_data_value(vec_ok,vtp_index)
-                entr_rate(i) =             coldPoolStart     (x_add_buoy(i))  * entr_rate(i) 
+               entr_rate(i) = coldPoolStart(x_add_buoy(i))  * entr_rate(i) 
             enddo
       endif
 
@@ -10868,8 +10870,9 @@ module module_cu_gf_monan
 
       end subroutine reset_2d
 !---------------------------------------------------------------------------------------------!
-      subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte &
-                                ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec,precip_rescaled)
+      subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte    &
+                                ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec,precip_rescaled &
+                                ,overshoot_rescaled)
       implicit none
       character *(*)  ,intent (in) :: cumulus
       integer         ,intent (in) :: itf,ktf,its,ite, kts,kte
@@ -10880,7 +10883,7 @@ module module_cu_gf_monan
       real,    dimension (:,:),intent (in   ) :: us,vs,zo,po,qo,po_cup
 
       integer, dimension (:)  ,intent (inout) :: ierr
-      real,    dimension (:)  ,intent (inout) :: entr_rate,precip_rescaled
+      real,    dimension (:)  ,intent (inout) :: entr_rate,precip_rescaled,overshoot_rescaled
       real,    dimension (:)  ,intent (out  ) :: vshear,var2d2
 
       !- local var
@@ -10900,7 +10903,8 @@ module module_cu_gf_monan
 
       ! for use_shear_ctrl_entr == 1 or 2
      !real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 1.0
-      real,    parameter :: center = 14.0, width2 = 20.0, sharpness = 5.0
+     !real,    parameter :: center = 14.0, width2 = 20.0, sharpness = 5.0
+      real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 5.0
 
       integer :: i,k,k650,k850
       real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp
@@ -10934,9 +10938,13 @@ module module_cu_gf_monan
       if( use_shear_ctrl_entr == 2 ) then
          do i=its,itf
            scale_factor(i) = 1.0 + tanh(sharpness * (vshear(i) - center) / width2)
-           scale_factor(i) = max(0.5, min(0.85/scale_factor(i),1.))
-           var2d2(i)       = scale_factor(i)
-           entr_rate(i)    = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+          !scale_factor(i) = max(0.5, min(0.85/scale_factor(i),1.))
+           scale_factor(i) = max(0.20, min(0.50/scale_factor(i),1.)) !v2
+          ! scale_factor(i) = max(0.05, min(0.30/scale_factor(i),1.)) ! v3
+
+           var2d2(i)             = scale_factor(i)
+           entr_rate(i)          = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+           overshoot_rescaled(i) = max(0.1,scale_factor(i)*overshoot_rescaled(i))
          enddo
       endif
       if( use_shear_ctrl_entr == 20 ) then

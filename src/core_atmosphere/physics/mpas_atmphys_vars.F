@@ -492,6 +492,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
+
 !... SHOCMF PBL scheme (module_bl_shocmf.F):
  real(kind=RKIND),dimension(:,:),allocatable:: &
     mf_dry_freq_p,      &!frequency of dry plume activation                                                    [-]

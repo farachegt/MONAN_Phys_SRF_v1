@@ -120,6 +120,7 @@
 
     case("bl_shocmf")
         if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
+
     case default
 
  end select pbl_select
@@ -192,6 +193,7 @@
  pbl_select: select case (trim(pbl_scheme))
     case("bl_mynn")
        if(allocated(ni_p)) deallocate(ni_p)
+
     case("bl_shocmf")
         if(allocated(tke_shmf_p)) deallocate(tke_shmf_p)
 

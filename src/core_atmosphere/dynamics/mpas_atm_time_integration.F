@@ -1117,7 +1117,7 @@ module atm_time_integration
                if (index_tke_shmf > 0) then
                   scalars_driving(index_tke_shmf,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'tke_shmf', rk_timestep(rk_step) )
                end if
-                
+
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
