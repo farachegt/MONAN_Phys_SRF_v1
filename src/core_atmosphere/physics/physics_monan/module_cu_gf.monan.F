@@ -1002,11 +1002,10 @@ module module_cu_gf_monan
             !-- set the temp and water vapor anomalies from the sub-grid scale variability 
             call set_Tq_pertub (use_excess,its,ite,itf,xlandi,ztexec,zqexec,cum_ztexec,cum_zqexec)
             !
-            call CUP_GF(its,ite,kts,kte, itf,ktf, mtp, nmp, FSCAV  &
+            call CUP_GF(its,ite,kts,kte, itf,ktf, mtp, FSCAV  &
                         ,cumulus_type  (plume)            &
                         ,closure_choice(plume)            &
                         ,cum_entr_rate (plume)            &
-                        ,cum_use_excess(plume)            &
                         !- input data
                         ,dx2d          (:,j)              &
                         ,stochastic_sig(:,j)              &
@@ -1463,12 +1462,11 @@ module module_cu_gf_monan
    end subroutine cu_gf_monan_driver
    !---------------------------------------------------------------------------------------------------
 
-   subroutine CUP_GF (its,ite,kts,kte ,itf,ktf, mtp, nmp &
+   subroutine CUP_GF (its,ite,kts,kte ,itf,ktf, mtp &
                      ,fscav             &
                      ,cumulus           &
                      ,ichoice           &
                      ,entr_rate_input   &
-                     ,use_excess        &
                      !input data
                      ,dx                &
                      ,stochastic_sig    &
@@ -1567,7 +1565,7 @@ module module_cu_gf_monan
       implicit none
 
       character*(*),intent(in) :: cumulus
-      integer      ,intent(in) :: itf,ktf,its,ite,kts,kte,ichoice,use_excess,mtp, nmp
+      integer      ,intent(in) :: itf,ktf,its,ite,kts,kte,ichoice,mtp
       integer      ,intent(inout),  dimension (:) ::   kpbl
       !
       ! outtem = output temp tendency (per s)
@@ -10900,31 +10898,46 @@ module module_cu_gf_monan
       real,    parameter :: Pmax = 27.0
       real,    parameter :: rmin=12.0,rmax=33.0,xc=15.0,yc=50.0,alpha2=0.2,beta2=0.2
       real,    parameter :: p850  = 850.  ! lower level of shear calculation
+      real,    parameter :: p490  = 490.  ! upper level of shear calculation
+      real,    parameter :: p550  = 550.  ! upper level of shear calculation
 
       ! for use_shear_ctrl_entr == 1 or 2
-     !real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 1.0
-     !real,    parameter :: center = 14.0, width2 = 20.0, sharpness = 5.0
-      real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 5.0
+     !real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 5.0 ! ver 1.6.3
+      real,    parameter :: center = 20.0, width2 = 20.0, sharpness = 5.0 ! 
 
-      integer :: i,k,k650,k850
-      real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp
+      integer :: i,k,k650,k850,k490,k2,k1
+      real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp,u490,v490, u2,v2,u1,v1,p2
       real,    dimension (its:itf) :: scale_factor,w_col
       
       !scale_factor = 1.0
       if( use_shear_ctrl_entr <= 2 ) then
          do i=its,itf 
-           k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
-           !-- v1 
+           !-- v1
+           !k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
            !u650 = sqrt(us(k650,i)*us(k650,i) + vs(k650,i)*vs(k650,i))
            !u975 = sqrt(us(k975,i)*us(k975,i) + vs(k975,i)*vs(k975,i))
            !vshear(i) = abs(u650-u975)
-           !print*,'A',po(k650,i),po(k975,i),vshear(i)
 
-           !-- v2
-           u650 = us(k650,i) ; v650 = vs(k650,i)
-           u975 = us(k975,i) ; v975 = vs(k975,i)
-           vshear(i) = sqrt( (u650-u975)**2 + (v650-v975)**2 )
-           !print*,'B',po(k650,i),po(k975,i),vshear(i)
+           !-- v2 ver 1.6.3
+           !k650 = minloc( abs(po(kts:ktf,i)-p650),1 )
+           !u650 = us(k650,i) ; v650 = vs(k650,i)
+           !u975 = us(k975,i) ; v975 = vs(k975,i)
+           !vshear(i) = sqrt( (u650-u975)**2 + (v650-v975)**2 )
+
+           !-- v3
+           !k490 = minloc( abs(po(kts:ktf,i)-p490),1 )
+           !u490 = us(k490,i) ; v490 = vs(k490,i)
+           !u975 = us(k975,i) ; v975 = vs(k975,i)
+           !vshear(i) = sqrt( (u490-u975)**2 + (v490-v975)**2 )
+           
+           !-- v4
+           k1 = k975
+           u1 = us(k1,i) ; v1 = vs(k1,i)
+           p2 = p550
+           k2 = minloc( abs(po(kts:ktf,i)-p2),1 )
+           u2 = us(k2,i) ; v2 = vs(k2,i)
+           vshear(i) = sqrt( (u2-u1)**2 + (v2-v1)**2 )
+                      
          enddo
       endif   
       if( use_shear_ctrl_entr == 1 ) then
@@ -10938,9 +10951,8 @@ module module_cu_gf_monan
       if( use_shear_ctrl_entr == 2 ) then
          do i=its,itf
            scale_factor(i) = 1.0 + tanh(sharpness * (vshear(i) - center) / width2)
-          !scale_factor(i) = max(0.5, min(0.85/scale_factor(i),1.))
-           scale_factor(i) = max(0.20, min(0.50/scale_factor(i),1.)) !v2
-          ! scale_factor(i) = max(0.05, min(0.30/scale_factor(i),1.)) ! v3
+          !scale_factor(i) = max(0.20, min(0.50/scale_factor(i),1.)) !ver 1.6.3
+           scale_factor(i) = max(0.10, min(0.20/scale_factor(i),1.))
 
            var2d2(i)             = scale_factor(i)
            entr_rate(i)          = max(scale_factor(i)*entr_rate(i), min_entr_rate)
