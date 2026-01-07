@@ -177,7 +177,7 @@ real function MurphyKoop_svp(t, i_type)
 
        write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
             i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
-       stop err_msg
+       stop 'Error: Either MurphyKoop'
     endif
 
     return
@@ -2983,9 +2983,9 @@ subroutine shoc_assumed_pdf(&
   w_thresh=0.0_rtype
 
   ! Initialize cloud variables to zero
-  shoc_cldfrac(:,:)=0._rtype
-  shoc_ql(:,0)=0._rtype
-  shoc_ql2(:,:) = 0._rtype
+  shoc_cldfrac(:,:) = 0._rtype
+  shoc_ql     (:,:) = 0._rtype
+  shoc_ql2    (:,:) = 0._rtype
 
   ! Interpolate many variables from interface grid to themo grid
   call linear_interp(zi_grid,zt_grid,w3,w3_zt,nlevi,nlev,shcol,largeneg)

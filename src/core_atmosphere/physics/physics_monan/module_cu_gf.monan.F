@@ -1007,6 +1007,8 @@ module module_cu_gf_monan
                         ,closure_choice(plume)            &
                         ,cum_entr_rate (plume)            &
                         !- input data
+                        ,mpas_cape     (:,j)              &
+                        ,mpas_cin      (:,j)              &
                         ,dx2d          (:,j)              &
                         ,stochastic_sig(:,j)              &
                         ,col_sat       (:,j)              &
@@ -1468,6 +1470,8 @@ module module_cu_gf_monan
                      ,ichoice           &
                      ,entr_rate_input   &
                      !input data
+                     ,mpas_cape         &
+                     ,mpas_cin          &
                      ,dx                &
                      ,stochastic_sig    &
                      ,col_sat           &
@@ -1589,7 +1593,9 @@ module module_cu_gf_monan
                                                    ,h_sfc_flux,le_sfc_flux,tsur,dx &
                                                    ,zlcl_sfc
 
-      real,    dimension (:)    ,intent (in   )  :: col_sat,stochastic_sig,tke_pbl
+      real,    dimension (:)    ,intent (in   )  :: col_sat,stochastic_sig,tke_pbl &
+                                                   ,mpas_cape,mpas_cin
+
       real,    dimension (:)    ,intent (inout)  :: zws,ztexec,zqexec,wlpool
       real                      ,intent (in   )  :: dtime,entr_rate_input
       real,    dimension (:,:,:),intent (inout)  :: mpqi,mpql,mpcf
@@ -1881,7 +1887,7 @@ module module_cu_gf_monan
       if( use_shear_ctrl_entr >= 0 .and. trim(cumulus) == 'deep') &
          call get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte     &
                              ,min_entr_rate,entr_rate, vshear2,var2d2,qo,x_add_buoy,zqexec,precip_rescaled &
-                             ,overshoot_rescaled )
+                             ,overshoot_rescaled,mpas_cape,mpas_cin)
       !
       !-- get the pickup of ensemble ave prec, following Neelin et al 2009.
       if( use_cwv_ctrl_entr == 1 .and. trim(cumulus) == 'deep') &
@@ -4243,8 +4249,9 @@ module module_cu_gf_monan
                
                aa0(i)=aa0(i)+0.5*(daa1+daa2)
             enddo
-            ! print*,trim(integ_interval),AA0(I),kbcon(i)
+
       enddo
+      !print*,trim(integ_interval),maxval(AA0),minval(AA0)
    end subroutine cup_up_cape_cin
    !------------------------------------------------------------------------------------
    subroutine cup_cloud_limits(cumulus,ierrc,ierr,cap_inc,cap_max_in,heo_cup,heso_cup,qo_cup &
@@ -10870,14 +10877,14 @@ module module_cu_gf_monan
 !---------------------------------------------------------------------------------------------!
       subroutine get_entr_vshear(cumulus,ierr,us,vs,zo,ktop,kbcon,klcl,po,po_cup,itf,ktf,its,ite, kts,kte    &
                                 ,min_entr_rate,entr_rate, vshear,var2d2,qo,x_add_buoy,zqexec,precip_rescaled &
-                                ,overshoot_rescaled)
+                                ,overshoot_rescaled,mpas_cape,mpas_cin)
       implicit none
       character *(*)  ,intent (in) :: cumulus
       integer         ,intent (in) :: itf,ktf,its,ite, kts,kte
       !
       integer, dimension (:)  ,intent (in   ) :: ktop,kbcon,klcl
       real,                    intent(in    ) :: min_entr_rate
-      real,    dimension (:)  ,intent (in   ) :: x_add_buoy,zqexec
+      real,    dimension (:)  ,intent (in   ) :: x_add_buoy,zqexec,mpas_cape,mpas_cin
       real,    dimension (:,:),intent (in   ) :: us,vs,zo,po,qo,po_cup
 
       integer, dimension (:)  ,intent (inout) :: ierr
@@ -10904,9 +10911,12 @@ module module_cu_gf_monan
       ! for use_shear_ctrl_entr == 1 or 2
      !real,    parameter :: center = 12.0, width2 = 20.0, sharpness = 5.0 ! ver 1.6.3
       real,    parameter :: center = 20.0, width2 = 20.0, sharpness = 5.0 ! 
+      
+      ! for use_shear_ctrl_entr == 5
+      real,    parameter :: disc_crit = 19691164.
 
       integer :: i,k,k650,k850,k490,k2,k1
-      real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp,u490,v490, u2,v2,u1,v1,p2
+      real    :: u650, u975, v650, v975, H, u850,sigx,sigy,x,y,dp,u490,v490, u2,v2,u1,v1,p2,disc
       real,    dimension (its:itf) :: scale_factor,w_col
       
       !scale_factor = 1.0
@@ -11012,6 +11022,25 @@ module module_cu_gf_monan
                var2d2(:)       = scale_factor(:)  !--- for output only
         endif
       endif
+
+      if( use_shear_ctrl_entr == 5 ) then
+            do i=its,itf 
+              k1 = k975
+              u1 = us(k1,i) ; v1 = vs(k1,i)
+              p2 = p550
+              k2 = minloc( abs(po(kts:ktf,i)-p2),1 )
+              u2 = us(k2,i) ; v2 = vs(k2,i)
+              vshear(i) = sqrt( (u2-u1)**2 + (v2-v1)**2 )
+            enddo
+            do i=its,itf
+                 disc                  = max(1.0, mpas_cape(i)*vshear(i)**4.10)
+                 scale_factor(i)       = max(min(1., 1.0/(disc/disc_crit)),0.1)
+                 entr_rate(i)          = max(scale_factor(i)*entr_rate(i), min_entr_rate)
+                 overshoot_rescaled(i) = max(0.1,scale_factor(i)*overshoot_rescaled(i))
+                 var2d2(i)             = scale_factor(i) !--- for output only
+            enddo
+            !print*,'DISC',maxval(scale_factor),minval(scale_factor)          
+      endif 
 
       end subroutine get_entr_vshear
 !---------------------------------------------------------------------------------------------!
