@@ -923,7 +923,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme,config_pbl_scheme
- integer,pointer:: index_tke_shmf
  integer,dimension(:),pointer:: kpbl,k22_shallow,kbcon_shallow,ktop_shallow,ktop_deep
  real(kind=RKIND),dimension(:),pointer  :: areaCell,meshDensity
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv,wlpool,lightn_dens,sigma_deep
@@ -939,8 +938,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rthdynten,rthratenlw,rthratensw
  real(kind=RKIND),dimension(:,:),pointer:: rqvblten,rqvdynten,rucuten,rvcuten
  real(kind=RKIND),dimension(:,:),pointer:: rcnvcfcuten, rbuoyxcuten
- real(kind=RKIND),dimension(:,:),pointer:: tke_shmf
- real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+ real(kind=RKIND),dimension(:,:),pointer:: shoc_mix
 
 !local variables:
  integer:: i,j,k
@@ -1072,14 +1070,14 @@
                enddo
          end if
          if (trim(config_pbl_scheme) == "bl_shocmf") then
-            call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
-            call mpas_pool_get_array(state,'scalars',scalars,time_lev)
-            tke_shmf => scalars(index_tke_shmf,:,:)
+            call mpas_pool_get_array(diag_physics,'tke_pbl' , tke_pbl )
+            call mpas_pool_get_array(diag_physics,'shoc_mix', shoc_mix)
+
             do j = jts,jte
             do i = its,ite               
                do k = kts,kte
-                  tkepbl_p(i,k,j) = max(0.,tke_shmf(k,i))
-                  elpbl_p(i,k,j)  = 0.0                  
+                  tkepbl_p(i,k,j) = tke_pbl(k,i)
+                  elpbl_p(i,k,j)  = shoc_mix(k,i)                
                enddo
             enddo
             enddo
