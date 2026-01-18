@@ -2920,7 +2920,7 @@
 
                 <var name="cda" type="real" dimensions="nCells Time" units="unitless"
                      description="drag coefficient at lowest model level"
-                     packages="bl_shocmf_in;bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="chs" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat and moisture"
@@ -2960,7 +2960,7 @@
 
                 <var name="lh" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="latent heat flux at the surface"
-                     packages="bl_shocmf_in;bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="psim" type="real" dimensions="nCells Time" units="unitless"
                      description="similarity stability function for momentum"
