@@ -9,7 +9,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
 
  contains
 
@@ -633,6 +633,7 @@ module module_bl_shocmf
     rthblten_p,               &
     rqvblten_p,               &
     rqcblten_p,               &
+    rqiblten_p,               &
     rtkeblten_p,              &
     ims, ime,                 &
     jms, jme,                 &
@@ -670,7 +671,23 @@ module module_bl_shocmf
                                                       ustar_p,            &
                                                       wspd_p
     integer, dimension(:,:), intent(inout) :: kpbl_p
-    real(kind=RKIND),dimension(:,:,:), intent(inout) :: rino_p,           &
+    real(kind=RKIND),dimension(:,:,:), intent(in) :: theta_p,                &
+                                                    z_p,                     &
+                                                    zmid_p,                  &
+                                                    pres_p,                  &
+                                                    pres2_p,                 &
+                                                    w_p,                     &
+                                                    tke_shmf_p,              &
+                                                    u_p,                     &
+                                                    v_p,                     &
+                                                    qc_p,                    &
+                                                    qv_p,                    &
+                                                    t_p,                     &
+                                                    rho_p
+
+    real(kind=RKIND),dimension(:,:,:), intent(inout) :: kzh_p,            &
+                                                        kzm_p,            &
+                                                        rino_p,           &
                                                         shoc_mix_p,       &
                                                         isotropy_p,       &
                                                         tke_dissip_p,     &
@@ -719,43 +736,26 @@ module module_bl_shocmf
                                                         wqw_sec_ed_p,     &
                                                         wqw_sec_mf_p,     &
                                                         dse_p,            &
-                                                        u_p,              &
-                                                        v_p,              &
                                                         wthv_sec_p,       &
-                                                        tke_shmf_p,       &
-                                                        kzh_p,            &
-                                                        kzm_p,            &
-                                                        qc_p,             &
                                                         cldfrabl_p,       &
-                                                        theta_p,          &
-                                                        t_p,              &
-                                                        z_p,              &
-                                                        zmid_p,           &
-                                                        pres_p,           &
-                                                        pres2_p,          &
-                                                        w_p,              &
-                                                        qv_p,             &
-                                                        rho_p,            &
                                                         rublten_p,        &
                                                         rvblten_p,        &
                                                         rthblten_p,       &
                                                         rqvblten_p,       &
                                                         rtkeblten_p,      &
+                                                        rqiblten_p,       &
                                                         rqcblten_p
+
+
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p,         &
                                                        thetal_p,           &
                                                        qtracers,           &
                                                        height_interface_p, &
                                                        height_mid_p
-    real(kind=RKIND), dimension(:,:,:), allocatable :: um_p,               &
-                                                       vm_p,               &
-                                                       thetam_p,           &
-                                                       qvm_p,              &
-                                                       qcm_p,              &
-                                                       tkem_p,             &
-                                                       w_zt
+    real(kind=RKIND), dimension(:,:,:), allocatable :: w_zt
     real(kind=RKIND), dimension(:,:,:), allocatable :: inv_exner_p,        &
+                                                       inv_exner_interface_p, &
                                                        rho_interface_p,    &
                                                        thv_p
     real(kind=RKIND), dimension(:,:,:), allocatable :: qw_p
@@ -764,375 +764,17 @@ module module_bl_shocmf
                                                        hfx_converted_p,    &
                                                        lh_converted_p,     &
                                                        phis_p
+    real(kind=RKIND), dimension(:,:,:), allocatable :: qv_aux,            &
+                                                       qc_aux,            &
+                                                       u_aux,             &
+                                                       v_aux,             &
+                                                       theta_aux,         &
+                                                       tke_aux,           &
+                                                       pres_aux,          &
+                                                       pres2_aux
 
     integer :: num_qtracers, nadv, i, j, k
     real(kind=RKIND) :: shoc_timestep
-
-    ! do i = ims, ime
-    ! do j = jms, jme
-    !     tke_shmf_p(i,kme,j) = 0.0_RKIND
-    !     qc_p(i,kme,j) = 0.0_RKIND
-    !     qv_p(i,kme,j) = 0.0_RKIND
-    !     rino_p(i,kme,j) = 0.0_RKIND
-    !     shoc_mix_p(i,kme,j) = 0.0_RKIND
-    !     isotropy_p(i,kme,j) = 0.0_RKIND
-    !     tke_dissip_p(i,kme,j) = 0.0_RKIND
-    !     tke_prod_b_p(i,kme,j) = 0.0_RKIND
-    !     tke_prod_sh_p(i,kme,j) = 0.0_RKIND
-    !     w_sec_p(i,kme,j) = 0.0_RKIND
-    !     thl_sec_p(i,kme,j) = 0.0_RKIND
-    !     qw_sec_p(i,kme,j) = 0.0_RKIND
-    !     qwthl_sec_p(i,kme,j) = 0.0_RKIND
-    !     wthl_sec_p(i,kme,j) = 0.0_RKIND
-    !     wqw_sec_p(i,kme,j) = 0.0_RKIND
-    !     wtke_sec_p(i,kme,j) = 0.0_RKIND
-    !     uw_sec_p(i,kme,j) = 0.0_RKIND
-    !     vw_sec_p(i,kme,j) = 0.0_RKIND
-    !     w3_p(i,kme,j) = 0.0_RKIND
-    !     wqls_sec_p(i,kme,j) = 0.0_RKIND
-    !     brunt_p(i,kme,j) = 0.0_RKIND
-    !     shoc_ql2_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_a_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_a_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_w_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_w_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_qt_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_qt_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_thl_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_thl_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_u_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_u_p(i,kme,j) = 0.0_RKIND
-    !     mf_dry_v_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_v_p(i,kme,j) = 0.0_RKIND
-    !     mf_moist_qc_p(i,kme,j) = 0.0_RKIND
-    !     mf_thlflx_p(i,kme,j) = 0.0_RKIND
-    !     mf_qtflx_p(i,kme,j) = 0.0_RKIND
-    !     mf_ae_p(i,kme,j) = 0.0_RKIND
-    !     mf_aw_p(i,kme,j) = 0.0_RKIND
-    !     mf_awthv_p(i,kme,j) = 0.0_RKIND
-    !     mf_awthl_p(i,kme,j) = 0.0_RKIND
-    !     mf_awqt_p(i,kme,j) = 0.0_RKIND
-    !     mf_awql_p(i,kme,j) = 0.0_RKIND
-    !     mf_awqi_p(i,kme,j) = 0.0_RKIND
-    !     mf_awu_p(i,kme,j) = 0.0_RKIND
-    !     mf_awv_p(i,kme,j) = 0.0_RKIND
-    !     cfl_mf_p(i,kme,j) = 0.0_RKIND
-    !     wthl_sec_ed_p(i,kme,j) = 0.0_RKIND
-    !     wthl_sec_mf_p(i,kme,j) = 0.0_RKIND
-    !     wqw_sec_ed_p(i,kme,j) = 0.0_RKIND
-    !     wqw_sec_mf_p(i,kme,j) = 0.0_RKIND
-    !     kzh_p(i,kme,j) = 0.0_RKIND
-    !     kzm_p(i,kme,j) = 0.0_RKIND
-    !     u_p(i,kme,j) = 0.0_RKIND
-    !     v_p(i,kme,j) = 0.0_RKIND
-    !     theta_p(i,kme,j) = 0.0_RKIND
-    !     t_p(i,kme,j) = 0.0_RKIND
-    !     rho_p(i,kme,j) = 0.0_RKIND
-    !     z_p(i,kme,j) = 0.0_RKIND
-    !     zmid_p(i,kme,j) = 0.0_RKIND
-    !     pres_p(i,kme,j) = 0.0_RKIND
-    !     pres2_p(i,kme,j) = 0.0_RKIND
-    !     w_p(i,kme,j) = 0.0_RKIND
-    !     dse_p(i,kme,j) = 0.0_RKIND
-    !     cldfrabl_p(i,kme,j) = 0.0_RKIND
-    !     rublten_p(i,kme,j) = 0.0_RKIND
-    !     rvblten_p(i,kme,j) = 0.0_RKIND
-    !     rthblten_p(i,kme,j) = 0.0_RKIND
-    !     rqvblten_p(i,kme,j) = 0.0_RKIND
-    !     rqcblten_p(i,kme,j) = 0.0_RKIND
-    !     rtkeblten_p(i,kme,j) = 0.0_RKIND
-    ! enddo
-    ! enddo
-
-    ! ! The code was compiled with -finit-integer=-999999 -finit-real=nan flags, check if there is any variable with this values, indicating that it wasn't initialized correctly
-    ! ! Check for uninitialized values in integer and real variables
-    ! do i = ims, ime
-    ! do j = jms, jme
-    ! do k = kms, kme
-    !     if ((isnan(rino_p(i,k,j)) .or. rino_p(i,k,j) /= rino_p(i,k,j))) then
-    !         print *, 'Warning: rino_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(shoc_mix_p(i,k,j)) .or. shoc_mix_p(i,k,j) /= shoc_mix_p(i,k,j))) then
-    !         print *, 'Warning: shoc_mix_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(isotropy_p(i,k,j)) .or. isotropy_p(i,k,j) /= isotropy_p(i,k,j))) then
-    !         print *, 'Warning: isotropy_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_dissip_p(i,k,j)) .or. tke_dissip_p(i,k,j) /= tke_dissip_p(i,k,j))) then
-    !         print *, 'Warning: tke_dissip_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_prod_b_p(i,k,j)) .or. tke_prod_b_p(i,k,j) /= tke_prod_b_p(i,k,j))) then
-    !         print *, 'Warning: tke_prod_b_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_prod_sh_p(i,k,j)) .or. tke_prod_sh_p(i,k,j) /= tke_prod_sh_p(i,k,j))) then   
-    !         print *, 'Warning: tke_prod_sh_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w_sec_p(i,k,j)) .or. w_sec_p(i,k,j) /= w_sec_p(i,k,j))) then
-    !         print *, 'Warning: w_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(thl_sec_p(i,k,j)) .or. thl_sec_p(i,k,j) /= thl_sec_p(i,k,j))) then
-    !         print *, 'Warning: thl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qw_sec_p(i,k,j)) .or. qw_sec_p(i,k,j) /= qw_sec_p(i,k,j))) then
-    !         print *, 'Warning: qw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qwthl_sec_p(i,k,j)) .or. qwthl_sec_p(i,k,j) /= qwthl_sec_p(i,k,j))) then
-    !         print *, 'Warning: qwthl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_p(i,k,j)) .or. wthl_sec_p(i,k,j) /= wthl_sec_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_p(i,k,j)) .or. wqw_sec_p(i,k,j) /= wqw_sec_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wtke_sec_p(i,k,j)) .or. wtke_sec_p(i,k,j) /= wtke_sec_p(i,k,j))) then
-    !         print *, 'Warning: wtke_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(uw_sec_p(i,k,j)) .or. uw_sec_p(i,k,j) /= uw_sec_p(i,k,j))) then
-    !         print *, 'Warning: uw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(vw_sec_p(i,k,j)) .or. vw_sec_p(i,k,j) /= vw_sec_p(i,k,j))) then
-    !         print *, 'Warning: vw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w3_p(i,k,j)) .or. w3_p(i,k,j) /= w3_p(i,k,j))) then
-    !         print *, 'Warning: w3_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqls_sec_p(i,k,j)) .or. wqls_sec_p(i,k,j) /= wqls_sec_p(i,k,j))) then
-    !         print *, 'Warning: wqls_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(brunt_p(i,k,j)) .or. brunt_p(i,k,j) /= brunt_p(i,k,j))) then
-    !         print *, 'Warning: brunt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(shoc_ql2_p(i,k,j)) .or. shoc_ql2_p(i,k,j) /= shoc_ql2_p(i,k,j))) then
-    !         print *, 'Warning: shoc_ql2_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_a_p(i,k,j)) .or. mf_dry_a_p(i,k,j) /= mf_dry_a_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_a_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_a_p(i,k,j)) .or. mf_moist_a_p(i,k,j) /= mf_moist_a_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_a_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_w_p(i,k,j)) .or. mf_dry_w_p(i,k,j) /= mf_dry_w_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_w_p(i,k,j)) .or. mf_moist_w_p(i,k,j) /= mf_moist_w_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_qt_p(i,k,j)) .or. mf_dry_qt_p(i,k,j) /= mf_dry_qt_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_qt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_qt_p(i,k,j)) .or. mf_moist_qt_p(i,k,j) /= mf_moist_qt_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_qt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_thl_p(i,k,j)) .or. mf_dry_thl_p(i,k,j) /= mf_dry_thl_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_thl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_thl_p(i,k,j)) .or. mf_moist_thl_p(i,k,j) /= mf_moist_thl_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_thl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_u_p(i,k,j)) .or. mf_dry_u_p(i,k,j) /= mf_dry_u_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_u_p(i,k,j)) .or. mf_moist_u_p(i,k,j) /= mf_moist_u_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_v_p(i,k,j)) .or. mf_dry_v_p(i,k,j) /= mf_dry_v_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_v_p(i,k,j)) .or. mf_moist_v_p(i,k,j) /= mf_moist_v_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_qc_p(i,k,j)) .or. mf_moist_qc_p(i,k,j) /= mf_moist_qc_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_qc_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_thlflx_p(i,k,j)) .or. mf_thlflx_p(i,k,j) /= mf_thlflx_p(i,k,j))) then
-    !         print *, 'Warning: mf_thlflx_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_qtflx_p(i,k,j)) .or. mf_qtflx_p(i,k,j) /= mf_qtflx_p(i,k,j))) then
-    !         print *, 'Warning: mf_qtflx_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_ae_p(i,k,j)) .or. mf_ae_p(i,k,j) /= mf_ae_p(i,k,j))) then
-    !         print *, 'Warning: mf_ae_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_aw_p(i,k,j)) .or. mf_aw_p(i,k,j) /= mf_aw_p(i,k,j))) then
-    !         print *, 'Warning: mf_aw_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awthv_p(i,k,j)) .or. mf_awthv_p(i,k,j) /= mf_awthv_p(i,k,j))) then
-    !         print *, 'Warning: mf_awthv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awthl_p(i,k,j)) .or. mf_awthl_p(i,k,j) /= mf_awthl_p(i,k,j))) then
-    !         print *, 'Warning: mf_awthl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awqt_p(i,k,j)) .or. mf_awqt_p(i,k,j) /= mf_awqt_p(i,k,j))) then
-    !         print *, 'Warning: mf_awqt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awql_p(i,k,j)) .or. mf_awql_p(i,k,j) /= mf_awql_p(i,k,j))) then
-    !         print *, 'Warning: mf_awql_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awqi_p(i,k,j)) .or. mf_awqi_p(i,k,j) /= mf_awqi_p(i,k,j))) then
-    !         print *, 'Warning: mf_awqi_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awu_p(i,k,j)) .or. mf_awu_p(i,k,j) /= mf_awu_p(i,k,j))) then
-    !         print *, 'Warning: mf_awu_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awv_p(i,k,j)) .or. mf_awv_p(i,k,j) /= mf_awv_p(i,k,j))) then
-    !         print *, 'Warning: mf_awv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(cfl_mf_p(i,k,j)) .or. cfl_mf_p(i,k,j) /= cfl_mf_p(i,k,j))) then
-    !         print *, 'Warning: cfl_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_ed_p(i,k,j)) .or. wthl_sec_ed_p(i,k,j) /= wthl_sec_ed_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_ed_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_mf_p(i,k,j)) .or. wthl_sec_mf_p(i,k,j) /= wthl_sec_mf_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_ed_p(i,k,j)) .or. wqw_sec_ed_p(i,k,j) /= wqw_sec_ed_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_ed_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_mf_p(i,k,j)) .or. wqw_sec_mf_p(i,k,j) /= wqw_sec_mf_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthv_sec_p(i,k,j)) .or. wthv_sec_p(i,k,j) /= wthv_sec_p(i,k,j))) then
-    !         print *, 'Warning: wthv_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(kzh_p(i,k,j)) .or. kzh_p(i,k,j) /= kzh_p(i,k,j))) then
-    !         print *, 'Warning: kzh_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(kzm_p(i,k,j)) .or. kzm_p(i,k,j) /= kzm_p(i,k,j))) then
-    !         print *, 'Warning: kzm_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(u_p(i,k,j)) .or. u_p(i,k,j) /= u_p(i,k,j))) then
-    !         print *, 'Warning: u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(v_p(i,k,j)) .or. v_p(i,k,j) /= v_p(i,k,j))) then
-    !         print *, 'Warning: v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(theta_p(i,k,j)) .or. theta_p(i,k,j) /= theta_p(i,k,j))) then
-    !         print *, 'Warning: theta_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(t_p(i,k,j)) .or. t_p(i,k,j) /= t_p(i,k,j))) then
-    !         print *, 'Warning: t_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qv_p(i,k,j)) .or. qv_p(i,k,j) /= qv_p(i,k,j))) then
-    !         print *, 'Warning: qv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qc_p(i,k,j)) .or. qc_p(i,k,j) /= qc_p(i,k,j))) then
-    !         print *, 'Warning: qc_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rho_p(i,k,j)) .or. rho_p(i,k,j) /= rho_p(i,k,j))) then
-    !         print *, 'Warning: rho_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(z_p(i,k,j)) .or. z_p(i,k,j) /= z_p(i,k,j))) then
-    !         print *, 'Warning: z_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(zmid_p(i,k,j)) .or. zmid_p(i,k,j) /= zmid_p(i,k,j))) then
-    !         print *, 'Warning: zmid_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(pres_p(i,k,j)) .or. pres_p(i,k,j) /= pres_p(i,k,j))) then
-    !         print *, 'Warning: pres_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(pres2_p(i,k,j)) .or. pres2_p(i,k,j) /= pres2_p(i,k,j))) then
-    !         print *, 'Warning: pres2_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w_p(i,k,j)) .or. w_p(i,k,j) /= w_p(i,k,j))) then
-    !         print *, 'Warning: w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_shmf_p(i,k,j)) .or. tke_shmf_p(i,k,j) /= tke_shmf_p(i,k,j))) then
-    !         print *, 'Warning: tke_shmf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(dse_p(i,k,j)) .or. dse_p(i,k,j) /= dse_p(i,k,j))) then
-    !         print *, 'Warning: dse_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(cldfrabl_p(i,k,j)) .or. cldfrabl_p(i,k,j) /= cldfrabl_p(i,k,j))) then
-    !         print *, 'Warning: cldfrabl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rublten_p(i,k,j)) .or. rublten_p(i,k,j) /= rublten_p(i,k,j))) then
-    !         print *, 'Warning: rublten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rvblten_p(i,k,j)) .or. rvblten_p(i,k,j) /= rvblten_p(i,k,j))) then
-    !         print *, 'Warning: rvblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rthblten_p(i,k,j)) .or. rthblten_p(i,k,j) /= rthblten_p(i,k,j))) then
-    !         print *, 'Warning: rthblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rqvblten_p(i,k,j)) .or. rqvblten_p(i,k,j) /= rqvblten_p(i,k,j))) then
-    !         print *, 'Warning: rqvblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rqcblten_p(i,k,j)) .or. rqcblten_p(i,k,j) /= rqcblten_p(i,k,j))) then
-    !         print *, 'Warning: rqcblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rtkeblten_p(i,k,j)) .or. rtkeblten_p(i,k,j) /= rtkeblten_p(i,k,j))) then
-    !         print *, 'Warning: rtkeblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    ! end do
-    ! end do
-    ! end do
-
-    ! do i = ims, ime
-    ! do j = jms, jme
-    !     if (uw_sfc_p(i,j) /= uw_sfc_p(i,j) .or. vw_sfc_p(i,j) /= vw_sfc_p(i,j)) then
-    !         print *, 'Warning: uw_sfc_p or vw_sfc_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (hpbl_p(i,j) /= hpbl_p(i,j)) then
-    !         print *, 'Warning: hpbl_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (pblh_wthl_p(i,j) /= pblh_wthl_p(i,j)) then
-    !         print *, 'Warning: pblh_wthl_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (pblh_tke_p(i,j) /= pblh_tke_p(i,j)) then
-    !         print *, 'Warning: pblh_tke_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (mf_dry_freq_p(i,j) /= mf_dry_freq_p(i,j)) then
-    !         print *, 'Warning: mf_dry_freq_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (mf_moist_freq_p(i,j) /= mf_moist_freq_p(i,j)) then
-    !         print *, 'Warning: mf_moist_freq_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (plumeheight_p(i,j) /= plumeheight_p(i,j)) then
-    !         print *, 'Warning: plumeheight_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (plume_dry_height_p(i,j) /= plume_dry_height_p(i,j)) then
-    !         print *, 'Warning: plume_dry_height_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ustar_p(i,j) /= ustar_p(i,j)) then
-    !         print *, 'Warning: ustar_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (wspd_p(i,j) /= wspd_p(i,j)) then
-    !         print *, 'Warning: wspd_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ztop_b_p(i,j) /= ztop_b_p(i,j)) then
-    !         print *, 'Warning: ztop_b_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (dx_p(i,j) /= dx_p(i,j)) then
-    !         print *, 'Warning: dx_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (lh_p(i,j) /= lh_p(i,j)) then
-    !         print *, 'Warning: lh_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (hfx_p(i,j) /= hfx_p(i,j)) then
-    !         print *, 'Warning: hfx_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ht_p(i,j) /= ht_p(i,j)) then
-    !         print *, 'Warning: ht_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (kpbl_p(i,j) == -999999 .or. kpbl_p(i,j) /= kpbl_p(i,j)) then
-    !         print *, 'Warning: kpbl_p contains uninitialized value at (',i,j,')'
-    !     end if
-    !     if (itimestep == -999999 .or. itimestep /= itimestep) then
-    !         print *, 'Warning: itimestep contains uninitialized value'
-    !     end if
-    !     if (ims == -999999 .or. ime == -999999 .or. ims /= ims .or. ime /= ime) then
-    !         print *, 'Warning: ims or ime contains uninitialized value'
-    !     end if
-    !     if (jms == -999999 .or. jme == -999999 .or. jms /= jms .or. jme /= jme) then
-    !         print *, 'Warning: jms or jme contains uninitialized value'
-    !     end if
-    !     if (kms == -999999 .or. kme == -999999 .or. kms /= kms .or. kme /= kme) then
-    !         print *, 'Warning: kms or kme contains uninitialized value'
-    !     end if
-    ! end do
-    ! end do
 
     if (itimestep == 1) then
         wthv_sec_p(:,:,:)  = 0.0_RKIND
@@ -1148,30 +790,37 @@ module module_bl_shocmf
         isotropy_p(:,:,:)  = 0.0_RKIND
     end if
 
-
-
-    allocate(                                  &
-        um_p(ims:ime, kms:kme, jms:jme)      , &
-        vm_p(ims:ime, kms:kme, jms:jme)      , &
-        thetam_p(ims:ime, kms:kme, jms:jme)  , &
-        qvm_p(ims:ime, kms:kme, jms:jme)     , &
-        qcm_p(ims:ime, kms:kme, jms:jme)     , &
-        tkem_p(ims:ime, kms:kme, jms:jme)      &
+    allocate(                                 &
+        qv_aux(ims:ime, kms:kme, jms:jme),    &
+        qc_aux(ims:ime, kms:kme, jms:jme),    &
+        u_aux(ims:ime, kms:kme, jms:jme),     &
+        v_aux(ims:ime, kms:kme, jms:jme),     &
+        theta_aux(ims:ime, kms:kme, jms:jme), &
+        tke_aux(ims:ime, kms:kme, jms:jme),   &
+        pres_aux(ims:ime, kms:kme, jms:jme),  &
+        pres2_aux(ims:ime, kms:kme, jms:jme)  &
     )
-    ! Deep copying the input variables
-    um_p = u_p
-    vm_p = v_p
-    qvm_p = qv_p
-    qcm_p = qc_p
-    tkem_p = tke_shmf_p
-    thetam_p = theta_p
 
-    allocate(inv_exner_p(ims:ime, kms:kme, jms:jme))
+    ! Creating local copies of the input variables to avoid modifying them directly
+    qv_aux = qv_p
+    qc_aux = qc_p
+    u_aux  = u_p
+    v_aux  = v_p
+    theta_aux = theta_p
+    tke_aux = tke_shmf_p
+    pres_aux = pres_p
+    pres2_aux = pres2_p
+
+    allocate(inv_exner_p(ims:ime, kms:kme, jms:jme), inv_exner_interface_p(ims:ime, kms:kme, jms:jme))
     do i=ims,ime
-    do k=kms,kme-1
+    do k=kms,kme
     do j=jms,jme
-        inv_exner_p(i,k,j) = 1.0_RKIND/((pres_p(i,k,j)/p0_shoc)**(R_d/cp)) ! inv_exner_p = theta_p/t_p
-        tke_shmf_p(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
+        inv_exner_interface_p(i,k,j) = 1.0_RKIND/((pres2_p(i,k,j)/p0_shoc)**(R_d/cp))
+
+        if (k .ne. kme) then
+            inv_exner_p(i,k,j) = 1.0_RKIND/((pres_p(i,k,j)/p0_shoc)**(R_d/cp)) ! inv_exner_p = theta_p/t_p
+            tke_aux(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
+        endif
     enddo
     enddo
     enddo
@@ -1180,16 +829,16 @@ module module_bl_shocmf
     dy_p = dx_p ! Assuming dx_p is the same for both x and y directions
 
     allocate(thv_p(ims:ime, kms:kme, jms:jme))
-    call calculate_thetav(ims, ime, jms, jme, kms, kme, theta_p, qv_p, qc_p, thv_p)
+    call calculate_thetav(ims, ime, jms, jme, kms, kme, theta_aux, qv_aux, qc_aux, thv_p)
 
     allocate(thetal_p(ims:ime, kms:kme, jms:jme))
-    call calculate_thetal(ims, ime, jms, jme, kms, kme, cp, xlv, theta_p, qc_p, inv_exner_p, thetal_p)
+    call calculate_thetal(ims, ime, jms, jme, kms, kme, cp, xlv, theta_aux, qc_aux, inv_exner_p, thetal_p)
 
     allocate(presdiff_p(ims:ime, kms:kme, jms:jme))
     call calculate_presdiff(ims, ime, kms, kme, jms, jme, pres2_p, presdiff_p)
 
     allocate(qw_p(ims:ime, kms:kme, jms:jme))
-    call calculate_qw(ims, ime, jms, jme, kms, kme, qc_p, qv_p, qw_p)
+    call calculate_qw(ims, ime, jms, jme, kms, kme, qc_aux, qv_aux, qw_p)
 
     allocate(height_interface_p(ims:ime, kms:kme, jms:jme), height_mid_p(ims:ime, kms:kme, jms:jme))
     call calculate_heights(ims, ime, kms, kme, jms, jme, z_p, zmid_p, height_interface_p, height_mid_p)
@@ -1210,7 +859,7 @@ module module_bl_shocmf
     allocate(hfx_converted_p(ims:ime, jms:jme), lh_converted_p(ims:ime, jms:jme), rho_interface_p(ims:ime, kms:kme, jms:jme))
     ! Get density on the interface grid
     call linear_interp(height_mid_p,height_interface_p,rho_p,rho_interface_p,kme-1,kme,ime,0.0_RKIND)
-    call convert_heat_fluxes(ims, ime, jms, jme, kms, hfx_p, lh_p, rho_interface_p, cp, xlv, inv_exner_p, hfx_converted_p, lh_converted_p)
+    call convert_heat_fluxes(ims, ime, jms, jme, kms, hfx_p, lh_p, rho_interface_p, cp, xlv, inv_exner_interface_p, hfx_converted_p, lh_converted_p)
 
     nadv = ceiling(dt_pbl/max_shoc_timestep)
     if (nadv .gt. 1) then
@@ -1286,24 +935,28 @@ module module_bl_shocmf
         wqw_sec_mf_p,                      &
         dse_p,                             &
         qw_p,                              &
-        u_p,                               &
-        v_p,                               &
+        u_aux,                             &
+        v_aux,                             &
         wthv_sec_p,                        &
-        tke_shmf_p,                        &
+        tke_aux,                           &
         kzh_p,                             &
         kzm_p,                             &
-        qc_p,                              &
+        qc_aux,                            &
         cldfrabl_p,                        &
         thv_p,                             &
         height_interface_p,                &
         height_mid_p,                      &
-        pres_p,                            &
-        pres2_p,                           &
+        pres_aux,                          &
+        pres2_aux,                         &
         w_zt,                              &
         inv_exner_p,                       &
         thetal_p,                          &
         presdiff_p                         &
     )
+    ! if (dminfo % my_proc_id == 1) then
+    !     print *, 'w_zt(1,:,1) after', w_zt(1,:,1)
+    ! endif
+
 
     ! As last position of the array is a extra position, to not letting a
     ! zero value, we are going to extrapolate it considering that
@@ -1323,8 +976,8 @@ module module_bl_shocmf
         thv_p(:ime,:kme-1,1),             & ! Input
         height_mid_p(:ime,:kme-1,1),      & ! Input
         height_interface_p(:ime,:kme,1),  & ! Input
-        pres_p(:ime,:kme-1,1),            & ! Input
-        pres2_p(:ime,:kme,1),             & ! Input
+        pres_aux(:ime,:kme-1,1),          & ! Input
+        pres2_aux(:ime,:kme,1),           & ! Input
         presdiff_p(:ime,:kme-1,1),        & ! Input
         hfx_converted_p(:ime,1),          & ! Input
         lh_converted_p(:ime,1),           & ! Input
@@ -1335,20 +988,20 @@ module module_bl_shocmf
         w_zt(:ime,:kme-1,1),              & ! Input
         inv_exner_p(:ime,:kme-1,1),       & ! Input
         phis_p(:ime,1),                   & ! Input
-        dse_p(:ime,:kme-1,1),             & ! Input
-        tke_shmf_p(:ime,:kme-1,1),        & ! Input/Output
+        dse_p(:ime,:kme-1,1),             & ! Input/Output
+        tke_aux(:ime,:kme-1,1),           & ! Input/Output
         thetal_p(:ime,:kme-1,1),          & ! Input/Output
         qw_p(:ime,:kme-1,1),              & ! Input/Output
-        u_p(:ime,:kme-1,1),               & ! Input/Output
-        v_p(:ime,:kme-1,1),               & ! Input/Output
+        u_aux(:ime,:kme-1,1),             & ! Input/Output
+        v_aux(:ime,:kme-1,1),             & ! Input/Output
         qtracers(:,:kme-1,:num_qtracers), & ! Input/Output
         wthv_sec_p(:ime,:kme-1,1),        & ! Input/Output
         kzh_p(:ime,:kme-1,1),             & ! Input/Output
         kzm_p(:ime,:kme-1,1),             & ! Input/Output
-        qc_p(:ime,:kme-1,1),              & ! Input/Output
+        qc_aux(:ime,:kme-1,1),            & ! Input/Output
         cldfrabl_p(:ime,:kme-1,1),        & ! Input/Output
-        hpbl_p(:ime,1),                   & ! Input/Output
-        pblh_wthl_p(:ime,1),              & ! Input/Output
+        hpbl_p(:ime,1),                   & ! Output
+        pblh_wthl_p(:ime,1),              & ! Output
         pblh_tke_p(:ime,1),               & ! Output
         rino_p(:ime,:kme-1,1),            & ! Output
         shoc_mix_p(:ime,:kme-1,1),        & ! Output
@@ -1458,19 +1111,19 @@ module module_bl_shocmf
         wqw_sec_mf_p,                      &
         dse_p,                             &
         qw_p,                              &
-        u_p,                               &
-        v_p,                               &
+        u_aux,                             &
+        v_aux,                             &
         wthv_sec_p,                        &
-        tke_shmf_p,                        &
+        tke_aux,                           &
         kzh_p,                             &
         kzm_p,                             &
-        qc_p,                              &
+        qc_aux,                            &
         cldfrabl_p,                        &
         thv_p,                             &
         height_interface_p,                &
         height_mid_p,                      &
-        pres_p,                            &
-        pres2_p,                           &
+        pres_aux,                          &
+        pres2_aux,                         &
         w_zt,                              &
         inv_exner_p,                       &
         thetal_p,                          &
@@ -1482,318 +1135,33 @@ module module_bl_shocmf
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_p, inv_exner_p, theta_p)
-    call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_p, qv_p)
+    call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_aux, inv_exner_p, theta_aux)
+    call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_aux, qv_aux)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
 
     ! Calculating tendencies
     do i=ims,ime
     do k=kms,kme-1
     do j=jms,jme
-        rublten_p(i,k,j)   = (u_p(i,k,j) - um_p(i,k,j))/dt_pbl
-        rvblten_p(i,k,j)   = (v_p(i,k,j) - vm_p(i,k,j))/dt_pbl
-        rthblten_p(i,k,j)  = (theta_p(i,k,j) - thetam_p(i,k,j))/dt_pbl
-        rqvblten_p(i,k,j)  = (qv_p(i,k,j) - qvm_p(i,k,j))/dt_pbl
-        rqcblten_p(i,k,j)  = (qc_p(i,k,j) - qcm_p(i,k,j))/dt_pbl
-        rtkeblten_p(i,k,j) = (tke_shmf_p(i,k,j) - tkem_p(i,k,j))/dt_pbl
+        rublten_p(i,k,j)   = (u_aux(i,k,j) - u_p(i,k,j))/dt_pbl
+        rvblten_p(i,k,j)   = (v_aux(i,k,j) - v_p(i,k,j))/dt_pbl
+        rthblten_p(i,k,j)  = (theta_aux(i,k,j) - theta_p(i,k,j))/dt_pbl
+        rqvblten_p(i,k,j)  = (qv_aux(i,k,j) - qv_p(i,k,j))/dt_pbl
+        rqcblten_p(i,k,j)  = (qc_aux(i,k,j) - qc_p(i,k,j))/dt_pbl
+        rtkeblten_p(i,k,j) = (tke_aux(i,k,j) - tke_shmf_p(i,k,j))/dt_pbl
     enddo
     enddo
     enddo
 
-    ! do i = ims, ime
-    ! do j = jms, jme
-    ! do k = kms, kme
-    !     if ((isnan(rino_p(i,k,j)) .or. rino_p(i,k,j) /= rino_p(i,k,j))) then
-    !         print *, 'Warning: rino_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(shoc_mix_p(i,k,j)) .or. shoc_mix_p(i,k,j) /= shoc_mix_p(i,k,j))) then
-    !         print *, 'Warning: shoc_mix_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(isotropy_p(i,k,j)) .or. isotropy_p(i,k,j) /= isotropy_p(i,k,j))) then
-    !         print *, 'Warning: isotropy_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_dissip_p(i,k,j)) .or. tke_dissip_p(i,k,j) /= tke_dissip_p(i,k,j))) then
-    !         print *, 'Warning: tke_dissip_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_prod_b_p(i,k,j)) .or. tke_prod_b_p(i,k,j) /= tke_prod_b_p(i,k,j))) then
-    !         print *, 'Warning: tke_prod_b_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_prod_sh_p(i,k,j)) .or. tke_prod_sh_p(i,k,j) /= tke_prod_sh_p(i,k,j))) then   
-    !         print *, 'Warning: tke_prod_sh_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w_sec_p(i,k,j)) .or. w_sec_p(i,k,j) /= w_sec_p(i,k,j))) then
-    !         print *, 'Warning: w_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(thl_sec_p(i,k,j)) .or. thl_sec_p(i,k,j) /= thl_sec_p(i,k,j))) then
-    !         print *, 'Warning: thl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qw_sec_p(i,k,j)) .or. qw_sec_p(i,k,j) /= qw_sec_p(i,k,j))) then
-    !         print *, 'Warning: qw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qwthl_sec_p(i,k,j)) .or. qwthl_sec_p(i,k,j) /= qwthl_sec_p(i,k,j))) then
-    !         print *, 'Warning: qwthl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_p(i,k,j)) .or. wthl_sec_p(i,k,j) /= wthl_sec_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_p(i,k,j)) .or. wqw_sec_p(i,k,j) /= wqw_sec_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wtke_sec_p(i,k,j)) .or. wtke_sec_p(i,k,j) /= wtke_sec_p(i,k,j))) then
-    !         print *, 'Warning: wtke_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(uw_sec_p(i,k,j)) .or. uw_sec_p(i,k,j) /= uw_sec_p(i,k,j))) then
-    !         print *, 'Warning: uw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(vw_sec_p(i,k,j)) .or. vw_sec_p(i,k,j) /= vw_sec_p(i,k,j))) then
-    !         print *, 'Warning: vw_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w3_p(i,k,j)) .or. w3_p(i,k,j) /= w3_p(i,k,j))) then
-    !         print *, 'Warning: w3_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqls_sec_p(i,k,j)) .or. wqls_sec_p(i,k,j) /= wqls_sec_p(i,k,j))) then
-    !         print *, 'Warning: wqls_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(brunt_p(i,k,j)) .or. brunt_p(i,k,j) /= brunt_p(i,k,j))) then
-    !         print *, 'Warning: brunt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(shoc_ql2_p(i,k,j)) .or. shoc_ql2_p(i,k,j) /= shoc_ql2_p(i,k,j))) then
-    !         print *, 'Warning: shoc_ql2_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_a_p(i,k,j)) .or. mf_dry_a_p(i,k,j) /= mf_dry_a_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_a_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_a_p(i,k,j)) .or. mf_moist_a_p(i,k,j) /= mf_moist_a_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_a_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_w_p(i,k,j)) .or. mf_dry_w_p(i,k,j) /= mf_dry_w_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_w_p(i,k,j)) .or. mf_moist_w_p(i,k,j) /= mf_moist_w_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_qt_p(i,k,j)) .or. mf_dry_qt_p(i,k,j) /= mf_dry_qt_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_qt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_qt_p(i,k,j)) .or. mf_moist_qt_p(i,k,j) /= mf_moist_qt_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_qt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_thl_p(i,k,j)) .or. mf_dry_thl_p(i,k,j) /= mf_dry_thl_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_thl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_thl_p(i,k,j)) .or. mf_moist_thl_p(i,k,j) /= mf_moist_thl_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_thl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_u_p(i,k,j)) .or. mf_dry_u_p(i,k,j) /= mf_dry_u_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_u_p(i,k,j)) .or. mf_moist_u_p(i,k,j) /= mf_moist_u_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_dry_v_p(i,k,j)) .or. mf_dry_v_p(i,k,j) /= mf_dry_v_p(i,k,j))) then
-    !         print *, 'Warning: mf_dry_v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_v_p(i,k,j)) .or. mf_moist_v_p(i,k,j) /= mf_moist_v_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_moist_qc_p(i,k,j)) .or. mf_moist_qc_p(i,k,j) /= mf_moist_qc_p(i,k,j))) then
-    !         print *, 'Warning: mf_moist_qc_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_thlflx_p(i,k,j)) .or. mf_thlflx_p(i,k,j) /= mf_thlflx_p(i,k,j))) then
-    !         print *, 'Warning: mf_thlflx_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_qtflx_p(i,k,j)) .or. mf_qtflx_p(i,k,j) /= mf_qtflx_p(i,k,j))) then
-    !         print *, 'Warning: mf_qtflx_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_ae_p(i,k,j)) .or. mf_ae_p(i,k,j) /= mf_ae_p(i,k,j))) then
-    !         print *, 'Warning: mf_ae_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_aw_p(i,k,j)) .or. mf_aw_p(i,k,j) /= mf_aw_p(i,k,j))) then
-    !         print *, 'Warning: mf_aw_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awthv_p(i,k,j)) .or. mf_awthv_p(i,k,j) /= mf_awthv_p(i,k,j))) then
-    !         print *, 'Warning: mf_awthv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awthl_p(i,k,j)) .or. mf_awthl_p(i,k,j) /= mf_awthl_p(i,k,j))) then
-    !         print *, 'Warning: mf_awthl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awqt_p(i,k,j)) .or. mf_awqt_p(i,k,j) /= mf_awqt_p(i,k,j))) then
-    !         print *, 'Warning: mf_awqt_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awql_p(i,k,j)) .or. mf_awql_p(i,k,j) /= mf_awql_p(i,k,j))) then
-    !         print *, 'Warning: mf_awql_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awqi_p(i,k,j)) .or. mf_awqi_p(i,k,j) /= mf_awqi_p(i,k,j))) then
-    !         print *, 'Warning: mf_awqi_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awu_p(i,k,j)) .or. mf_awu_p(i,k,j) /= mf_awu_p(i,k,j))) then
-    !         print *, 'Warning: mf_awu_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(mf_awv_p(i,k,j)) .or. mf_awv_p(i,k,j) /= mf_awv_p(i,k,j))) then
-    !         print *, 'Warning: mf_awv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(cfl_mf_p(i,k,j)) .or. cfl_mf_p(i,k,j) /= cfl_mf_p(i,k,j))) then
-    !         print *, 'Warning: cfl_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_ed_p(i,k,j)) .or. wthl_sec_ed_p(i,k,j) /= wthl_sec_ed_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_ed_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthl_sec_mf_p(i,k,j)) .or. wthl_sec_mf_p(i,k,j) /= wthl_sec_mf_p(i,k,j))) then
-    !         print *, 'Warning: wthl_sec_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_ed_p(i,k,j)) .or. wqw_sec_ed_p(i,k,j) /= wqw_sec_ed_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_ed_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wqw_sec_mf_p(i,k,j)) .or. wqw_sec_mf_p(i,k,j) /= wqw_sec_mf_p(i,k,j))) then
-    !         print *, 'Warning: wqw_sec_mf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(wthv_sec_p(i,k,j)) .or. wthv_sec_p(i,k,j) /= wthv_sec_p(i,k,j))) then
-    !         print *, 'Warning: wthv_sec_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(kzh_p(i,k,j)) .or. kzh_p(i,k,j) /= kzh_p(i,k,j))) then
-    !         print *, 'Warning: kzh_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(kzm_p(i,k,j)) .or. kzm_p(i,k,j) /= kzm_p(i,k,j))) then
-    !         print *, 'Warning: kzm_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(u_p(i,k,j)) .or. u_p(i,k,j) /= u_p(i,k,j))) then
-    !         print *, 'Warning: u_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(v_p(i,k,j)) .or. v_p(i,k,j) /= v_p(i,k,j))) then
-    !         print *, 'Warning: v_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(theta_p(i,k,j)) .or. theta_p(i,k,j) /= theta_p(i,k,j))) then
-    !         print *, 'Warning: theta_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(t_p(i,k,j)) .or. t_p(i,k,j) /= t_p(i,k,j))) then
-    !         print *, 'Warning: t_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qv_p(i,k,j)) .or. qv_p(i,k,j) /= qv_p(i,k,j))) then
-    !         print *, 'Warning: qv_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(qc_p(i,k,j)) .or. qc_p(i,k,j) /= qc_p(i,k,j))) then
-    !         print *, 'Warning: qc_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rho_p(i,k,j)) .or. rho_p(i,k,j) /= rho_p(i,k,j))) then
-    !         print *, 'Warning: rho_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(z_p(i,k,j)) .or. z_p(i,k,j) /= z_p(i,k,j))) then
-    !         print *, 'Warning: z_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(zmid_p(i,k,j)) .or. zmid_p(i,k,j) /= zmid_p(i,k,j))) then
-    !         print *, 'Warning: zmid_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(pres_p(i,k,j)) .or. pres_p(i,k,j) /= pres_p(i,k,j))) then
-    !         print *, 'Warning: pres_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(pres2_p(i,k,j)) .or. pres2_p(i,k,j) /= pres2_p(i,k,j))) then
-    !         print *, 'Warning: pres2_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(w_p(i,k,j)) .or. w_p(i,k,j) /= w_p(i,k,j))) then
-    !         print *, 'Warning: w_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(tke_shmf_p(i,k,j)) .or. tke_shmf_p(i,k,j) /= tke_shmf_p(i,k,j))) then
-    !         print *, 'Warning: tke_shmf_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(dse_p(i,k,j)) .or. dse_p(i,k,j) /= dse_p(i,k,j))) then
-    !         print *, 'Warning: dse_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(cldfrabl_p(i,k,j)) .or. cldfrabl_p(i,k,j) /= cldfrabl_p(i,k,j))) then
-    !         print *, 'Warning: cldfrabl_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rublten_p(i,k,j)) .or. rublten_p(i,k,j) /= rublten_p(i,k,j))) then
-    !         print *, 'Warning: rublten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rvblten_p(i,k,j)) .or. rvblten_p(i,k,j) /= rvblten_p(i,k,j))) then
-    !         print *, 'Warning: rvblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rthblten_p(i,k,j)) .or. rthblten_p(i,k,j) /= rthblten_p(i,k,j))) then
-    !         print *, 'Warning: rthblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rqvblten_p(i,k,j)) .or. rqvblten_p(i,k,j) /= rqvblten_p(i,k,j))) then
-    !         print *, 'Warning: rqvblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rqcblten_p(i,k,j)) .or. rqcblten_p(i,k,j) /= rqcblten_p(i,k,j))) then
-    !         print *, 'Warning: rqcblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    !     if ((isnan(rtkeblten_p(i,k,j)) .or. rtkeblten_p(i,k,j) /= rtkeblten_p(i,k,j))) then
-    !         print *, 'Warning: rtkeblten_p contains NaN at (',i,k,j,')'
-    !     end if
-    ! end do
-    ! end do
-    ! end do
+    rqiblten_p = 0.0_RKIND ! No ice implemented yet
 
-    ! do i = ims, ime
-    ! do j = jms, jme
-    !     if (uw_sfc_p(i,j) /= uw_sfc_p(i,j) .or. vw_sfc_p(i,j) /= vw_sfc_p(i,j)) then
-    !         print *, 'Warning: uw_sfc_p or vw_sfc_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (hpbl_p(i,j) /= hpbl_p(i,j)) then
-    !         print *, 'Warning: hpbl_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (pblh_wthl_p(i,j) /= pblh_wthl_p(i,j)) then
-    !         print *, 'Warning: pblh_wthl_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (pblh_tke_p(i,j) /= pblh_tke_p(i,j)) then
-    !         print *, 'Warning: pblh_tke_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (mf_dry_freq_p(i,j) /= mf_dry_freq_p(i,j)) then
-    !         print *, 'Warning: mf_dry_freq_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (mf_moist_freq_p(i,j) /= mf_moist_freq_p(i,j)) then
-    !         print *, 'Warning: mf_moist_freq_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (plumeheight_p(i,j) /= plumeheight_p(i,j)) then
-    !         print *, 'Warning: plumeheight_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (plume_dry_height_p(i,j) /= plume_dry_height_p(i,j)) then
-    !         print *, 'Warning: plume_dry_height_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ustar_p(i,j) /= ustar_p(i,j)) then
-    !         print *, 'Warning: ustar_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (wspd_p(i,j) /= wspd_p(i,j)) then
-    !         print *, 'Warning: wspd_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ztop_b_p(i,j) /= ztop_b_p(i,j)) then
-    !         print *, 'Warning: ztop_b_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (dx_p(i,j) /= dx_p(i,j)) then
-    !         print *, 'Warning: dx_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (lh_p(i,j) /= lh_p(i,j)) then
-    !         print *, 'Warning: lh_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (hfx_p(i,j) /= hfx_p(i,j)) then
-    !         print *, 'Warning: hfx_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (ht_p(i,j) /= ht_p(i,j)) then
-    !         print *, 'Warning: ht_p contains NaN at (',i,j,')'
-    !     end if
-    !     if (kpbl_p(i,j) == -999999 .or. kpbl_p(i,j) /= kpbl_p(i,j)) then
-    !         print *, 'Warning: kpbl_p contains uninitialized value at (',i,j,')'
-    !     end if
-    !     if (itimestep == -999999 .or. itimestep /= itimestep) then
-    !         print *, 'Warning: itimestep contains uninitialized value'
-    !     end if
-    !     if (ims == -999999 .or. ime == -999999 .or. ims /= ims .or. ime /= ime) then
-    !         print *, 'Warning: ims or ime contains uninitialized value'
-    !     end if
-    !     if (jms == -999999 .or. jme == -999999 .or. jms /= jms .or. jme /= jme) then
-    !         print *, 'Warning: jms or jme contains uninitialized value'
-    !     end if
-    !     if (kms == -999999 .or. kme == -999999 .or. kms /= kms .or. kme /= kme) then
-    !         print *, 'Warning: kms or kme contains uninitialized value'
-    !     end if
-    ! end do
-    ! end do
-
-    deallocate(presdiff_p, thetal_p, qtracers, wtracer_sfc, w_zt)
-    deallocate(um_p, vm_p, thetam_p, qvm_p, qcm_p, tkem_p, phis_p)
+    deallocate(presdiff_p, thv_p, thetal_p, qtracers, wtracer_sfc, w_zt, qw_p)
+    deallocate(phis_p)
     deallocate(hfx_converted_p, lh_converted_p)
     deallocate(dy_p)
     deallocate(height_interface_p, height_mid_p)
-    deallocate(inv_exner_p)
+    deallocate(inv_exner_p, inv_exner_interface_p, rho_interface_p)
+    deallocate(qv_aux, qc_aux, u_aux, v_aux, theta_aux, tke_aux)
   
  end subroutine bl_shocmf_driver
 

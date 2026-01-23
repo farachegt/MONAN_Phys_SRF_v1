@@ -274,34 +274,6 @@ subroutine shoc_init( &
    print *, 'npbl = ', npbl
    print *, 'SHOC E3SM'
 
-  ! Check initialization of parameter variables for NaN or invalid values
-  if (ggr /= ggr) stop 'Error: ggr is NaN in shoc_init'
-  if (rgas /= rgas) stop 'Error: rgas is NaN in shoc_init'
-  if (rv /= rv) stop 'Error: rv is NaN in shoc_init'
-  if (cp /= cp) stop 'Error: cp is NaN in shoc_init'
-  if (lcond /= lcond) stop 'Error: lcond is NaN in shoc_init'
-  if (lice /= lice) stop 'Error: lice is NaN in shoc_init'
-  if (eps /= eps) stop 'Error: eps is NaN in shoc_init'
-  if (vk /= vk) stop 'Error: vk is NaN in shoc_init'
-
-  if (thl2tune /= thl2tune) stop 'Error: thl2tune is NaN in shoc_init'
-  if (qw2tune /= qw2tune) stop 'Error: qw2tune is NaN in shoc_init'
-  if (qwthl2tune /= qwthl2tune) stop 'Error: qwthl2tune is NaN in shoc_init'
-  if (w2tune /= w2tune) stop 'Error: w2tune is NaN in shoc_init'
-  if (length_fac /= length_fac) stop 'Error: length_fac is NaN in shoc_init'
-  if (c_diag_3rd_mom /= c_diag_3rd_mom) stop 'Error: c_diag_3rd_mom is NaN in shoc_init'
-  if (lambda_low /= lambda_low) stop 'Error: lambda_low is NaN in shoc_init'
-  if (lambda_high /= lambda_high) stop 'Error: lambda_high is NaN in shoc_init'
-  if (lambda_slope /= lambda_slope) stop 'Error: lambda_slope is NaN in shoc_init'
-  if (lambda_thresh /= lambda_thresh) stop 'Error: lambda_thresh is NaN in shoc_init'
-  if (Ckh /= Ckh) stop 'Error: Ckh is NaN in shoc_init'
-  if (Ckm /= Ckm) stop 'Error: Ckm is NaN in shoc_init'
-  if (Ckh_s /= Ckh_s) stop 'Error: Ckh_s is NaN in shoc_init'
-  if (Ckm_s /= Ckm_s) stop 'Error: Ckm_s is NaN in shoc_init'
-
-  if (nbot_shoc == -999999) stop 'Error: nbot_shoc not initialized in shoc_init'
-  if (ntop_shoc == -999999) stop 'Error: ntop_shoc not initialized in shoc_init'
-
    return
 
 end subroutine shoc_init
@@ -568,8 +540,6 @@ subroutine shoc_main ( &
 
   !============================================================================
 ! LOCAL VARIABLES
-
-  real(rtype) :: shoc_cldfrac_aux(shcol,nlev), shoc_ql_aux(shcol,nlev) 
 
   ! time counter
   integer :: t

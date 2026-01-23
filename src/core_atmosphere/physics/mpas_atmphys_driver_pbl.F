@@ -1435,7 +1435,7 @@
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
             rublten_p     = rublten_p    , rvblten_p      = rvblten_p                                         , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
-            rtkeblten_p   = rtkeblten_p                                                                       , & 
+            rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
       )
