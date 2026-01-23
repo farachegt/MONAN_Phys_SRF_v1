@@ -16,6 +16,7 @@ module shoc
   use edmf, only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
                   do_edmf, do_condensation, do_mf_diag, &
                   do_wthv_mf, mf_nup
+ use, intrinsic :: ieee_arithmetic
 
 implicit none
 save ! for module variables
@@ -57,7 +58,7 @@ real(rtype) :: w2tune = 1.0_rtype ! Vertical velocity variance
 real(rtype) :: length_fac = 0.5_rtype ! Length scale factor
 real(rtype) :: c_diag_3rd_mom = 7.0_rtype ! w3 factor
 real(rtype) :: lambda_low = 0.001_rtype ! lowest value for stability correction
-real(rtype) :: lambda_high = 0.08_rtype ! highest value for stability correction
+real(rtype) :: lambda_high = 0.04_rtype ! highest value for stability correction
 real(rtype) :: lambda_slope = 2.65_rtype ! stability correction slope
 real(rtype) :: lambda_thresh = 0.02_rtype ! value to apply stability correction
 real(rtype) :: Ckh = 0.1_rtype ! Eddy diffusivity coefficient for heat
@@ -177,7 +178,7 @@ real function MurphyKoop_svp(t, i_type)
 
        write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
             i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
-       stop 'Error: Either MurphyKoop'
+       stop 'err_msg'
     endif
 
     return
@@ -270,9 +271,9 @@ subroutine shoc_init( &
    end do
    npbl = max(npbl,1)
    
-   !print *, 'npbl = ', npbl
-   !print *, 'SHOC E3SM'
-    
+   print *, 'npbl = ', npbl
+   print *, 'SHOC E3SM'
+
    return
 
 end subroutine shoc_init
@@ -282,45 +283,104 @@ end subroutine shoc_init
 ! Host models should call the following routine to call SHOC
 
 subroutine shoc_main ( &
-     itimestep, &
-     shcol, nlev, nlevi, dtime, nadv, &   ! Input
-     host_dx, host_dy,thv, &              ! Input
-     zt_grid,zi_grid,pres,presi,pdel,&    ! Input
-     wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, & ! Input
-     wtracer_sfc,num_qtracers,w_field, &  ! Input
-     inv_exner,phis, &                    ! Input
-     host_dse, tke, thetal, qw, &         ! Input/Output
-     u_wind, v_wind,qtracers,&            ! Input/Output
-     wthv_sec,tkh,tk,&                    ! Input/Output
-     shoc_ql,shoc_cldfrac,&               ! Input/Output
-     pblh,pblh_wthl,pblh_tke,&            ! Output
-     rino, &                              ! Output
-     shoc_mix, isotropy,&                 ! Output (diagnostic)
-     a_diss, a_prod_bu, a_prod_sh,&       ! Output (diagnostic)
-     w_sec, thl_sec, qw_sec, qwthl_sec,&  ! Output (diagnostic)
-     wthl_sec, wqw_sec, wtke_sec,&        ! Output (diagnostic)
-     uw_sec, vw_sec, w3,&                 ! Output (diagnostic)
-     wqls_sec, brunt, shoc_ql2, &         ! Output (diagnostic)
-     mf_dry_a,   mf_moist_a,&             ! Output (EDMF diagnostic)
-     mf_dry_w,   mf_moist_w,&             ! Output (EDMF diagnostic)
-     mf_dry_qt,  mf_moist_qt,&            ! Output (EDMF diagnostic)
-     mf_dry_thl, mf_moist_thl,&           ! Output (EDMF diagnostic)
-     mf_dry_u,   mf_moist_u,&             ! Output (EDMF diagnostic)
-     mf_dry_v,   mf_moist_v,&             ! Output (EDMF diagnostic)
-                 mf_moist_qc,&            ! Output (EDMF diagnostic)
-     mf_thlflx,  mf_qtflx,&               ! Output (EDMF diagnostic)
-     mf_ae, mf_aw, &                      ! Output (EDMF diagnostic)
-     mf_awthv, mf_awthl, mf_awqt,&        ! Output (EDMF diagnostic)
-     mf_awql, mf_awqi, &                  ! Output (EDMF diagnostic)
-     mf_awu, mf_awv, cfl_mf, &            ! Output (EDMF diagnostic)
-     mf_dry_freq, mf_moist_freq, &        ! Output (EDMF diagnostic)
-     plumeheight, plume_dry_height, ztop_B, &          ! Output (EDMF diagnostic)
-     wthl_sec_ed, wthl_sec_mf, wqw_sec_ed, wqw_sec_mf &
-     )
+     itimestep,        & ! Input
+     shcol,            & ! Input
+     nlev,             & ! Input
+     nlevi,            & ! Input
+     dtime,            & ! Input
+     nadv,             & ! Input
+     host_dx,          & ! Input
+     host_dy,          & ! Input
+     thv,              & ! Input
+     zt_grid,          & ! Input
+     zi_grid,          & ! Input
+     pres,             & ! Input
+     presi,            & ! Input
+     pdel,             & ! Input
+     wthl_sfc,         & ! Input
+     wqw_sfc,          & ! Input
+     uw_sfc,           & ! Input
+     vw_sfc,           & ! Input
+     wtracer_sfc,      & ! Input
+     num_qtracers,     & ! Input
+     w_field,          & ! Input
+     inv_exner,        & ! Input
+     phis,             & ! Input
+     host_dse,         & ! Input/Output
+     tke,              & ! Input/Output
+     thetal,           & ! Input/Output
+     qw,               & ! Input/Output
+     u_wind,           & ! Input/Output
+     v_wind,           & ! Input/Output
+     qtracers,         & ! Input/Output
+     wthv_sec,         & ! Input/Output
+     tkh,              & ! Input/Output
+     tk,               & ! Input/Output
+     shoc_ql,          & ! Input/Output
+     shoc_cldfrac,     & ! Input/Output
+     pblh,             & ! Output (diagnostic)
+     pblh_wthl,        & ! Output (diagnostic)
+     pblh_tke,         & ! Output (diagnostic)
+     rino,             & ! Output (diagnostic)
+     shoc_mix,         & ! Output (diagnostic)
+     isotropy,         & ! Output (diagnostic)
+     a_diss,           & ! Output (diagnostic)
+     a_prod_bu,        & ! Output (diagnostic)
+     a_prod_sh,        & ! Output (diagnostic)
+     w_sec,            & ! Output (diagnostic)
+     thl_sec,          & ! Output (diagnostic)
+     qw_sec,           & ! Output (diagnostic)
+     qwthl_sec,        & ! Output (diagnostic)
+     wthl_sec,         & ! Output (diagnostic)
+     wqw_sec,          & ! Output (diagnostic)
+     wtke_sec,         & ! Output (diagnostic)
+     uw_sec,           & ! Output (diagnostic)
+     vw_sec,           & ! Output (diagnostic)
+     w3,               & ! Output (diagnostic)
+     wqls_sec,         & ! Output (diagnostic)
+     brunt,            & ! Output (diagnostic)
+     shoc_ql2,         & ! Output (diagnostic)
+     mf_dry_a,         & ! Output (diagnostic)
+     mf_moist_a,       & ! Output (EDMF diagnostic)
+     mf_dry_w,         & ! Output (EDMF diagnostic)
+     mf_moist_w,       & ! Output (EDMF diagnostic)
+     mf_dry_qt,        & ! Output (EDMF diagnostic)
+     mf_moist_qt,      & ! Output (EDMF diagnostic)
+     mf_dry_thl,       & ! Output (EDMF diagnostic)
+     mf_moist_thl,     & ! Output (EDMF diagnostic)
+     mf_dry_u,         & ! Output (EDMF diagnostic)
+     mf_moist_u,       & ! Output (EDMF diagnostic)
+     mf_dry_v,         & ! Output (EDMF diagnostic)
+     mf_moist_v,       & ! Output (EDMF diagnostic)
+     mf_moist_qc,      & ! Output (EDMF diagnostic)
+     mf_thlflx,        & ! Output (EDMF diagnostic)
+     mf_qtflx,         & ! Output (EDMF diagnostic)
+     mf_ae,            & ! Output (EDMF diagnostic)
+     mf_aw,            & ! Output (EDMF diagnostic)
+     mf_awthv,         & ! Output (EDMF diagnostic)
+     mf_awthl,         & ! Output (EDMF diagnostic)
+     mf_awqt,          & ! Output (EDMF diagnostic)
+     mf_awql,          & ! Output (EDMF diagnostic)
+     mf_awqi,          & ! Output (EDMF diagnostic)
+     mf_awu,           & ! Output (EDMF diagnostic)
+     mf_awv,           & ! Output (EDMF diagnostic)
+     cfl_mf,           & ! Output (EDMF diagnostic)
+     mf_dry_freq,      & ! Output (EDMF diagnostic)
+     mf_moist_freq,    & ! Output (EDMF diagnostic)
+     plumeheight,      & ! Output (EDMF diagnostic)
+     plume_dry_height, & ! Output (EDMF diagnostic)
+     ztop_B,           & ! Output (EDMF diagnostic)
+     wthl_sec_ed,      & ! Output (EDMF diagnostic)
+     wthl_sec_mf,      & ! Output (EDMF diagnostic)
+     wqw_sec_ed,       & ! Output (EDMF diagnostic)
+     wqw_sec_mf        & ! Output (EDMF diagnostic)
+  )
 
   implicit none
 
 ! INPUT VARIABLES
+  ! time step index of host model
+  integer, intent(in) :: itimestep
   ! number of SHOC columns in the array
   integer, intent(in) :: shcol
   ! number of levels [-]
@@ -399,7 +459,6 @@ subroutine shoc_main ( &
   ! mf_* are diagnostic variables
   ! s_* are integrated plume fluxes for calculating MF contribution total tendencies
 
-  integer, intent(in) :: itimestep
   real(rtype), intent(inout), dimension(shcol,nlevi) :: &
     mf_dry_a,   mf_moist_a,   & ! dry and moist plume area, respectively [-]
     mf_dry_w,   mf_moist_w,   & ! dry and moist plume mean vertical velocity, respectively [m/s]
@@ -514,11 +573,11 @@ subroutine shoc_main ( &
 
   real(rtype) :: thv_zi(shcol,nlevi)
 
-  !if (.not. do_edmf .and. .not. do_mf_diag) then
-  !  print*, 'SHOCMF: MASS FLUX DISABLED'
-  !else if (do_edmf .and. do_mf_diag) then
-  !  print*, 'SHOCMF: MASS FLUX ENABLED'
-  !endif
+  if (.not. do_edmf .and. .not. do_mf_diag) then
+    print*, 'SHOCMF: MASS FLUX DISABLED'
+  else if (do_edmf .and. do_mf_diag) then
+    print*, 'SHOCMF: MASS FLUX ENABLED'
+  endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
@@ -567,7 +626,7 @@ subroutine shoc_main ( &
        zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
        shoc_qv,u_wind,v_wind,&              ! Input
        ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-       pblh)                                ! Output
+       rino, pblh)                          ! Output
 
     ! PBL height for integrate_mf subroutine
     call edmf_pblh(&
@@ -651,6 +710,7 @@ subroutine shoc_main ( &
        u_wind,v_wind,brunt,&                ! Input
        zt_grid,zi_grid,pblh,&               ! Input
        tke,tk,tkh,&                         ! Input/Output
+       a_diss, a_prod_bu, a_prod_sh,&       ! Output
        isotropy)                            ! Output
 
 !srf
@@ -675,7 +735,6 @@ subroutine shoc_main ( &
 !srf
 !   cycle ! for avoid condensation process
 !srf
-
 
     ! A version that uses the Thomas algorithm, which is more efficient,
     ! but it only works when mass flux is disabled
@@ -789,7 +848,7 @@ subroutine shoc_main ( &
      zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
      shoc_qv,u_wind,v_wind,&              ! Input
      ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-     pblh)                                ! Output
+     rino, pblh)                          ! Output
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
   call system_clock(clock_count2, clock_count_rate, clock_count_max)
@@ -2989,9 +3048,9 @@ subroutine shoc_assumed_pdf(&
   w_thresh=0.0_rtype
 
   ! Initialize cloud variables to zero
-  shoc_cldfrac(:,:) = 0._rtype
-  shoc_ql     (:,:) = 0._rtype
-  shoc_ql2    (:,:) = 0._rtype
+  shoc_cldfrac(:,:)=0._rtype
+  shoc_ql(:,:)=0._rtype
+  shoc_ql2(:,:) = 0._rtype
 
   ! Interpolate many variables from interface grid to themo grid
   call linear_interp(zi_grid,zt_grid,w3,w3_zt,nlevi,nlev,shcol,largeneg)
@@ -3648,7 +3707,8 @@ subroutine shoc_tke(&
          u_wind,v_wind,brunt,&       ! Input
          zt_grid,zi_grid,pblh,&      ! Input
          tke,tk,tkh, &               ! Input/Output
-         isotropy)                   ! Output
+         a_diss, a_prod_bu, &        ! Output
+         a_prod_sh, isotropy)        ! Output
 
   ! Purpose of this subroutine is to advance the SGS
   !  TKE equation due to shear production, buoyant
@@ -3700,11 +3760,15 @@ subroutine shoc_tke(&
 ! OUTPUT VARIABLES
   ! Return to isotropic timescale [s]
   real(rtype), intent(out) :: isotropy(shcol,nlev)
+  ! Dissipation term [m2/s3]
+  real(rtype), intent(out) :: a_diss(shcol,nlev)
+  ! Buoyant production term [m2/s3]
+  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
+  ! Shear production term [m2/s3]
+  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
 
 ! LOCAL VARIABLES
   real(rtype) :: sterm(shcol,nlevi), sterm_zt(shcol,nlev)
-  ! Dissipation term
-  real(rtype) :: a_diss(shcol,nlev)
   !column integrated stability
   real(rtype) :: brunt_int(shcol)
 
@@ -3721,7 +3785,7 @@ subroutine shoc_tke(&
 
   !advance sgs TKE
   call adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
-       sterm_zt, tk, tke, a_diss)
+       sterm_zt, tk, tke, a_diss, a_prod_bu, a_prod_sh)
 
   !Compute isotropic time scale [s]
   call isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
@@ -3845,7 +3909,7 @@ end subroutine compute_shr_prod
 ! Advance SGS TKE
 
 subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
-     sterm_zt, tk, tke, a_diss)
+     sterm_zt, tk, tke, a_diss, a_prod_bu, a_prod_sh)
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
   use shoc_iso_f, only: adv_sgs_tke_f
@@ -3874,10 +3938,13 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
   !intent-out
   ! Dissipation term
   real(rtype), intent(out) :: a_diss(shcol,nlev)
+  ! Buoyant production term
+  real(rtype), intent(out) :: a_prod_bu(shcol,nlev)
+  ! Shear production term
+  real(rtype), intent(out) :: a_prod_sh(shcol,nlev)
 
   !local variables
   integer :: i, k
-  real(rtype) :: a_prod_bu, a_prod_sh
 
   real(rtype) :: Ck, Cs, Ce, Ce1, Ce2, Cee
 
@@ -3901,21 +3968,20 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
      do i = 1, shcol
 
         ! Compute buoyant production term
-        a_prod_bu=(ggr/basetemp)*wthv_sec(i,k)
+        a_prod_bu(i,k)=(ggr/basetemp)*wthv_sec(i,k)
 
         tke(i,k)=max(0._rtype,tke(i,k))
 
         ! Shear production term, use diffusivity from
         !  previous timestep
-        a_prod_sh=tk(i,k)*sterm_zt(i,k)
+        a_prod_sh(i,k)=tk(i,k)*sterm_zt(i,k)
 
         ! Dissipation term
         a_diss(i,k)=Cee/shoc_mix(i,k)*bfb_pow(tke(i,k),1.5_rtype)
 
         ! March equation forward one timestep
         tke(i,k)=max(mintke,tke(i,k)+dtime* &
-             (max(0._rtype,a_prod_sh+a_prod_bu)-a_diss(i,k)))
-
+             (max(0._rtype,a_prod_sh(i,k)+a_prod_bu(i,k))-a_diss(i,k)))
         tke(i,k)=min(tke(i,k),maxtke)
      enddo
   enddo
@@ -5057,7 +5123,7 @@ subroutine pblintd(&
        z,zi,thl,ql,&                  ! Input
        q,u,v,&                        ! Input
        ustar,obklen,kbfs,cldn,&       ! Input
-       pblh)                          ! Output
+       rino, pblh)                    ! Output
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
   use shoc_iso_f, only: pblintd_f
@@ -5111,12 +5177,13 @@ subroutine pblintd(&
     !
     ! Output arguments
     !
+    real(rtype), intent(out) :: rino(shcol,nlev)        ! bulk Richardson no. from level to ref lev
     real(rtype), intent(out) :: pblh(shcol)             ! boundary-layer height [m]
     !
     !---------------------------Local workspace-----------------------------
     !
 
-    real(rtype) :: rino(shcol,nlev)        ! bulk Richardson no. from level to ref lev
+    
     real(rtype) :: thv(shcol,nlev)         ! virtual potential temperature
     real(rtype) :: tlv(shcol)              ! ref. level pot tmp + tmp excess
 

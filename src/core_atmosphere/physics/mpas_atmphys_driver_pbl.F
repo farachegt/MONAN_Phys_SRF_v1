@@ -95,7 +95,6 @@
  character(len=StrKIND),pointer:: pbl_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
-
  call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
 
  if(.not.allocated(hfx_p)  ) allocate(hfx_p(ims:ime,jms:jme)  )
@@ -658,7 +657,7 @@
           zbl_plume_p(i,j)  = 0
        enddo
        enddo
-
+    
     case("bl_shocmf")
        call mpas_pool_get_array(diag_physics, 'mf_dry_freq'      ,mf_dry_freq     )
        call mpas_pool_get_array(diag_physics, 'mf_moist_freq'    ,mf_moist_freq   )
@@ -673,8 +672,8 @@
        call mpas_pool_get_config(configs    , 'config_len_disp'  ,len_disp        )
        call mpas_pool_get_array(diag_physics, 'kzh'              ,kzh             )
        call mpas_pool_get_array(diag_physics, 'kzm'              ,kzm             )
-
        
+
        call mpas_pool_get_array(diag_physics, 'tke_pbl'          ,tke_pbl        )
        call mpas_pool_get_array(diag_physics, 'wthv_sec'         ,wthv_sec       )
        call mpas_pool_get_array(diag_physics, 'shoc_mix'         ,shoc_mix       )
@@ -1148,6 +1147,7 @@
           wqw_sec_mf(k,i)      = wqw_sec_mf_p(i,k,j)
           cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
           dse(k,i)             = dse_p(i,k,j)
+
           rtkeblten(k,i)       = rtkeblten_p(i,k,j)
        enddo
        enddo
@@ -1183,7 +1183,6 @@
        call bl_mynn_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
                          xlf,xls,xlv,errmsg,errflg)
        call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
-
     case("bl_shocmf")
       call mpas_log_write('--- enter subroutine shoc_init:')
       call bl_shocmf_init(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,gravity,R_d,R_v,cp,ep_1,xlv, &
@@ -1398,6 +1397,7 @@
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,              &
                   errmsg = errmsg , errflg = errflg                                                    &
                           )
+
        tkepbl_p = qke_p*0.5
        call mpas_timer_stop('bl_mynn')
     case("bl_shocmf")
@@ -1435,14 +1435,14 @@
             rho_p         = rho_p        , t_p            = t_p           , qv_p            = qv_p            , &
             rublten_p     = rublten_p    , rvblten_p      = rvblten_p                                         , &
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
-            rtkeblten_p   = rtkeblten_p                                                                       , & 
+            rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
       )
       
       tkepbl_p = tke_shmf_p
       call mpas_timer_stop('bl_shocmf')
-
+        
     case default
 
  end select pbl_select
