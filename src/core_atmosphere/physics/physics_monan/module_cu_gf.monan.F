@@ -146,8 +146,8 @@ module module_cu_gf_monan
    !-- gross entrainment rate: deep, shallow, congestus
    real,    dimension(maxiens) :: cum_entr_rate != (/&
                                                 ! 6.3e-4  & !deep
-                                                !,1.0e-3  & !shallow
-                                                !,5.0e-4  & !mid
+                                                !,1.3e-3  & !shallow
+                                                !,2.0e-3  & !mid
                                                 !/)
    integer, parameter :: opt  = 1                                              
 
@@ -11027,7 +11027,7 @@ module module_cu_gf_monan
             do i=its,itf 
               k1 = k975
               u1 = us(k1,i) ; v1 = vs(k1,i)
-              p2 = p550
+              p2 = p490
               k2 = minloc( abs(po(kts:ktf,i)-p2),1 )
               u2 = us(k2,i) ; v2 = vs(k2,i)
               vshear(i) = sqrt( (u2-u1)**2 + (v2-v1)**2 )
