@@ -9,7 +9,7 @@ module module_bl_shocmf
  private
  public:: bl_shocmf_init, bl_shocmf_driver
 
- real(kind=RKIND) :: max_shoc_timestep = 150.0  ! Default SHOC timestep set in namelist
+ real(kind=RKIND) :: max_shoc_timestep = 300.0  ! Default SHOC timestep set in namelist
 
  contains
 
