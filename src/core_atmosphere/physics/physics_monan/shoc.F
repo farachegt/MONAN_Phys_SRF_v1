@@ -271,8 +271,8 @@ subroutine shoc_init( &
    end do
    npbl = max(npbl,1)
    
-   print *, 'npbl = ', npbl
-   print *, 'SHOC E3SM'
+   !print *, 'npbl = ', npbl
+   !print *, 'SHOC E3SM'
 
    return
 
@@ -573,11 +573,11 @@ subroutine shoc_main ( &
 
   real(rtype) :: thv_zi(shcol,nlevi)
 
-  if (.not. do_edmf .and. .not. do_mf_diag) then
-    print*, 'SHOCMF: MASS FLUX DISABLED'
-  else if (do_edmf .and. do_mf_diag) then
-    print*, 'SHOCMF: MASS FLUX ENABLED'
-  endif
+ ! if (.not. do_edmf .and. .not. do_mf_diag) then
+ !   print*, 'SHOCMF: MASS FLUX DISABLED'
+ ! else if (do_edmf .and. do_mf_diag) then
+ !   print*, 'SHOCMF: MASS FLUX ENABLED'
+ ! endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
@@ -5628,7 +5628,7 @@ subroutine linear_interp(x1,x2,y1,y2,km1,km2,ncol,minthresh)
           y2(i,k2) = y1(i,km1-1) + (y1(i,km1)-y1(i,km1-1))*(x2(i,k2)-x1(i,km1-1))/(x1(i,km1)-x1(i,km1-1))
        end do
     else
-       print *,km1,km2
+    !   print *,km1,km2
     end if
     do k2 = 1,km2
        do i = 1,ncol
