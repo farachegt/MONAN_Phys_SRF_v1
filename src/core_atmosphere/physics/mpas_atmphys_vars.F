@@ -558,7 +558,6 @@
     tke_shmf_p,       &!tke from shocmf scheme                                                             [m2/s3]
     dse_p              !dry static energy                                                                   [J/kg]
 
-
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
 !=================================================================================================================

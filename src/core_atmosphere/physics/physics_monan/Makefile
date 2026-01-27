@@ -27,8 +27,6 @@ module_cu_gf.monan.o:      \
 	modGate.o               \
 	modHenrysLawCts.o       
 
-lib_module_cu_gf.monan.o: modGate.o
-
 module_bl_shocmf.o:     \
 	shoc.o
 

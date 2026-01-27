@@ -1072,7 +1072,6 @@
          if (trim(config_pbl_scheme) == "bl_shocmf") then
             call mpas_pool_get_array(diag_physics,'tke_pbl' , tke_pbl )
             call mpas_pool_get_array(diag_physics,'shoc_mix', shoc_mix)
-
             do j = jts,jte
             do i = its,ite               
                do k = kts,kte
@@ -1082,7 +1081,7 @@
             enddo
             enddo
             !print*,'tke',maxval(tkepbl_p),minval(tkepbl_p),maxval(kpbl_p),minval(kpbl_p)
-         endif
+         end if
 
     case ("cu_grell_freitas")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)

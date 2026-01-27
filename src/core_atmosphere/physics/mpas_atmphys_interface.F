@@ -121,6 +121,9 @@
     case("bl_shocmf")
         if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
 
+    case("bl_shocmf")
+        if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
+
     case default
 
  end select pbl_select

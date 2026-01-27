@@ -1,3 +1,15 @@
+-1) para criar um branch
+   cd <seu fork>
+   git checkout develop
+   git checkout -b < nome do branch novo >
+   git push (vai aparecer a linha correta do comando push feito pela 1ª vez, só repetir a sugestão do Git).
+
+0)  clone branch
+    git clone https://github.com/saulorfreitas/MONAN_Phys_SRF_v1
+    cd MONAN_Phys_SRF_v1
+    git checkout GFv1.6
+
+
 1) clone
     git clone https://github.com/saulorfreitas/MONAN_Phys_SRF
     git checkout develop
