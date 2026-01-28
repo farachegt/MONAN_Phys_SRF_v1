@@ -226,20 +226,20 @@ module module_bl_shocmf
     wqw_sec_mf_p,                      &
     dse_p,                             &
     qw_p,                              &
-    u_p,                               &
-    v_p,                               &
+    u_aux,                             &
+    v_aux,                             &
     wthv_sec_p,                        &
-    tke_shmf_p,                        &
+    tke_aux,                           &
     kzh_p,                             &
     kzm_p,                             &
-    qc_p,                              &
+    qc_aux,                            &
     cldfrabl_p,                        &
     thv_p,                             &
     height_interface_p,                &
     height_mid_p,                      &
-    pres_p,                            &
-    pres2_p,                           &
-    w_p,                               &
+    pres_aux,                          &
+    pres2_aux,                         &
+    w_zt,                              &
     inv_exner_p,                       &
     thetal_p,                          &
     presdiff_p                         &
@@ -295,20 +295,20 @@ module module_bl_shocmf
                                                         wqw_sec_mf_p,       &
                                                         dse_p,              &
                                                         qw_p,               &
-                                                        u_p,                &
-                                                        v_p,                &
+                                                        u_aux,              &
+                                                        v_aux,              &
                                                         wthv_sec_p,         &
-                                                        tke_shmf_p,         &
+                                                        tke_aux,            &
                                                         kzh_p,              &
                                                         kzm_p,              &
-                                                        qc_p,               &
+                                                        qc_aux,             &
                                                         cldfrabl_p,         &
                                                         thv_p,              &
                                                         height_interface_p, &
                                                         height_mid_p,       &
-                                                        pres_p,             &
-                                                        pres2_p,            &
-                                                        w_p,                &
+                                                        pres_aux,           &
+                                                        pres2_aux,          &
+                                                        w_zt,               &
                                                         inv_exner_p,        &
                                                         thetal_p,           &
                                                         presdiff_p
@@ -357,7 +357,7 @@ module module_bl_shocmf
     wqw_sec_ed_p       = wqw_sec_ed_p(:, kme:kms:-1, :)
     wqw_sec_mf_p       = wqw_sec_mf_p(:, kme:kms:-1, :)
     height_interface_p = height_interface_p(:, kme:kms:-1, :)
-    pres2_p            = pres2_p(:, kme:kms:-1, :)
+    pres2_aux          = pres2_aux(:, kme:kms:-1, :)
 
     ! All variables were allocated with kme levels, but some
     ! of them are only kme-1 levels (thermodynamic ones).
@@ -376,21 +376,21 @@ module module_bl_shocmf
     brunt_p(:,kms:kme-1,:)       = brunt_p(:,kme-1:kms:-1,:)
     shoc_ql2_p(:,kms:kme-1,:)    = shoc_ql2_p(:,kme-1:kms:-1,:)
     dse_p(:,kms:kme-1,:)         = dse_p(:,kme-1:kms:-1,:)
-    u_p(:,kms:kme-1,:)           = u_p(:,kme-1:kms:-1,:)
-    v_p(:,kms:kme-1,:)           = v_p(:,kme-1:kms:-1,:)
+    u_aux(:,kms:kme-1,:)         = u_aux(:,kme-1:kms:-1,:)
+    v_aux(:,kms:kme-1,:)         = v_aux(:,kme-1:kms:-1,:)
     wthv_sec_p(:,kms:kme-1,:)    = wthv_sec_p(:,kme-1:kms:-1,:)
-    tke_shmf_p(:,kms:kme-1,:)    = tke_shmf_p(:,kme-1:kms:-1,:)
+    tke_aux(:,kms:kme-1,:)       = tke_aux(:,kme-1:kms:-1,:)
     kzh_p(:,kms:kme-1,:)         = kzh_p(:,kme-1:kms:-1,:)
     kzm_p(:,kms:kme-1,:)         = kzm_p(:,kme-1:kms:-1,:)
-    qc_p(:,kms:kme-1,:)          = qc_p(:,kme-1:kms:-1,:)
+    qc_aux(:,kms:kme-1,:)        = qc_aux(:,kme-1:kms:-1,:)
     cldfrabl_p(:,kms:kme-1,:)    = cldfrabl_p(:,kme-1:kms:-1,:)
     inv_exner_p(:,kms:kme-1,:)   = inv_exner_p(:,kme-1:kms:-1,:)
     qw_p(:,kms:kme-1,:)          = qw_p(:,kme-1:kms:-1,:)
-    pres_p(:,kms:kme-1,:)        = pres_p(:,kme-1:kms:-1,:)
+    pres_aux(:,kms:kme-1,:)      = pres_aux(:,kme-1:kms:-1,:)
     height_mid_p(:,kms:kme-1,:)  = height_mid_p(:,kme-1:kms:-1,:)
     thetal_p(:,kms:kme-1,:)      = thetal_p(:,kme-1:kms:-1,:)
     presdiff_p(:,kms:kme-1,:)    = presdiff_p(:,kme-1:kms:-1,:)
-    w_p(:,kms:kme-1,:)           = w_p(:,kme-1:kms:-1,:)
+    w_zt(:,kms:kme-1,:)          = w_zt(:,kme-1:kms:-1,:)
  end subroutine flip_vertical_coordinates
 
   
@@ -656,7 +656,7 @@ module module_bl_shocmf
                            kts, kte
     type(dm_info), intent(in) :: dminfo
     real(kind=RKIND), intent(in) :: dt_pbl
-    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p
+    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p, ustar_p, wspd_p
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p,           &
                                                       vw_sfc_p,           &
@@ -667,9 +667,8 @@ module module_bl_shocmf
                                                       mf_moist_freq_p,    &
                                                       plumeheight_p,      & 
                                                       plume_dry_height_p, &
-                                                      ztop_b_p,           &
-                                                      ustar_p,            &
-                                                      wspd_p
+                                                      ztop_b_p
+
     integer, dimension(:,:), intent(inout) :: kpbl_p
     real(kind=RKIND),dimension(:,:,:), intent(in) :: theta_p,                &
                                                     z_p,                     &
@@ -868,7 +867,7 @@ module module_bl_shocmf
         shoc_timestep = dt_pbl
     endif
 
-    !print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
+    print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
 
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
@@ -1134,6 +1133,14 @@ module module_bl_shocmf
     ! the kme-1 value is the average among kme-2 and kme
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
+
+    do i=ims,ime
+    do k=kms,kme-1
+    do j=jms,jme
+        cldfrabl_p(i,k,j) = min(cldfrabl_p(i,k,j),1.0_RKIND)
+    enddo
+    enddo
+    enddo
 
     call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_aux, inv_exner_p, theta_aux)
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_aux, qv_aux)
