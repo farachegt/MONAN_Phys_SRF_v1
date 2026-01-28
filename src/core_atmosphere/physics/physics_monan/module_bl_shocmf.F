@@ -226,20 +226,20 @@ module module_bl_shocmf
     wqw_sec_mf_p,                      &
     dse_p,                             &
     qw_p,                              &
-    u_aux,                             &
-    v_aux,                             &
+    u_p,                               &
+    v_p,                               &
     wthv_sec_p,                        &
-    tke_aux,                           &
+    tke_shmf_p,                        &
     kzh_p,                             &
     kzm_p,                             &
-    qc_aux,                            &
+    qc_p,                              &
     cldfrabl_p,                        &
     thv_p,                             &
     height_interface_p,                &
     height_mid_p,                      &
-    pres_aux,                          &
-    pres2_aux,                         &
-    w_zt,                              &
+    pres_p,                            &
+    pres2_p,                           &
+    w_p,                               &
     inv_exner_p,                       &
     thetal_p,                          &
     presdiff_p                         &
@@ -295,20 +295,20 @@ module module_bl_shocmf
                                                         wqw_sec_mf_p,       &
                                                         dse_p,              &
                                                         qw_p,               &
-                                                        u_aux,              &
-                                                        v_aux,              &
+                                                        u_p,                &
+                                                        v_p,                &
                                                         wthv_sec_p,         &
-                                                        tke_aux,            &
+                                                        tke_shmf_p,         &
                                                         kzh_p,              &
                                                         kzm_p,              &
-                                                        qc_aux,             &
+                                                        qc_p,               &
                                                         cldfrabl_p,         &
                                                         thv_p,              &
                                                         height_interface_p, &
                                                         height_mid_p,       &
-                                                        pres_aux,           &
-                                                        pres2_aux,          &
-                                                        w_zt,               &
+                                                        pres_p,             &
+                                                        pres2_p,            &
+                                                        w_p,                &
                                                         inv_exner_p,        &
                                                         thetal_p,           &
                                                         presdiff_p
@@ -357,7 +357,7 @@ module module_bl_shocmf
     wqw_sec_ed_p       = wqw_sec_ed_p(:, kme:kms:-1, :)
     wqw_sec_mf_p       = wqw_sec_mf_p(:, kme:kms:-1, :)
     height_interface_p = height_interface_p(:, kme:kms:-1, :)
-    pres2_aux          = pres2_aux(:, kme:kms:-1, :)
+    pres2_p            = pres2_p(:, kme:kms:-1, :)
 
     ! All variables were allocated with kme levels, but some
     ! of them are only kme-1 levels (thermodynamic ones).
@@ -376,21 +376,21 @@ module module_bl_shocmf
     brunt_p(:,kms:kme-1,:)       = brunt_p(:,kme-1:kms:-1,:)
     shoc_ql2_p(:,kms:kme-1,:)    = shoc_ql2_p(:,kme-1:kms:-1,:)
     dse_p(:,kms:kme-1,:)         = dse_p(:,kme-1:kms:-1,:)
-    u_aux(:,kms:kme-1,:)         = u_aux(:,kme-1:kms:-1,:)
-    v_aux(:,kms:kme-1,:)         = v_aux(:,kme-1:kms:-1,:)
+    u_p(:,kms:kme-1,:)           = u_p(:,kme-1:kms:-1,:)
+    v_p(:,kms:kme-1,:)           = v_p(:,kme-1:kms:-1,:)
     wthv_sec_p(:,kms:kme-1,:)    = wthv_sec_p(:,kme-1:kms:-1,:)
-    tke_aux(:,kms:kme-1,:)       = tke_aux(:,kme-1:kms:-1,:)
+    tke_shmf_p(:,kms:kme-1,:)    = tke_shmf_p(:,kme-1:kms:-1,:)
     kzh_p(:,kms:kme-1,:)         = kzh_p(:,kme-1:kms:-1,:)
     kzm_p(:,kms:kme-1,:)         = kzm_p(:,kme-1:kms:-1,:)
-    qc_aux(:,kms:kme-1,:)        = qc_aux(:,kme-1:kms:-1,:)
+    qc_p(:,kms:kme-1,:)          = qc_p(:,kme-1:kms:-1,:)
     cldfrabl_p(:,kms:kme-1,:)    = cldfrabl_p(:,kme-1:kms:-1,:)
     inv_exner_p(:,kms:kme-1,:)   = inv_exner_p(:,kme-1:kms:-1,:)
     qw_p(:,kms:kme-1,:)          = qw_p(:,kme-1:kms:-1,:)
-    pres_aux(:,kms:kme-1,:)      = pres_aux(:,kme-1:kms:-1,:)
+    pres_p(:,kms:kme-1,:)        = pres_p(:,kme-1:kms:-1,:)
     height_mid_p(:,kms:kme-1,:)  = height_mid_p(:,kme-1:kms:-1,:)
     thetal_p(:,kms:kme-1,:)      = thetal_p(:,kme-1:kms:-1,:)
     presdiff_p(:,kms:kme-1,:)    = presdiff_p(:,kme-1:kms:-1,:)
-    w_zt(:,kms:kme-1,:)          = w_zt(:,kme-1:kms:-1,:)
+    w_p(:,kms:kme-1,:)           = w_p(:,kme-1:kms:-1,:)
  end subroutine flip_vertical_coordinates
 
   
@@ -656,7 +656,7 @@ module module_bl_shocmf
                            kts, kte
     type(dm_info), intent(in) :: dminfo
     real(kind=RKIND), intent(in) :: dt_pbl
-    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p, ustar_p, wspd_p
+    real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p
 
     real(kind=RKIND),dimension(:,:), intent(inout) :: uw_sfc_p,           &
                                                       vw_sfc_p,           &
@@ -667,8 +667,9 @@ module module_bl_shocmf
                                                       mf_moist_freq_p,    &
                                                       plumeheight_p,      & 
                                                       plume_dry_height_p, &
-                                                      ztop_b_p
-
+                                                      ztop_b_p,           &
+                                                      ustar_p,            &
+                                                      wspd_p
     integer, dimension(:,:), intent(inout) :: kpbl_p
     real(kind=RKIND),dimension(:,:,:), intent(in) :: theta_p,                &
                                                     z_p,                     &
@@ -676,13 +677,13 @@ module module_bl_shocmf
                                                     pres_p,                  &
                                                     pres2_p,                 &
                                                     w_p,                     &
-                                                    tke_shmf_p,              &
                                                     u_p,                     &
                                                     v_p,                     &
                                                     qc_p,                    &
                                                     qv_p,                    &
                                                     t_p,                     &
                                                     rho_p
+    real(kind=RKIND),dimension(:,:,:), intent(inout) :: tke_shmf_p
 
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: kzh_p,            &
                                                         kzm_p,            &
@@ -800,16 +801,6 @@ module module_bl_shocmf
         pres2_aux(ims:ime, kms:kme, jms:jme)  &
     )
 
-    ! Creating local copies of the input variables to avoid modifying them directly
-    qv_aux = qv_p
-    qc_aux = qc_p
-    u_aux  = u_p
-    v_aux  = v_p
-    theta_aux = theta_p
-    tke_aux = tke_shmf_p
-    pres_aux = pres_p
-    pres2_aux = pres2_p
-
     allocate(inv_exner_p(ims:ime, kms:kme, jms:jme), inv_exner_interface_p(ims:ime, kms:kme, jms:jme))
     do i=ims,ime
     do k=kms,kme
@@ -818,11 +809,21 @@ module module_bl_shocmf
 
         if (k .ne. kme) then
             inv_exner_p(i,k,j) = 1.0_RKIND/((pres_p(i,k,j)/p0_shoc)**(R_d/cp)) ! inv_exner_p = theta_p/t_p
-            tke_aux(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
+            tke_shmf_p(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
         endif
     enddo
     enddo
     enddo
+    ! Creating local copies of the input variables to avoid modifying them directly
+    qv_aux = qv_p
+    qc_aux = qc_p
+    u_aux  = u_p
+    v_aux  = v_p
+    theta_aux = theta_p
+    pres_aux = pres_p
+    pres2_aux = pres2_p
+    tke_aux = tke_shmf_p
+
 
     allocate(dy_p(ims:ime, jms:jme))
     dy_p = dx_p ! Assuming dx_p is the same for both x and y directions
@@ -867,7 +868,7 @@ module module_bl_shocmf
         shoc_timestep = dt_pbl
     endif
 
-    print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
+    !print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
 
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
@@ -1134,14 +1135,6 @@ module module_bl_shocmf
     ! thetal_p(:,kme-1,:) = (thetal_p(:,kme-2,:) + thetal_p(:,kme,:))/2
     thetal_p(:,kme,:) = 2*thetal_p(:,kme-1,:) - thetal_p(:,kme-2,:)
 
-    do i=ims,ime
-    do k=kms,kme-1
-    do j=jms,jme
-        cldfrabl_p(i,k,j) = min(cldfrabl_p(i,k,j),1.0_RKIND)
-    enddo
-    enddo
-    enddo
-
     call calculate_theta(ims, ime, jms, jme, kms, kme, cp, xlv, thetal_p, qc_aux, inv_exner_p, theta_aux)
     call calculate_qv(ims, ime, jms, jme, kms, kme, qw_p, qc_aux, qv_aux)
     call calculate_kpbl(ims, ime, jms, jme, kms, kme, hpbl_p, height_mid_p, kpbl_p)
@@ -1159,8 +1152,20 @@ module module_bl_shocmf
     enddo
     enddo
     enddo
-
-    rqiblten_p = 0.0_RKIND ! No ice implemented yet
+!print*,'rqcblten_p',MAXVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rqvblten_p',MAXVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rthblten_p',MAXVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rublten_p',MAXVAL(rublten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rublten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rvblten_p',MAXVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rtkeblten_p',MAXVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme))
+    rublten_p(:,kme,:)   = 0.0_RKIND
+    rvblten_p(:,kme,:)   = 0.0_RKIND
+    rthblten_p(:,kme,:)  = 0.0_RKIND
+    rqvblten_p(:,kme,:)  = 0.0_RKIND
+    rqcblten_p(:,kme,:)  = 0.0_RKIND
+    rtkeblten_p(:,kme,:) = 0.0_RKIND
+    
+    rqiblten_p           = 0.0_RKIND ! No ice implemented yet
 
     deallocate(presdiff_p, thv_p, thetal_p, qtracers, wtracer_sfc, w_zt, qw_p)
     deallocate(phis_p)
