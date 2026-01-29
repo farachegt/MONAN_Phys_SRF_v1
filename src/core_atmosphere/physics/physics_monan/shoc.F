@@ -2831,10 +2831,10 @@ subroutine x_y_terms_diag_third_shoc_moment(&
   x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
  
-if(abs((1._rtype - a3 * buoy_sgs2)) .lt. 1.e-6) then
- print*,'den0' ,a3 , buoy_sgs2, a3 * buoy_sgs2,c_diag_3rd_mom
- !stop 1111
-endif
+!if(abs((1._rtype - a3 * buoy_sgs2)) .lt. 1.e-6) then
+! print*,'den0' ,a3 , buoy_sgs2, a3 * buoy_sgs2,c_diag_3rd_mom
+! stop 1111
+!endif
 
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
  
