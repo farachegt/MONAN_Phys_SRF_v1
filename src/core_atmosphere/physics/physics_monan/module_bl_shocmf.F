@@ -79,6 +79,44 @@ module module_bl_shocmf
  end subroutine calculate_presdiff
 
 
+ subroutine assert_finite_2d(field_name, field)
+    character(len=*), intent(in) :: field_name
+    real(kind=RKIND), intent(in) :: field(:,:)
+
+    integer :: i, j
+
+    do j = 1, size(field, 2)
+    do i = 1, size(field, 1)
+        if (.not. ieee_is_finite(field(i,j))) then
+            write(*,*) 'SHOCMF non-finite detected in ', trim(field_name), &
+                       ' at (i,j)=(', i, ',', j, ') value=', field(i,j)
+            error stop
+        end if
+    enddo
+    enddo
+ end subroutine assert_finite_2d
+
+
+ subroutine assert_finite_3d(field_name, field)
+    character(len=*), intent(in) :: field_name
+    real(kind=RKIND), intent(in) :: field(:,:,:)
+
+    integer :: i, j, k
+
+    do j = 1, size(field, 3)
+    do k = 1, size(field, 2)
+    do i = 1, size(field, 1)
+        if (.not. ieee_is_finite(field(i,k,j))) then
+            write(*,*) 'SHOCMF non-finite detected in ', trim(field_name), &
+                       ' at (i,k,j)=(', i, ',', k, ',', j, ') value=', field(i,k,j)
+            error stop
+        end if
+    enddo
+    enddo
+    enddo
+ end subroutine assert_finite_3d
+
+
  subroutine calculate_thetal(ims, ime, jms, jme, kms, kme, cp_in, xlv_in, theta, qc, inv_exner, thetal)
     ! Calculate liquid water potential temperature
     ! Reference: shoc_intr.F90 in E3SM code and
@@ -775,6 +813,79 @@ module module_bl_shocmf
 
     integer :: num_qtracers, nadv, i, j, k
     real(kind=RKIND) :: shoc_timestep
+
+    call assert_finite_2d('uw_sfc_p', uw_sfc_p)
+    call assert_finite_2d('vw_sfc_p', vw_sfc_p)
+    call assert_finite_2d('hpbl_p', hpbl_p)
+    call assert_finite_2d('pblh_wthl_p', pblh_wthl_p)
+    call assert_finite_2d('pblh_tke_p', pblh_tke_p)
+    call assert_finite_2d('mf_dry_freq_p', mf_dry_freq_p)
+    call assert_finite_2d('mf_moist_freq_p', mf_moist_freq_p)
+    call assert_finite_2d('plumeheight_p', plumeheight_p)
+    call assert_finite_2d('plume_dry_height_p', plume_dry_height_p)
+    call assert_finite_2d('ztop_b_p', ztop_b_p)
+
+    call assert_finite_3d('tke_shmf_p', tke_shmf_p)
+    call assert_finite_3d('kzh_p', kzh_p)
+    call assert_finite_3d('kzm_p', kzm_p)
+    call assert_finite_3d('rino_p', rino_p)
+    call assert_finite_3d('shoc_mix_p', shoc_mix_p)
+    call assert_finite_3d('isotropy_p', isotropy_p)
+    call assert_finite_3d('tke_dissip_p', tke_dissip_p)
+    call assert_finite_3d('tke_prod_b_p', tke_prod_b_p)
+    call assert_finite_3d('tke_prod_sh_p', tke_prod_sh_p)
+    call assert_finite_3d('w_sec_p', w_sec_p)
+    call assert_finite_3d('thl_sec_p', thl_sec_p)
+    call assert_finite_3d('qw_sec_p', qw_sec_p)
+    call assert_finite_3d('qwthl_sec_p', qwthl_sec_p)
+    call assert_finite_3d('wthl_sec_p', wthl_sec_p)
+    call assert_finite_3d('wqw_sec_p', wqw_sec_p)
+    call assert_finite_3d('wtke_sec_p', wtke_sec_p)
+    call assert_finite_3d('uw_sec_p', uw_sec_p)
+    call assert_finite_3d('vw_sec_p', vw_sec_p)
+    call assert_finite_3d('w3_p', w3_p)
+    call assert_finite_3d('wqls_sec_p', wqls_sec_p)
+    call assert_finite_3d('brunt_p', brunt_p)
+    call assert_finite_3d('shoc_ql2_p', shoc_ql2_p)
+    call assert_finite_3d('mf_dry_a_p', mf_dry_a_p)
+    call assert_finite_3d('mf_moist_a_p', mf_moist_a_p)
+    call assert_finite_3d('mf_dry_w_p', mf_dry_w_p)
+    call assert_finite_3d('mf_moist_w_p', mf_moist_w_p)
+    call assert_finite_3d('mf_dry_qt_p', mf_dry_qt_p)
+    call assert_finite_3d('mf_moist_qt_p', mf_moist_qt_p)
+    call assert_finite_3d('mf_dry_thl_p', mf_dry_thl_p)
+    call assert_finite_3d('mf_moist_thl_p', mf_moist_thl_p)
+    call assert_finite_3d('mf_dry_u_p', mf_dry_u_p)
+    call assert_finite_3d('mf_moist_u_p', mf_moist_u_p)
+    call assert_finite_3d('mf_dry_v_p', mf_dry_v_p)
+    call assert_finite_3d('mf_moist_v_p', mf_moist_v_p)
+    call assert_finite_3d('mf_moist_qc_p', mf_moist_qc_p)
+    call assert_finite_3d('mf_thlflx_p', mf_thlflx_p)
+    call assert_finite_3d('mf_qtflx_p', mf_qtflx_p)
+    call assert_finite_3d('mf_ae_p', mf_ae_p)
+    call assert_finite_3d('mf_aw_p', mf_aw_p)
+    call assert_finite_3d('mf_awthv_p', mf_awthv_p)
+    call assert_finite_3d('mf_awthl_p', mf_awthl_p)
+    call assert_finite_3d('mf_awqt_p', mf_awqt_p)
+    call assert_finite_3d('mf_awql_p', mf_awql_p)
+    call assert_finite_3d('mf_awqi_p', mf_awqi_p)
+    call assert_finite_3d('mf_awu_p', mf_awu_p)
+    call assert_finite_3d('mf_awv_p', mf_awv_p)
+    call assert_finite_3d('cfl_mf_p', cfl_mf_p)
+    call assert_finite_3d('wthl_sec_ed_p', wthl_sec_ed_p)
+    call assert_finite_3d('wthl_sec_mf_p', wthl_sec_mf_p)
+    call assert_finite_3d('wqw_sec_ed_p', wqw_sec_ed_p)
+    call assert_finite_3d('wqw_sec_mf_p', wqw_sec_mf_p)
+    call assert_finite_3d('dse_p', dse_p)
+    call assert_finite_3d('wthv_sec_p', wthv_sec_p)
+    call assert_finite_3d('cldfrabl_p', cldfrabl_p)
+    call assert_finite_3d('rublten_p', rublten_p)
+    call assert_finite_3d('rvblten_p', rvblten_p)
+    call assert_finite_3d('rthblten_p', rthblten_p)
+    call assert_finite_3d('rqvblten_p', rqvblten_p)
+    call assert_finite_3d('rqcblten_p', rqcblten_p)
+    call assert_finite_3d('rqiblten_p', rqiblten_p)
+    call assert_finite_3d('rtkeblten_p', rtkeblten_p)
 
     if (itimestep == 1) then
         wthv_sec_p(:,:,:)  = 0.0_RKIND
