@@ -559,6 +559,7 @@ module module_bl_shocmf
     w_p,                      &
     dse_p,                    &
     tke_shmf_p,               &
+    tkepbl_p,                 &
     u_p,                      &
     v_p,                      &
     wthv_sec_p,               &
@@ -745,7 +746,7 @@ module module_bl_shocmf
                                                         rqiblten_p,       &
                                                         rqcblten_p
 
-
+    real(kind=RKIND), dimension(:,:,:), intent(out) :: tkepbl_p
 
     real(kind=RKIND), dimension(:,:,:), allocatable :: presdiff_p,         &
                                                        thetal_p,           &
@@ -787,6 +788,17 @@ module module_bl_shocmf
         rino_p(:,:,:)      = 0.0_RKIND
         shoc_mix_p(:,:,:)  = 0.0_RKIND
         isotropy_p(:,:,:)  = 0.0_RKIND
+        uw_sec_p(:,:,:)    = 0.0_RKIND
+        vw_sec_p(:,:,:)    = 0.0_RKIND
+        w3_p(:,:,:)        = 0.0_RKIND
+        wqls_sec_p(:,:,:)  = 0.0_RKIND
+        dse_p(:,:,:)       = 0.0_RKIND
+        brunt_p(:,:,:)     = 0.0_RKIND
+        uw_sfc_p(:,:)      = 0.0_RKIND
+        vw_sfc_p(:,:)      = 0.0_RKIND
+        pblh_wthl_p(:,:)   = 0.0_RKIND
+        pblh_tke_p(:,:)    = 0.0_RKIND
+        kpbl_p(:,:)        = kms
     end if
 
     allocate(                                 &
@@ -1172,6 +1184,9 @@ module module_bl_shocmf
     rtkeblten_p(:,kme,:) = 0.0_RKIND
     
     rqiblten_p           = 0.0_RKIND ! No ice implemented yet
+
+    ! Updating TKE PBL output field with the latest TKE values
+    tkepbl_p = tke_aux
 
     deallocate(presdiff_p, thv_p, thetal_p, qtracers, wtracer_sfc, w_zt, qw_p)
     deallocate(phis_p)
