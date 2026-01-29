@@ -23,7 +23,7 @@ save ! for module variables
 
 public  :: shoc_init, shoc_main
 
-logical :: use_cxx = .false.
+logical :: use_cxx = .false. , make_cloud = .true. 
 
 real(rtype), parameter, public :: largeneg = -99999999.99_rtype
 real(rtype), parameter, public :: pi = 3.14159265358979323_rtype
@@ -103,7 +103,7 @@ real(rtype), parameter :: maxlen = 20000.0_rtype
 ! Minimum Mixing length [m]
 real(rtype), parameter :: minlen = 20.0_rtype
 ! Maximum TKE [m2/s2]
-real(rtype), parameter :: maxtke = 50.0_rtype
+real(rtype), parameter :: maxtke = 10.0_rtype
 ! Minimum TKE [m2/s2]
 real(rtype), parameter :: mintke = 0.0004_rtype
 
@@ -178,7 +178,7 @@ real function MurphyKoop_svp(t, i_type)
 
        write(err_msg,*)'Error: Either MurphyKoop_svp i_type is not 0 or 1 or t=NaN. itype= ', &
             i_type,' and temperature t=',t,' in file: ',__FILE__,' at line:',__LINE__
-       stop err_msg
+       stop 'err_msg'
     endif
 
     return
@@ -271,8 +271,8 @@ subroutine shoc_init( &
    end do
    npbl = max(npbl,1)
    
-   print *, 'npbl = ', npbl
-   print *, 'SHOC E3SM'
+   !print *, 'npbl = ', npbl
+   !print *, 'SHOC E3SM'
 
    return
 
@@ -573,11 +573,11 @@ subroutine shoc_main ( &
 
   real(rtype) :: thv_zi(shcol,nlevi)
 
-  if (.not. do_edmf .and. .not. do_mf_diag) then
-    print*, 'SHOCMF: MASS FLUX DISABLED'
-  else if (do_edmf .and. do_mf_diag) then
-    print*, 'SHOCMF: MASS FLUX ENABLED'
-  endif
+ ! if (.not. do_edmf .and. .not. do_mf_diag) then
+ !   print*, 'SHOCMF: MASS FLUX DISABLED'
+ ! else if (do_edmf .and. do_mf_diag) then
+ !   print*, 'SHOCMF: MASS FLUX ENABLED'
+ ! endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
@@ -734,8 +734,11 @@ subroutine shoc_main ( &
     !    zt_grid,zi_grid,tk,tkh,&             ! Input
     !    uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,&     ! Input
     !    wtracer_sfc,&                        ! Input
-    !    thetal_t,qw_t,qtracers_t,tke_t,&             ! Input/Output
-    !    u_wind_t,v_wind_t)                       ! Input/Output
+    !    thetal_t,qw_t,qtracers_t,tke_t,&     ! Input/Output
+    !    u_wind_t,v_wind_t)                   ! Input/Output
+
+
+   if(make_cloud) then 
 
     ! Diagnose the second order moments
     call diag_second_shoc_moments(&
@@ -785,6 +788,8 @@ subroutine shoc_main ( &
        shoc_cldfrac,shoc_ql,&               ! Output
        wqls_sec,wthv_sec,shoc_ql2)          ! Output
     endif
+  
+  endif ! make_cloud
 
     ! Check TKE to make sure values lie within acceptable
     !  bounds after vertical advection, etc.
@@ -2652,6 +2657,8 @@ subroutine compute_diag_third_shoc_moment(&
              isotropy_zi(i,k), brunt_zi(i,k), thetal_zi(i,k), &   ! Input
              thedz, thedz2, iso, isosqrd, buoy_sgs2, bet2)        ! Output
 
+        !Compute inputs for computing f0 to f5 terms
+
         !Compute f0 to f5 terms
         call f0_to_f5_diag_third_shoc_moment(&
              thedz, thedz2, bet2, iso, isosqrd, &                 ! Input
@@ -2819,7 +2826,14 @@ subroutine x_y_terms_diag_third_shoc_moment(&
 
   x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
+ 
+!if(abs((1._rtype - a3 * buoy_sgs2)) .lt. 1.e-6) then
+! print*,'den0' ,a3 , buoy_sgs2, a3 * buoy_sgs2,c_diag_3rd_mom
+! stop 1111
+!endif
+
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
+ 
   x1 = (a0 * f0 + a1 * f1 + a2 * (1._rtype - a3 * buoy_sgs2) * f2) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
@@ -4015,7 +4029,7 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
   real(rtype) :: tscale, lambda, buoy_sgs_save
 
   !Parameters
-  real(rtype), parameter :: maxiso       = 20000.0_rtype ! Return to isotropic timescale [s]
+  real(rtype), parameter :: maxiso       = 2000.0_rtype ! Return to isotropic timescale [s]
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
   if (use_cxx) then
@@ -5618,7 +5632,7 @@ subroutine linear_interp(x1,x2,y1,y2,km1,km2,ncol,minthresh)
           y2(i,k2) = y1(i,km1-1) + (y1(i,km1)-y1(i,km1-1))*(x2(i,k2)-x1(i,km1-1))/(x1(i,km1)-x1(i,km1-1))
        end do
     else
-       print *,km1,km2
+    !   print *,km1,km2
     end if
     do k2 = 1,km2
        do i = 1,ncol
