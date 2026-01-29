@@ -676,13 +676,13 @@ module module_bl_shocmf
                                                     pres_p,                  &
                                                     pres2_p,                 &
                                                     w_p,                     &
-                                                    tke_shmf_p,              &
                                                     u_p,                     &
                                                     v_p,                     &
                                                     qc_p,                    &
                                                     qv_p,                    &
                                                     t_p,                     &
                                                     rho_p
+    real(kind=RKIND),dimension(:,:,:), intent(inout) :: tke_shmf_p
 
     real(kind=RKIND),dimension(:,:,:), intent(inout) :: kzh_p,            &
                                                         kzm_p,            &
@@ -800,16 +800,6 @@ module module_bl_shocmf
         pres2_aux(ims:ime, kms:kme, jms:jme)  &
     )
 
-    ! Creating local copies of the input variables to avoid modifying them directly
-    qv_aux = qv_p
-    qc_aux = qc_p
-    u_aux  = u_p
-    v_aux  = v_p
-    theta_aux = theta_p
-    tke_aux = tke_shmf_p
-    pres_aux = pres_p
-    pres2_aux = pres2_p
-
     allocate(inv_exner_p(ims:ime, kms:kme, jms:jme), inv_exner_interface_p(ims:ime, kms:kme, jms:jme))
     do i=ims,ime
     do k=kms,kme
@@ -818,11 +808,21 @@ module module_bl_shocmf
 
         if (k .ne. kme) then
             inv_exner_p(i,k,j) = 1.0_RKIND/((pres_p(i,k,j)/p0_shoc)**(R_d/cp)) ! inv_exner_p = theta_p/t_p
-            tke_aux(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
+            tke_shmf_p(i,k,j) = max(mintke, tke_shmf_p(i,k,j))
         endif
     enddo
     enddo
     enddo
+    ! Creating local copies of the input variables to avoid modifying them directly
+    qv_aux = qv_p
+    qc_aux = qc_p
+    u_aux  = u_p
+    v_aux  = v_p
+    theta_aux = theta_p
+    pres_aux = pres_p
+    pres2_aux = pres2_p
+    tke_aux = tke_shmf_p
+
 
     allocate(dy_p(ims:ime, jms:jme))
     dy_p = dx_p ! Assuming dx_p is the same for both x and y directions
@@ -1158,8 +1158,20 @@ module module_bl_shocmf
     enddo
     enddo
     enddo
-
-    rqiblten_p = 0.0_RKIND ! No ice implemented yet
+!print*,'rqcblten_p',MAXVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rqvblten_p',MAXVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rthblten_p',MAXVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rublten_p',MAXVAL(rublten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rublten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rvblten_p',MAXVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme))
+!print*,'rtkeblten_p',MAXVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme))
+    rublten_p(:,kme,:)   = 0.0_RKIND
+    rvblten_p(:,kme,:)   = 0.0_RKIND
+    rthblten_p(:,kme,:)  = 0.0_RKIND
+    rqvblten_p(:,kme,:)  = 0.0_RKIND
+    rqcblten_p(:,kme,:)  = 0.0_RKIND
+    rtkeblten_p(:,kme,:) = 0.0_RKIND
+    
+    rqiblten_p           = 0.0_RKIND ! No ice implemented yet
 
     deallocate(presdiff_p, thv_p, thetal_p, qtracers, wtracer_sfc, w_zt, qw_p)
     deallocate(phis_p)

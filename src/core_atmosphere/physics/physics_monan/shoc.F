@@ -23,7 +23,7 @@ save ! for module variables
 
 public  :: shoc_init, shoc_main
 
-logical :: use_cxx = .false.
+logical :: use_cxx = .false. , make_cloud = .true. 
 
 real(rtype), parameter, public :: largeneg = -99999999.99_rtype
 real(rtype), parameter, public :: pi = 3.14159265358979323_rtype
@@ -103,7 +103,7 @@ real(rtype), parameter :: maxlen = 20000.0_rtype
 ! Minimum Mixing length [m]
 real(rtype), parameter :: minlen = 20.0_rtype
 ! Maximum TKE [m2/s2]
-real(rtype), parameter :: maxtke = 50.0_rtype
+real(rtype), parameter :: maxtke = 10.0_rtype
 ! Minimum TKE [m2/s2]
 real(rtype), parameter :: mintke = 0.0004_rtype
 
@@ -589,6 +589,7 @@ subroutine shoc_main ( &
      se_b,ke_b,wv_b,wl_b)                   ! Input/Output
 
   do t=1,nadv
+
     ! Check TKE to make sure values lie within acceptable
     !  bounds after host model performs horizontal advection
     call check_tke(shcol,nlev,&                 ! Input
@@ -713,9 +714,7 @@ subroutine shoc_main ( &
        a_diss, a_prod_bu, a_prod_sh,&       ! Output
        isotropy)                            ! Output
 
-!srf
-!   go to 333 ! to avoid the turbulent transport 
-!srf
+
     ! Update SHOC prognostic variables here
     !   via implicit diffusion solver
     call update_prognostics_implicit(&        ! Input
@@ -728,13 +727,7 @@ subroutine shoc_main ( &
        mf_awthl,mf_awqt,&                     ! EDMF Input
        thetal,qw,qtracers,tke,&               ! Input/Output
        u_wind,v_wind)                         ! Input/Output
-!srf
-    333 continue
-!srf
 
-!srf
-!   cycle ! for avoid condensation process
-!srf
 
     ! A version that uses the Thomas algorithm, which is more efficient,
     ! but it only works when mass flux is disabled
@@ -744,8 +737,11 @@ subroutine shoc_main ( &
     !    zt_grid,zi_grid,tk,tkh,&             ! Input
     !    uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,&     ! Input
     !    wtracer_sfc,&                        ! Input
-    !    thetal_t,qw_t,qtracers_t,tke_t,&             ! Input/Output
-    !    u_wind_t,v_wind_t)                       ! Input/Output
+    !    thetal_t,qw_t,qtracers_t,tke_t,&     ! Input/Output
+    !    u_wind_t,v_wind_t)                   ! Input/Output
+
+
+   if(make_cloud) then 
 
     ! Diagnose the second order moments
     call diag_second_shoc_moments(&
@@ -795,6 +791,8 @@ subroutine shoc_main ( &
        shoc_cldfrac,shoc_ql,&               ! Output
        wqls_sec,wthv_sec,shoc_ql2)          ! Output
     endif
+  
+  endif ! make_cloud
 
     ! Check TKE to make sure values lie within acceptable
     !  bounds after vertical advection, etc.
@@ -1400,6 +1398,7 @@ subroutine update_prognostics_implicit( &
   call linear_interp(zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,tk,tk_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,rho_zt,rho_zi,nlev,nlevi,shcol,0._rtype)
+
 
   tmpi(:,1) = 0._rtype
   ! Define the tmpi variable, which is really dt*(g*rho)**2/dp
@@ -2662,6 +2661,8 @@ subroutine compute_diag_third_shoc_moment(&
              isotropy_zi(i,k), brunt_zi(i,k), thetal_zi(i,k), &   ! Input
              thedz, thedz2, iso, isosqrd, buoy_sgs2, bet2)        ! Output
 
+        !Compute inputs for computing f0 to f5 terms
+
         !Compute f0 to f5 terms
         call f0_to_f5_diag_third_shoc_moment(&
              thedz, thedz2, bet2, iso, isosqrd, &                 ! Input
@@ -2829,7 +2830,14 @@ subroutine x_y_terms_diag_third_shoc_moment(&
 
   x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
+ 
+!if(abs((1._rtype - a3 * buoy_sgs2)) .lt. 1.e-6) then
+! print*,'den0' ,a3 , buoy_sgs2, a3 * buoy_sgs2,c_diag_3rd_mom
+! stop 1111
+!endif
+
   y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
+ 
   x1 = (a0 * f0 + a1 * f1 + a2 * (1._rtype - a3 * buoy_sgs2) * f2) / &
        (1._rtype - (a1 + a3) * buoy_sgs2)
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
@@ -3983,6 +3991,7 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
         tke(i,k)=max(mintke,tke(i,k)+dtime* &
              (max(0._rtype,a_prod_sh(i,k)+a_prod_bu(i,k))-a_diss(i,k)))
         tke(i,k)=min(tke(i,k),maxtke)
+
      enddo
   enddo
 
@@ -4025,7 +4034,7 @@ subroutine isotropic_ts(nlev, shcol, brunt_int, tke, a_diss, brunt, isotropy)
   real(rtype) :: tscale, lambda, buoy_sgs_save
 
   !Parameters
-  real(rtype), parameter :: maxiso       = 20000.0_rtype ! Return to isotropic timescale [s]
+  real(rtype), parameter :: maxiso       = 2000.0_rtype ! Return to isotropic timescale [s]
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
   if (use_cxx) then
@@ -4122,10 +4131,12 @@ subroutine eddy_diffusivities(nlev, shcol, pblh, zt_grid, tabs, &
 
            tkh(i,k) = Ckh_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
            tk(i,k)  = Ckm_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
+
         else
            ! Default definition of eddy diffusivity for heat and momentum
            tkh(i,k) = Ckh*isotropy(i,k)*tke(i,k)
            tk(i,k)  = Ckm*isotropy(i,k)*tke(i,k)
+
         endif
 
      enddo
