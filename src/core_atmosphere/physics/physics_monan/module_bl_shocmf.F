@@ -956,7 +956,6 @@ module module_bl_shocmf
     !     print *, 'w_zt(1,:,1) after', w_zt(1,:,1)
     ! endif
 
-
     ! As last position of the array is a extra position, to not letting a
     ! zero value, we are going to extrapolate it considering that
     ! the kme-1 value is the average among kme-2 and kme
@@ -1169,6 +1168,7 @@ module module_bl_shocmf
     deallocate(height_interface_p, height_mid_p)
     deallocate(inv_exner_p, inv_exner_interface_p, rho_interface_p)
     deallocate(qv_aux, qc_aux, u_aux, v_aux, theta_aux, tke_aux)
+    deallocate(pres_aux, pres2_aux)
   
  end subroutine bl_shocmf_driver
 
