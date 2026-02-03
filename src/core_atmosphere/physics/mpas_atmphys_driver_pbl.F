@@ -1408,7 +1408,7 @@
             ht_p          = ht_p         , theta_p        = th_p          , z_p             = z_p             , &
             zmid_p        = zmid_p       , pres_p         = pres_p        , pres2_p         = pres2_p         , &
             uw_sfc_p      = uw_sfc_p     , vw_sfc_p       = vw_sfc_p      , w_p             = w_p             , &
-            dse_p         = dse_p        , tke_shmf_p     = tke_shmf_p                                        , &
+            dse_p         = dse_p        , tke_shmf_p     = tke_shmf_p    , tkepbl_p        = tkepbl_p        , &
             u_p           = u_p          , v_p            = v_p                                               , &
             wthv_sec_p    = wthv_sec_p   , kzh_p          = kzh_p         , kzm_p           = kzm_p           , &
             qc_p          = qc_p         , cldfrabl_p     = cldfrabl_p    , hpbl_p          = hpbl_p          , &
@@ -1439,8 +1439,7 @@
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
       )
-      
-      tkepbl_p = tke_shmf_p
+
       call mpas_timer_stop('bl_shocmf')
         
     case default

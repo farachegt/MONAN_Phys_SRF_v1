@@ -690,7 +690,7 @@
 
 !initialize instantaneous precipitation, and copy convective tendencies from the dynamics to
 !the physics grid:
- call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite,state,time_lev)
+ call convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite)
 
 !... convert the convection time-step to minutes:
  cudt = dt_cu/60.
@@ -905,7 +905,7 @@
  end subroutine driver_convection
 
 !=================================================================================================================
- subroutine convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite,state,time_lev)
+ subroutine convection_from_MPAS(dt_dyn,configs,mesh,sfc_input,diag_physics,tend_physics,diag,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -915,11 +915,9 @@
  type(mpas_pool_type),intent(in):: diag_physics
  type(mpas_pool_type),intent(in):: tend_physics
  type(mpas_pool_type),intent(in):: diag
- type(mpas_pool_type),intent(in):: state
 
  integer,intent(in):: its,ite
  real(kind=RKIND),intent(in):: dt_dyn
- integer,intent(in):: time_lev
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme,config_pbl_scheme
