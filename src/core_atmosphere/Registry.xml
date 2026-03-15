@@ -2576,7 +2576,7 @@
 
                 <!-- MYNN PBL SCHEME: -->
                 <var name="cldfrac_bl" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="cloud fraction in the MYNN PBL scheme"
+                     description="cloud fraction in the MYNN and SHOCMF PBL schemes"
                      packages="bl_shocmf_in;bl_mynn_in"/>
 
                 <var name="qc_bl" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
@@ -2724,127 +2724,127 @@
                     description="Dry static energy from the SHOCMF PBL scheme" 
                     packages="bl_shocmf_in"/>
                
-               <var name="thl_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="K^{2}"
+               <var name="thl_sec" type="real" dimensions="nVertLevels nCells Time" units="K^{2}"
                     description="Temperature variance"
                     packages="bl_shocmf_in"/>
 
-               <var name="qw_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg^{2}/kg^{2}"
+               <var name="qw_sec" type="real" dimensions="nVertLevels nCells Time" units="kg^{2}/kg^{2}"
                     description="Moisture variance"
                     packages="bl_shocmf_in"/>
 
-               <var name="qwthl_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="K kg/kg"
+               <var name="qwthl_sec" type="real" dimensions="nVertLevels nCells Time" units="K kg/kg"
                     description="Temperature and moisture correlation"
                     packages="bl_shocmf_in"/>
 
-               <var name="wthl_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="W m^{-2}"
+               <var name="wthl_sec" type="real" dimensions="nVertLevels nCells Time" units="W m^{-2}"
                     description="Heat flux"
                     packages="bl_shocmf_in"/>
 
-               <var name="wqw_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="W m^{-2}"
+               <var name="wqw_sec" type="real" dimensions="nVertLevels nCells Time" units="W m^{-2}"
                     description="Moisture flux"
                     packages="bl_shocmf_in"/>
 
-               <var name="wtke_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{3} s^{-3}"
+               <var name="wtke_sec" type="real" dimensions="nVertLevels nCells Time" units="m^{3} s^{-3}"
                     description="Vertical flux of turbulence"
                     packages="bl_shocmf_in"/>
 
-               <var name="uw_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{2} s^{-2}"
+               <var name="uw_sec" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                     description="Momentum flux (u-w component)"
                     packages="bl_shocmf_in"/>
 
-               <var name="vw_sec" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{2} s^{-2}"
+               <var name="vw_sec" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                     description="Momentum flux (v-w component)"
                     packages="bl_shocmf_in"/>
 
-               <var name="w3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{3} s^{-3}"
+               <var name="w3" type="real" dimensions="nVertLevels nCells Time" units="m^{3} s^{-3}"
                     description="Third moment vertical velocity"
                     packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_a" type="real" dimensions="nVertLevelsP1 nCells Time" units="fraction"
+               <var name="mf_dry_a" type="real" dimensions="nVertLevels nCells Time" units="fraction"
                     description="Dry updraft area fraction (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_a" type="real" dimensions="nVertLevelsP1 nCells Time" units="fraction"
+               <var name="mf_moist_a" type="real" dimensions="nVertLevels nCells Time" units="fraction"
                     description="Moist updraft area fraction (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_w" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_dry_w" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Dry updraft vertical velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_w" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_moist_w" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Moist updraft vertical velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_qt" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg"
+               <var name="mf_dry_qt" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
                     description="Dry updraft total water mixing ratio (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_qt" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg"
+               <var name="mf_moist_qt" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
                     description="Moist updraft total water mixing ratio (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_thl" type="real" dimensions="nVertLevelsP1 nCells Time" units="K"
+               <var name="mf_dry_thl" type="real" dimensions="nVertLevels nCells Time" units="K"
                     description="Dry updraft liquid-ice potential temperature (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_thl" type="real" dimensions="nVertLevelsP1 nCells Time" units="K"
+               <var name="mf_moist_thl" type="real" dimensions="nVertLevels nCells Time" units="K"
                     description="Moist updraft liquid-ice potential temperature (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_u" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_dry_u" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Dry updraft zonal velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_u" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_moist_u" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Moist updraft zonal velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_dry_v" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_dry_v" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Dry updraft meridional velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_v" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_moist_v" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Moist updraft meridional velocity (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_moist_qc" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg"
+               <var name="mf_moist_qc" type="real" dimensions="nVertLevels nCells Time" units="kg/kg"
                     description="Moist updraft condensate mixing ratio (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_ae" type="real" dimensions="nVertLevelsP1 nCells Time" units="fraction"
+               <var name="mf_ae" type="real" dimensions="nVertLevels nCells Time" units="fraction"
                     description="Environmental area fraction (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_aw" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="mf_aw" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Sum of a_i*w_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awthv" type="real" dimensions="nVertLevelsP1 nCells Time" units="K m/s"
+               <var name="mf_awthv" type="real" dimensions="nVertLevels nCells Time" units="K m/s"
                     description="Sum of a_i*w_i*thv_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awthl" type="real" dimensions="nVertLevelsP1 nCells Time" units="K m/s"
+               <var name="mf_awthl" type="real" dimensions="nVertLevels nCells Time" units="K m/s"
                     description="Sum of a_i*w_i*thl_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awqt" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="mf_awqt" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="Sum of a_i*w_i*q_ti (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awql" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="mf_awql" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="Sum of a_i*w_i*q_li (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awqi" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="mf_awqi" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="Sum of a_i*w_i*qi_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awu" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{2}/s^{2}"
+               <var name="mf_awu" type="real" dimensions="nVertLevels nCells Time" units="m^{2}/s^{2}"
                     description="Sum of a_i*w_i*u_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_awv" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^{2}/s^{2}"
+               <var name="mf_awv" type="real" dimensions="nVertLevels nCells Time" units="m^{2}/s^{2}"
                     description="Sum of a_i*w_i*v_i (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_thlflx" type="real" dimensions="nVertLevelsP1 nCells Time" units="K m/s"
+               <var name="mf_thlflx" type="real" dimensions="nVertLevels nCells Time" units="K m/s"
                     description="Kinematic thl flux by edmf (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="mf_qtflx" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="mf_qtflx" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="Kinematic qt flux by edmf (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="cfl_mf" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+               <var name="cfl_mf" type="real" dimensions="nVertLevels nCells Time" units="m/s"
                     description="Mass-flux CFL number" packages="bl_shocmf_in"/>
 
-               <var name="wthl_sec_ed" type="real" dimensions="nVertLevelsP1 nCells Time" units="K m/s"
+               <var name="wthl_sec_ed" type="real" dimensions="nVertLevels nCells Time" units="K m/s"
                     description="vertical heat flux (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="wthl_sec_mf" type="real" dimensions="nVertLevelsP1 nCells Time" units="K m/s"
+               <var name="wthl_sec_mf" type="real" dimensions="nVertLevels nCells Time" units="K m/s"
                     description="vertical heat flux (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="wqw_sec_ed" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="wqw_sec_ed" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="vertical moisture flux (EDMF)" packages="bl_shocmf_in"/>
 
-               <var name="wqw_sec_mf" type="real" dimensions="nVertLevelsP1 nCells Time" units="kg/kg m/s"
+               <var name="wqw_sec_mf" type="real" dimensions="nVertLevels nCells Time" units="kg/kg m/s"
                     description="vertical moisture flux (EDMF)" packages="bl_shocmf_in"/>
 
                <var name="mf_dry_freq" type="real" dimensions="nCells Time" units="fraction"
@@ -2998,11 +2998,11 @@
                 <!-- ... MONIN-OBUKHOV (SFCLAY): -->
                 <var name="fh" type="real" dimensions="nCells Time" units="unitless"
                      description="integrated stability function for heat"
-                     packages="bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_ysu_in"/>
 
                 <var name="fm" type="real" dimensions="nCells Time" units="unitless"
                      description="integrated stability function for moisture"
-                     packages="bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_ysu_in"/>
 
 
                 <!-- ... MYNN: -->
