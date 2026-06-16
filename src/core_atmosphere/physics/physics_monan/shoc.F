@@ -44,6 +44,7 @@ real(rtype) :: lice  ! latent heat of fusion [J/kg]
 real(rtype) :: eps   ! rh2o/rair - 1 [-]
 real(rtype) :: vk    ! von karmann constant [-]
 real(rtype) :: p0 = 100000.0    ! Reference pressure, Pa
+real(rtype) :: epsilon = 1.e-6_rtype ! small number to avoid division by zero
 
 !=========================================================
 ! Tunable parameters used in SHOC
@@ -103,7 +104,7 @@ real(rtype), parameter :: maxlen = 20000.0_rtype
 ! Minimum Mixing length [m]
 real(rtype), parameter :: minlen = 20.0_rtype
 ! Maximum TKE [m2/s2]
-real(rtype), parameter :: maxtke = 10.0_rtype
+real(rtype), parameter :: maxtke = 50.0_rtype!10.0_rtype
 ! Minimum TKE [m2/s2]
 real(rtype), parameter :: mintke = 0.0004_rtype
 
@@ -589,7 +590,6 @@ subroutine shoc_main ( &
      se_b,ke_b,wv_b,wl_b)                   ! Input/Output
 
   do t=1,nadv
-
     ! Check TKE to make sure values lie within acceptable
     !  bounds after host model performs horizontal advection
     call check_tke(shcol,nlev,&                 ! Input
@@ -714,7 +714,6 @@ subroutine shoc_main ( &
        a_diss, a_prod_bu, a_prod_sh,&       ! Output
        isotropy)                            ! Output
 
-
     ! Update SHOC prognostic variables here
     !   via implicit diffusion solver
     call update_prognostics_implicit(&        ! Input
@@ -727,7 +726,6 @@ subroutine shoc_main ( &
        mf_awthl,mf_awqt,&                     ! EDMF Input
        thetal,qw,qtracers,tke,&               ! Input/Output
        u_wind,v_wind)                         ! Input/Output
-
 
     ! A version that uses the Thomas algorithm, which is more efficient,
     ! but it only works when mass flux is disabled
@@ -1398,7 +1396,6 @@ subroutine update_prognostics_implicit( &
   call linear_interp(zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,tk,tk_zi,nlev,nlevi,shcol,0._rtype)
   call linear_interp(zt_grid,zi_grid,rho_zt,rho_zi,nlev,nlevi,shcol,0._rtype)
-
 
   tmpi(:,1) = 0._rtype
   ! Define the tmpi variable, which is really dt*(g*rho)**2/dp
@@ -2822,26 +2819,31 @@ subroutine x_y_terms_diag_third_shoc_moment(&
 
 ! local variables
   real(rtype) :: a0, a1, a2, a3
+  real(rtype) :: den0, den1
 
   a0=(0.52_rtype*(1._rtype/bfb_square(c_diag_3rd_mom)))/(c_diag_3rd_mom-2._rtype)
   a1=0.87_rtype/bfb_square(c_diag_3rd_mom)
   a2=0.5_rtype/c_diag_3rd_mom
   a3=0.6_rtype/(c_diag_3rd_mom*(c_diag_3rd_mom-2._rtype))
 
-  x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
- 
-!if(abs((1._rtype - a3 * buoy_sgs2)) .lt. 1.e-6) then
-! print*,'den0' ,a3 , buoy_sgs2, a3 * buoy_sgs2,c_diag_3rd_mom
-! stop 1111
-!endif
+  den0= 1._rtype - (a1 + a3) * buoy_sgs2
+  den1= 1._rtype - a3 * buoy_sgs2
+  if(abs(den0) .lt. epsilon) then
+    den0 = epsilon
+  endif
+  if(abs(den1) .lt. epsilon) then
+    den1 = epsilon
+  endif
 
-  y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (1._rtype - a3 * buoy_sgs2)
+  x0 = (a2 * buoy_sgs2 * (1._rtype - a3 * buoy_sgs2)) / &
+       (den0)
+ 
+  y0 = (2._rtype * a2 * buoy_sgs2 * x0) / (den1)
  
   x1 = (a0 * f0 + a1 * f1 + a2 * (1._rtype - a3 * buoy_sgs2) * f2) / &
-       (1._rtype - (a1 + a3) * buoy_sgs2)
+       (den0)
   y1 = (2._rtype * a2 * (buoy_sgs2 * x1 + (a0/a1) * f0 + f1)) / &
-       (1._rtype - a3* buoy_sgs2)
+       (den1)
 
   return
 end subroutine x_y_terms_diag_third_shoc_moment
@@ -3305,6 +3307,8 @@ subroutine shoc_assumed_pdf_thl_parameters(&
   real(rtype), parameter :: thl_tol = 1.e-2_rtype
   real(rtype), parameter :: w_thresh = 0.0_rtype
 
+  real(rtype) :: den0, den1
+
   corrtest1=max(-1._rtype,min(1._rtype,wthlsec/(sqrtw2*sqrtthl)))
 
   if (thlsec .le. bfb_square(thl_tol) .or. abs(w1_2-w1_1) .le. w_thresh) then
@@ -3333,13 +3337,23 @@ subroutine shoc_assumed_pdf_thl_parameters(&
       Skew_thl = 0.0_rtype
     endif
 
+    den0 = 3._rtype*a*(thl1_2-thl1_1)
+    if (abs(den0) .lt. epsilon) then
+      den0 = epsilon
+    endif
+  
+    den1 = 3._rtype*(1._rtype-a)*(thl1_2-thl1_1)
+    if (abs(den1) .lt. epsilon) then
+      den1 = epsilon
+    endif
+
     thl2_1=min(100._rtype,max(0._rtype,(3._rtype*thl1_2*(1._rtype-a*bfb_square(thl1_1)-(1._rtype-a)*bfb_square(thl1_2)) &
             -(Skew_thl-a*bfb_cube(thl1_1)-(1._rtype-a)*bfb_cube(thl1_2)))/ &
-            (3._rtype*a*(thl1_2-thl1_1))))*thlsec
+            (den0)))*thlsec
 
     thl2_2=min(100._rtype,max(0._rtype,(-3._rtype*thl1_1*(1._rtype-a*bfb_square(thl1_1)-(1._rtype-a)*bfb_square(thl1_2)) &
       +(Skew_thl-a*bfb_cube(thl1_1)-(1._rtype-a)*bfb_cube(thl1_2)))/ &
-      (3._rtype*(1._rtype-a)*(thl1_2-thl1_1))))*thlsec
+      (den1)))*thlsec
 
 
     thl1_1=thl1_1*sqrtthl+thl_first
@@ -3991,7 +4005,6 @@ subroutine adv_sgs_tke(nlev, shcol, dtime, shoc_mix, wthv_sec, &
         tke(i,k)=max(mintke,tke(i,k)+dtime* &
              (max(0._rtype,a_prod_sh(i,k)+a_prod_bu(i,k))-a_diss(i,k)))
         tke(i,k)=min(tke(i,k),maxtke)
-
      enddo
   enddo
 
@@ -4131,12 +4144,10 @@ subroutine eddy_diffusivities(nlev, shcol, pblh, zt_grid, tabs, &
 
            tkh(i,k) = Ckh_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
            tk(i,k)  = Ckm_s*bfb_square(shoc_mix(i,k))*bfb_sqrt(sterm_zt(i,k))
-
         else
            ! Default definition of eddy diffusivity for heat and momentum
            tkh(i,k) = Ckh*isotropy(i,k)*tke(i,k)
            tk(i,k)  = Ckm*isotropy(i,k)*tke(i,k)
-
         endif
 
      enddo
