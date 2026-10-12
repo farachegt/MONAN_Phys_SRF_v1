@@ -641,7 +641,6 @@ module module_bl_shocmf
     its, ite,                 &
     jts, jte,                 &
     kts, kte,                 &
-    dminfo                    &
  )
     ! Driver for the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -654,7 +653,6 @@ module module_bl_shocmf
                            its, ite, &
                            jts, jte, &
                            kts, kte
-    type(dm_info), intent(in) :: dminfo
     real(kind=RKIND), intent(in) :: dt_pbl
     real(kind=RKIND),dimension(:,:), intent(in) :: dx_p, lh_p, hfx_p, ht_p, ustar_p, wspd_p
 
@@ -977,9 +975,6 @@ module module_bl_shocmf
         thetal_p,                          &
         presdiff_p                         &
     )
-    ! if (dminfo % my_proc_id == 1) then
-    !     print *, 'w_zt(1,:,1) after', w_zt(1,:,1)
-    ! endif
 
     ! As last position of the array is a extra position, to not letting a
     ! zero value, we are going to extrapolate it considering that

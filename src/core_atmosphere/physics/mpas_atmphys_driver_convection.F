@@ -628,7 +628,7 @@
 
 !=================================================================================================================
  subroutine driver_convection(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,diag,dminfo,its,ite &
-                             ,exchange_halo_group,block,state,time_lev)
+                             ,exchange_halo_group,block)
 !=================================================================================================================
 
 !input arguments:
@@ -636,14 +636,12 @@
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: sfc_input
  type(mpas_pool_type),intent(in):: diag
- type(mpas_pool_type),intent(in):: state
  type(dm_info),intent(in):: dminfo
  type(block_type), intent(in) :: block
  procedure (halo_exchange_routine) :: exchange_halo_group
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
- integer,intent(in):: time_lev
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -1078,7 +1076,6 @@
                enddo
             enddo
             enddo
-            !print*,'tke',maxval(tkepbl_p),minval(tkepbl_p),maxval(kpbl_p),minval(kpbl_p)
          end if
 
     case ("cu_grell_freitas")

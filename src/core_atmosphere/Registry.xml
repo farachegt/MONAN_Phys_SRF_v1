@@ -802,6 +802,7 @@
 			<var name="rqiblten"/>
 			<var name="rqsblten"/>
 			<var name="rniblten"/>
+			<var name="rtkeblten"/>
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
                <var name="rcnvcfcuten" packages="cu_gf_monan_in"/>
@@ -1453,7 +1454,7 @@
 
                         <var name="qg" array_group="moist" units="kg kg^{-1}"
                              description="Graupel mixing ratio"
-                             packages="bl_shocmf_in;mp_thompson_in;mp_wsm6_in"/>
+                             packages="mp_thompson_in;mp_wsm6_in"/>
 
                         <var name="ni" array_group="number" units="nb kg^{-1}"
                              description="Cloud ice number concentration"

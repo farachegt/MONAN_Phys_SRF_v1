@@ -1195,13 +1195,13 @@
  end subroutine init_pbl
 
 !=================================================================================================================
- subroutine driver_pbl(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,dminfo,its,ite)
+ subroutine driver_pbl(itimestep,configs,mesh,sfc_input,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
- type(dm_info),intent(in):: dminfo
+
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
@@ -1437,7 +1437,7 @@
             rthblten_p    = rthblten_p   , rqvblten_p     = rqvblten_p    , rqcblten_p      = rqcblten_p      , &
             rqiblten_p    = rqiblten_p   , rtkeblten_p    = rtkeblten_p                                       , & 
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                             , &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte, dminfo=dminfo                &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte,                              &
       )
 
       call mpas_timer_stop('bl_shocmf')

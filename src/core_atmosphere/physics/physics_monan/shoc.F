@@ -271,9 +271,6 @@ subroutine shoc_init( &
       end if
    end do
    npbl = max(npbl,1)
-   
-   !print *, 'npbl = ', npbl
-   !print *, 'SHOC E3SM'
 
    return
 
