@@ -934,6 +934,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rthdynten,rthratenlw,rthratensw
  real(kind=RKIND),dimension(:,:),pointer:: rqvblten,rqvdynten,rucuten,rvcuten
  real(kind=RKIND),dimension(:,:),pointer:: rcnvcfcuten, rbuoyxcuten
+ real(kind=RKIND),dimension(:,:),pointer:: shoc_mix
 
 !local variables:
  integer:: i,j,k
@@ -1061,6 +1062,18 @@
                      !tkepbl_p(i,k,j) = tke_pbl(k,i)
                      tkepbl_p(i,k,j) = 0.5*qke(k,i)
                      elpbl_p(i,k,j)  = el_pbl(k,i)                    
+                  enddo
+               enddo
+               enddo
+         end if
+         if (trim(config_pbl_scheme) == "bl_shocmf") then
+               call mpas_pool_get_array(diag_physics,'tke_pbl' , tke_pbl )
+               call mpas_pool_get_array(diag_physics,'shoc_mix', shoc_mix)
+               do j = jts,jte
+               do i = its,ite               
+                  do k = kts,kte
+                     tkepbl_p(i,k,j) = tke_pbl(k,i)
+                     elpbl_p(i,k,j)  = shoc_mix(k,i)                
                   enddo
                enddo
                enddo

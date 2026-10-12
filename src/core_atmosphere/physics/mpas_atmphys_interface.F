@@ -130,6 +130,9 @@
        if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+    
+    case("bl_shocmf")
+       if(.not.allocated(tke_shmf_p)) allocate(tke_shmf_p(ims:ime,kms:kme,jms:jme))
 
     case default
  end select pbl_select
@@ -215,6 +218,9 @@
        if(allocated(ni_p)) deallocate(ni_p)
        if(allocated(nifa_p)) deallocate(nifa_p)
        if(allocated(nwfa_p)) deallocate(nwfa_p)
+    
+    case("bl_shocmf")
+       if(allocated(tke_shmf_p)) deallocate(tke_shmf_p)
 
     case default
  end select pbl_select
@@ -262,7 +268,7 @@
 !-srf
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
+ integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa,index_tke_shmf
 !-srf
  integer,pointer:: index_cnvcf, index_buoyx
  integer,pointer:: config_gf_cporg, config_gf_pcvol
@@ -275,7 +281,7 @@
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b,rtheta_p,rtheta_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p,u,v,w
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nifa,nwfa
+ real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nifa,nwfa,tke_shmf
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 !-srf
  real(kind=RKIND),dimension(:,:),pointer  :: cnvcf,buoyx
@@ -438,6 +444,18 @@
              enddo
           enddo
        endif
+
+    case("bl_shocmf")
+       call mpas_pool_get_dimension(state,'index_tke_shmf',index_tke_shmf)
+       tke_shmf => scalars(index_tke_shmf,:,:)
+        
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+           tke_shmf_p(i,k,j) = max(0.,tke_shmf(k,i))
+       enddo
+       enddo
+       enddo
 
     case default
  end select pbl_select
