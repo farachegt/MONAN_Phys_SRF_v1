@@ -1651,15 +1651,15 @@
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"
-                             packages="bl_shocmf_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qi" array_group="moist" units="kg kg^{-1}"
                              description="Ice mixing ratio"
-                             packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qs" array_group="moist" units="kg kg^{-1}"
                              description="Snow mixing ratio"
-                             packages="bl_shocmf_in;bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qg" array_group="moist" units="kg kg^{-1}"
                              description="Graupel mixing ratio"
@@ -2102,7 +2102,7 @@
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of water vapor mixing ratio"/>
 
-                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_mynn_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
+                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_shocmf_in;bl_mynn_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of cloud water mixing ratio"/>
 
@@ -2142,8 +2142,9 @@
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of water-friendly aerosol number concentration"/>
 
-			<var name="lbc_tke_shmf" name_in_code="tke_shmf" array_group="pbl" packages="bl_shocmf_in" units="m^{2} s^{-3}"
-                               description="Lateral boundary tendency of Turbulent Kinetic Energy from the SHOCMF PBL scheme"/>
+			          <var name="lbc_tke_shmf" name_in_code="tke_shmf" array_group="pbl" packages="bl_shocmf_in" 
+                              units="m^{2} s^{-3}"
+                              description="Lateral boundary tendency of Turbulent Kinetic Energy from the SHOCMF PBL scheme"/>
                 </var_array>
         </var_struct>
 

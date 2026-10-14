@@ -517,7 +517,7 @@ module module_bl_shocmf
     xlv_in,                 &
     xlf_in,                 &
     karman_in,              &
-    diag &
+    diag                    &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -640,7 +640,7 @@ module module_bl_shocmf
     kms, kme,                 &
     its, ite,                 &
     jts, jte,                 &
-    kts, kte,                 &
+    kts, kte                  &
  )
     ! Driver for the SHOC-MF module
     ! This subroutine is called from the main driver
@@ -889,8 +889,6 @@ module module_bl_shocmf
     else
         shoc_timestep = dt_pbl
     endif
-
-    print *, 'nadv', nadv, 'shoc_timestep', shoc_timestep, 'dt_pbl', dt_pbl
 
     ! If resulting host model time step and SHOC time step do not divide evenly
     ! into each other, have model throw a fit.
@@ -1178,12 +1176,7 @@ module module_bl_shocmf
     enddo
     enddo
     enddo
-!print*,'rqcblten_p',MAXVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqcblten_p(ims:ime, kms:kme-1, jms:jme))
-!print*,'rqvblten_p',MAXVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rqvblten_p(ims:ime, kms:kme-1, jms:jme))
-!print*,'rthblten_p',MAXVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rthblten_p(ims:ime, kms:kme-1, jms:jme))
-!print*,'rublten_p',MAXVAL(rublten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rublten_p(ims:ime, kms:kme-1, jms:jme))
-!print*,'rvblten_p',MAXVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rvblten_p(ims:ime, kms:kme-1, jms:jme))
-!print*,'rtkeblten_p',MAXVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme)), MINVAL(rtkeblten_p(ims:ime, kms:kme-1, jms:jme))
+
     rublten_p(:,kme,:)   = 0.0_RKIND
     rvblten_p(:,kme,:)   = 0.0_RKIND
     rthblten_p(:,kme,:)  = 0.0_RKIND
