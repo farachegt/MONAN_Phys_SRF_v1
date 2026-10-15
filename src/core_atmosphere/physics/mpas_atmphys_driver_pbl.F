@@ -1201,6 +1201,7 @@
  character(len=StrKIND),pointer:: pbl_scheme
  character(len=StrKIND):: errmsg
  integer:: errflg
+ integer,pointer:: bl_shocmf_edmf
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -1215,8 +1216,11 @@
 !      call mpas_log_write('--- end subroutine bl_mynn_init:')
     case("bl_shocmf")
 !      call mpas_log_write('--- enter subroutine shoc_init:')
+      call mpas_pool_get_config(configs,'config_shocmf_edmf',bl_shocmf_edmf)
+      call mpas_log_write('--- config_shocmf_edmf      = $i',intArgs=(/bl_shocmf_edmf/))
+      
       call bl_shocmf_init(ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte,gravity,R_d,R_v,cp,ep_1,xlv, &
-                          xlf,karman,diag)
+                          xlf,karman,diag,bl_shocmf_edmf)
 !      call mpas_log_write('--- end subroutine shoc_init:')
     case default
 

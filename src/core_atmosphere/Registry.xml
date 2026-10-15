@@ -2375,6 +2375,11 @@
                      units="-"
                      description="closure option for shallow convection in Grell-Freitas convection scheme"
                      possible_values="8"/>
+                
+                <nml_option name="config_shocmf_edmf" type="integer" default_value="1" in_defaults="false"
+                     units="-"
+                     description="=1:activate the EDMF option in the SHOCMF PBL scheme (=0 otherwise)"
+                     possible_values="0,1"/>
 
                 <nml_option name="config_mynn_tkeadvect" type="logical" default_value="false" in_defaults="false"
                      units="-"

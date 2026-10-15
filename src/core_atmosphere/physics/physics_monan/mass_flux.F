@@ -9,15 +9,13 @@ module edmf
   use mpas_constants, only: ggr => gravity, & ! gravitational acceleration (m/s**2)
                             rgas, &           ! Dry air gas constant ~ J/K/kg
                             cp                ! specific heat of dry air (J/K/kg)
-!  use spmd_utils,    only: masterproc ! TODO (GTF): discover where to get master process in MONAN project
 
   implicit none
   
   private
   
-  public :: integrate_mf, calc_mf_vertflux, compute_tmpi3
+  public :: edmf_init, integrate_mf, calc_mf_vertflux, compute_tmpi3
   public :: mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
-!  public :: mf_readnl, mf_nup, mf_L0, mf_ent0, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
   
   real(rtype) :: mf_L0   = 50.0_rtype    ! Default in namelist_defaults_cam.xml: 50 m
   real(rtype) :: mf_ent0 = 0.22_rtype    ! Default in namelist_defaults_cam.xml: 0.2
@@ -26,71 +24,21 @@ module edmf
   real(rtype) :: mf_b = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
   real(rtype) :: mf_c = 0.5_rtype       ! Default in namelist_defaults_cam.xml: 0.5
 
-  logical, protected :: do_edmf         = .false. ! .true.
+  logical, protected :: do_edmf         = .false.
   logical, protected :: do_condensation = .true.
-  logical, protected :: do_mf_diag      = .false. ! .true
+  logical, protected :: do_mf_diag      = .false.
   logical, protected :: do_wthv_mf      = .true.
 
 
 contains
-
-  ! TODO: Consider an "edmf_init" routine to initialize physical constants
-
-  ! =============================================================================== !
-  !  Eddy-diffusivity mass-flux routine                                                                               !
-  ! =============================================================================== !
-!   subroutine mf_readnl(nlfile) ! TODO: Reimplement this method to read a MONAN namelist
-!   ! =============================================================================== !
-!   ! MF namelists                                                                    !
-!   ! =============================================================================== !
-!     ! use namelist_utils,  only: find_group_name ! TODO (GTF): Implement find_group_name in MONAN project if necessary to read namelists.
-!     ! use cam_abortutils,  only: endrun
-!     ! TODO (GTF): Get similar to mpiint, mpii8, ... in MONAN project
-!     ! use mpishorthand  ! in spmd_utils.F90: mpiint, mpii8, mpichar, mpilog, mpipk, mpic16, mpir8, mpir4, mpicom, mpimax 
+ 
+  subroutine edmf_init(enable_edmf)
+    logical, intent(in) :: enable_edmf
     
-!     character(len=*), intent(in) :: nlfile  ! filepath for file containing namelist input
-
-!     integer :: iunit, read_status
-
-!     namelist /shoc_mf_nl/ mf_L0, mf_ent0, mf_nup, mf_a, mf_b, mf_c, do_edmf, do_condensation, do_mf_diag, do_wthv_mf
-
-!     !  Read namelist to determine if SHOC history should be called
-!     if (masterproc) then ! TODO (GTF): voltar
-!       iunit = getunit()
-!       open( newunit=iunit, file=trim(nlfile), status='old' )
-
-!       call find_group_name(iunit, 'shoc_mf_nl', status=read_status)
-!       if (read_status == 0) then
-!          read(iunit, nml=shoc_mf_nl, iostat=read_status)
-!          if (read_status /= 0) then
-!           !  call endrun('mf_readnl:  error reading namelist')
-!             stop "mf_readnl:  error reading namelist"
-!          end if
-!       end if
-!       close(iunit) 
-!       !close(unit=iunit)
-!       !call freeunit(iunit)
-!     end if
-
-! #ifdef SPMD
-! ! Broadcast namelist variables
-!       call mpibcast(mf_L0,            1,    mpir8,   0, mpicom)
-!       call mpibcast(mf_ent0,          1,    mpir8,   0, mpicom)
-!       call mpibcast(mf_nup,           1,   mpiint,   0, mpicom)
-!       call mpibcast(mf_a,             1,    mpir8,   0, mpicom)
-!       call mpibcast(mf_b,             1,    mpir8,   0, mpicom)
-!       call mpibcast(mf_c,             1,    mpir8,   0, mpicom)
-!       call mpibcast(do_edmf,          1,   mpilog,   0, mpicom)
-!       call mpibcast(do_condensation,  1,   mpilog,   0, mpicom)  
-!       call mpibcast(do_mf_diag,       1,   mpilog,   0, mpicom)  
-!       call mpibcast(do_wthv_mf,       1,   mpilog,   0, mpicom)  
-! #endif ! TODO (GTF): voltar
-
-!     if ((.not. do_edmf) .and. do_mf_diag ) then
-!       call endrun('shoc_mf_nl: Error - cannot turn on do_mf_diag without also turning on do_edmf')
-!     end if
-    
-!   end subroutine mf_readnl
+    ! If do_edmf is enabled, do_mf_diag must also be enabled
+    do_edmf    = enable_edmf
+    do_mf_diag = enable_edmf
+  end subroutine edmf_init
 
   subroutine integrate_mf(itimestep, shcol, nz, nzi, dt,           & ! input
                  rho_zt_in, rho_zi_in,                             & ! input

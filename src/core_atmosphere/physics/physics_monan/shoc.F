@@ -14,7 +14,7 @@ module shoc
   use mpas_atmphys_constants, only: svpt0
   use mpas_kind_types, only: rtype=>RKIND
   use edmf, only: integrate_mf, calc_mf_vertflux, compute_tmpi3, &
-                  do_edmf, do_condensation, do_mf_diag, &
+                  edmf_init, do_edmf, do_condensation, do_mf_diag, &
                   do_wthv_mf, mf_nup
  use, intrinsic :: ieee_arithmetic
 
@@ -189,7 +189,7 @@ real function MurphyKoop_svp(t, i_type)
 subroutine shoc_init( &
          nlev, gravit, rair, rh2o, cpair, &
          zvir, latvap, latice, karman, &
-         pref_mid, nbot_shoc, ntop_shoc, &
+         pref_mid, nbot_shoc, ntop_shoc, enable_edmf, &
          thl2tune_in, qw2tune_in, qwthl2tune_in, &
          w2tune_in, length_fac_in, c_diag_3rd_mom_in, &
          lambda_low_in, lambda_high_in, lambda_slope_in, &
@@ -216,6 +216,8 @@ subroutine shoc_init( &
 
   integer, intent(in)   :: nbot_shoc ! Bottom level to which SHOC is applied
   integer, intent(in)   :: ntop_shoc ! Top level to which SHOC is applied
+
+  logical, intent(in)   :: enable_edmf ! Logical to enable EDMF in SHOC (becoming SHOCMF)
 
   ! Tunable parameter factors, all unitless
   real(rtype), intent(in), optional :: thl2tune_in ! temperature variance tuning factor
@@ -245,7 +247,7 @@ subroutine shoc_init( &
   vk = karman    ! [-]
 
   ! Tunable parameters, all unitless
-  !  override default values if value is present
+  ! override default values if value is present
   if (present(thl2tune_in)) thl2tune = thl2tune_in
   if (present(qw2tune_in)) qw2tune = qw2tune_in
   if (present(qwthl2tune_in)) qwthl2tune = qwthl2tune_in
@@ -271,6 +273,8 @@ subroutine shoc_init( &
       end if
    end do
    npbl = max(npbl,1)
+
+   call edmf_init(enable_edmf)
 
    return
 
@@ -571,11 +575,11 @@ subroutine shoc_main ( &
 
   real(rtype) :: thv_zi(shcol,nlevi)
 
- ! if (.not. do_edmf .and. .not. do_mf_diag) then
- !   print*, 'SHOCMF: MASS FLUX DISABLED'
- ! else if (do_edmf .and. do_mf_diag) then
- !   print*, 'SHOCMF: MASS FLUX ENABLED'
- ! endif
+ if (.not. do_edmf .and. .not. do_mf_diag) then
+   print*, 'SHOCMF: MASS FLUX DISABLED'
+ else if (do_edmf .and. do_mf_diag) then
+   print*, 'SHOCMF: MASS FLUX ENABLED'
+ endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an

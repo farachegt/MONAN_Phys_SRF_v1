@@ -517,16 +517,19 @@ module module_bl_shocmf
     xlv_in,                 &
     xlf_in,                 &
     karman_in,              &
-    diag                    &
+    diag,                   &
+    bl_shocmf_edmf          &
  )
     ! Initialize the SHOC-MF module
     ! This subroutine is called from the main driver
-    integer, intent(in) :: ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte
+    integer, intent(in)              :: ims,ime,kms,kme,jms,jme,its,ite,kts,kte,jts,jte
+    real(RKIND), intent(in)          :: gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in,&
+                                        xlf_in, karman_in
     type(mpas_pool_type), intent(in) :: diag
-    real(RKIND), intent(in) :: gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, &
-                               karman_in
+    integer, intent(in)              :: bl_shocmf_edmf
 
-    integer:: ntop_shoc, nbot_shoc
+    logical :: enable_edmf       
+    integer :: ntop_shoc, nbot_shoc
     real(RKIND), dimension(:), allocatable :: presref_mid
     allocate(presref_mid(kms:kme))
 
@@ -535,8 +538,14 @@ module module_bl_shocmf
     ntop_shoc = kte
     nbot_shoc = 1
 
+    if (bl_shocmf_edmf == 1) then
+        enable_edmf = .true.
+    else
+        enable_edmf = .false.
+    endif
+
     call shoc_init(kte, gravity_in, Rd_in, Rv_in, cp_in, ep_1_in, xlv_in, xlf_in, karman_in, &
-                   presref_mid, nbot_shoc, ntop_shoc)
+                   presref_mid, nbot_shoc, ntop_shoc, enable_edmf)
 
     deallocate(presref_mid)
  end subroutine bl_shocmf_init
