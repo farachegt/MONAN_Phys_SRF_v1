@@ -3204,15 +3204,15 @@
 
                 <var name="i_achfx" type="integer" dimensions="nCells Time" units="unitless"
                      description="incidence of absolute heat flux at the surface greater than config_bucket_sflx"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="i_acqfx" type="integer" dimensions="nCells Time" units="unitless"
                      description="incidence of absolute moisture flux at the surface greater than config_bucket_sflx"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="i_aclh" type="integer" dimensions="nCells Time" units="unitless"
                      description="incidence of absolute latent heat flux at the surface greater than config_bucket_sflx"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="hfx" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="upward heat flux at the surface"
@@ -3332,15 +3332,15 @@
 
                 <var name="achfx" type="real" dimensions="nCells Time" units="J m^{-2}"
                      description="accumulated upward heat flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="acqfx" type="real" dimensions="nCells Time" units="kg m^{-2}"
                      description="accumulated upward moisture flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
                 <var name="aclh" type="real" dimensions="nCells Time" units="J m^{-2}"
                      description="accumulated latent heat flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_shocmf_in;bl_mynn_in;bl_ysu_in"/>
 
 
                 <!-- ... MONIN-OBUKHOV (SFCLAY): -->
