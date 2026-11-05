@@ -1105,6 +1105,8 @@
        call mpas_pool_get_array(diag_physics, 'wqw_sec_ed'       ,wqw_sec_ed     )
        call mpas_pool_get_array(diag_physics, 'wqw_sec_mf'       ,wqw_sec_mf     )
        call mpas_pool_get_array(diag_physics, 'cldfrac_bl'       ,cldfrac_bl     )
+       call mpas_pool_get_array(diag_physics, 'qc_bl'            ,qc_bl          )
+       call mpas_pool_get_array(diag_physics, 'qi_bl'            ,qi_bl          )
        call mpas_pool_get_array(diag_physics, 'dse'              ,dse            )
 
        call mpas_pool_get_array(tend_physics, 'rtkeblten'        ,rtkeblten      )
@@ -1176,6 +1178,8 @@
           wqw_sec_ed(k,i)      = wqw_sec_ed_p(i,k,j)
           wqw_sec_mf(k,i)      = wqw_sec_mf_p(i,k,j)
           cldfrac_bl(k,i)      = cldfrabl_p(i,k,j)
+          qc_bl(k,i)           = qc_p(i,k,j)
+          qi_bl(k,i)           = 0.0_RKIND ! SHOCMF does not have ice, so set to zero
           dse(k,i)             = dse_p(i,k,j)
 
           rtkeblten(k,i)       = rtkeblten_p(i,k,j)

@@ -56,7 +56,9 @@
 ! * this is a bug fix. dx_p is converted from meters to kilometers prior to calling the thompson parameterization
 !   of the cloud fraction.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-03-23.
-
+!
+! * coupling with boundary layer (MYNN, SHOCMF) clouds.
+!   Saulo Freitas / 23-Jul-2026
 
  contains
 
@@ -122,6 +124,8 @@
  real(kind=RKIND),dimension(:,:),pointer:: rupmfxcu
  character(len=StrKIND),pointer:: radt_cld_scheme
  character(len=StrKIND),pointer:: config_convection_scheme
+ character(len=StrKIND),pointer:: pbl_scheme
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -152,6 +156,24 @@
     enddo
     enddo
  enddo
+
+ call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ if (trim(pbl_scheme) == "bl_mynn" .or. &
+     trim(pbl_scheme) == "bl_shocmf") then
+   call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
+   call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
+   call mpas_pool_get_array(diag_physics,'qi_bl'     ,qi_bl     )
+   do j = jts,jte
+   do k = kts,kte
+   do i = its,ite
+     qcrad_p(i,k,j) = qcrad_p(i,k,j) +             qc_bl(k,i) * cldfrac_bl(k,i)
+     qirad_p(i,k,j) = qirad_p(i,k,j) + 0.5_RKIND * qi_bl(k,i) * cldfrac_bl(k,i)
+     qsrad_p(i,k,j) = qsrad_p(i,k,j) + 0.5_RKIND * qi_bl(k,i) * cldfrac_bl(k,i)
+   enddo
+   enddo
+   enddo
+ case default
+ endif
 
  call mpas_pool_get_config(configs,'config_radt_cld_scheme',radt_cld_scheme)
  cld_fraction_select: select case (trim(radt_cld_scheme))
