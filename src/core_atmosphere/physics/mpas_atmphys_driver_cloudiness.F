@@ -172,7 +172,6 @@
    enddo
    enddo
    enddo
- case default
  endif
 
  call mpas_pool_get_config(configs,'config_radt_cld_scheme',radt_cld_scheme)
